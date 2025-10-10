@@ -166,20 +166,29 @@ python referral_automotion.py --company "Google" --role "Software Engineer"
 ```
 jobsearch/
 ├── .github/
-│   └── workflows/
-│       ├── job_search_workflow.yml
-│       ├── cv_job_matcher.yml
-│       ├── job_matcher_emails.yml
-│       ├── linkedin_automotion.yml
-│       └── glassdor_automotion.yml
+│   ├── workflows/
+│   │   ├── job_search_workflow.yml
+│   │   ├── cv_job_matcher.yml
+│   │   ├── job_matcher_emails.yml
+│   │   ├── linkedin_automotion.yml
+│   │   └── glassdor_automotion.yml
+│   └── scripts/                    # GitHub Actions helper scripts
 ├── job_search/
 │   ├── glassdoor_companies.json
 │   ├── glassdoor_salaries.json
 │   ├── glassdoor_interviews.json
 │   ├── applications_tracker.json
 │   └── exports/
-├── Core Scripts/
+├── Core Automation Scripts (root directory)
+│   ├── linkedin_automotion.py
+│   ├── glassdoor_automotion.py
+│   ├── enhanced_glassdoor_automotion.py
+│   ├── job_matcher.py
+│   ├── resume_optimizer.py
+│   └── ... (all other .py files)
 ├── requirements.txt
+├── .env.example
+├── .gitignore
 └── README.md
 ```
 
