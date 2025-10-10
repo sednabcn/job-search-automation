@@ -1,0 +1,34 @@
+# Environment variables and credentials
+.env
+*.env
+*credentials*
+*password*
+
+# Personal documents
+*.pdf
+*.docx
+*.doc
+*resume*
+*cv*
+*CV*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+
+# Backup files
+*.bak
+*~
+*.swp
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
