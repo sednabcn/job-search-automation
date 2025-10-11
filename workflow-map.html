@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Search Workflow Orchestration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 2rem;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            color: #1e40af;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header p {
+            color: #6b7280;
+            font-size: 1.1rem;
+        }
+        
+        .master-orchestrator {
+            background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 15px rgba(0,0,0,0.2);
+        }
+        
+        .master-orchestrator h2 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+        
+        .master-info {
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-top: 1rem;
+        }
+        
+        .master-info code {
+            font-size: 1.2rem;
+            font-weight: bold;
+            display: block;
+            margin-bottom: 1rem;
+        }
+        
+        .workflow-card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-left: 4px solid #2563eb;
+        }
+        
+        .workflow-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 1.5rem;
+        }
+        
+        .workflow-number {
+            background: #2563eb;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin-right: 1rem;
+        }
+        
+        .workflow-title {
+            flex: 1;
+        }
+        
+        .workflow-title h3 {
+            font-size: 1.5rem;
+            color: #111827;
+            margin-bottom: 0.5rem;
+        }
+        
+        .workflow-title p {
+            color: #6b7280;
+        }
+        
+        .badge {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+        
+        .badge-automated {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .badge-triggered {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .info-box {
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        
+        .info-box h4 {
+            margin-bottom: 0.75rem;
+            font-size: 1.1rem;
+        }
+        
+        .info-box ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .info-box li {
+            padding: 0.5rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+        
+        .info-box li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #10b981;
+            font-weight: bold;
+        }
+        
+        .schedule-box {
+            background: #eff6ff;
+            border: 1px solid #93c5fd;
+        }
+        
+        .schedule-box code {
+            background: #dbeafe;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        
+        .stages-box {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .trigger-box {
+            background: #eef2ff;
+            border: 2px solid #a5b4fc;
+        }
+        
+        .trigger-box code {
+            background: #e0e7ff;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        
+        .arrow {
+            text-align: center;
+            margin: 2rem 0;
+        }
+        
+        .arrow-icon {
+            background: #4f46e5;
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+        }
+        
+        .summary-box {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+        
+        .summary-box h3 {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+        
+        .summary-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 1.5rem;
+        }
+        
+        .summary-card h4 {
+            margin-bottom: 1rem;
+        }
+        
+        .summary-card ul {
+            list-style: none;
+        }
+        
+        .summary-card li {
+            padding: 0.25rem 0;
+            font-size: 0.95rem;
+        }
+        
+        .action-box {
+            background: #fef3c7;
+            border: 2px solid #fbbf24;
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+        
+        .action-box h3 {
+            color: #92400e;
+            margin-bottom: 1rem;
+        }
+        
+        .action-box code {
+            display: block;
+            background: #fef9c3;
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 0.5rem 0;
+            font-size: 0.9rem;
+        }
+        
+        .commands-box {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-top: 2rem;
+        }
+        
+        .commands-box h3 {
+            color: #111827;
+            margin-bottom: 1.5rem;
+        }
+        
+        .command-item {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .command-item p {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .command-item code {
+            display: block;
+            background: #1f2937;
+            color: #10b981;
+            padding: 0.75rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            overflow-x: auto;
+        }
+        
+        .trigger-methods {
+            background: #eef2ff;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        
+        .trigger-method {
+            margin: 0.75rem 0;
+            padding-left: 2rem;
+            position: relative;
+        }
+        
+        .trigger-method strong {
+            display: block;
+            color: #4f46e5;
+            margin-bottom: 0.25rem;
+        }
+        
+        .trigger-method code {
+            background: #e0e7ff;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+            
+            .header h1 {
+                font-size: 1.8rem;
+            }
+            
+            .master-orchestrator h2 {
+                font-size: 1.5rem;
+            }
+            
+            .workflow-header {
+                flex-direction: column;
+            }
+            
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔄 Complete Workflow Orchestration</h1>
+            <p>End-to-End Job Search Automation System</p>
+        </div>
+
+        <!-- Master Orchestrator -->
+        <div class="master-orchestrator">
+            <h2>🎯 MASTER ORCHESTRATOR (BOSS)</h2>
+            <p>The ONE workflow that runs everything</p>
+            <div class="master-info">
+                <code>job-manager-center-platform.yml</code>
+                <div style="margin-top: 1rem;">
+                    <div>⏰ Runs Daily at 6 AM UTC</div>
+                    <div>🔄 Triggers child workflow automatically</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Workflow 1: BOSS -->
+        <div class="workflow-card">
+            <div class="workflow-header">
+                <div style="display: flex; align-items: start; flex: 1;">
+                    <span class="workflow-number">1</span>
+                    <div class="workflow-title">
+                        <h3>job-manager-center-platform.yml</h3>
+                        <p>Primary Orchestrator - Runs the entire pipeline</p>
+                    </div>
+                </div>
+                <span class="badge badge-automated">AUTOMATED</span>
+            </div>
+
+            <div class="info-box schedule-box">
+                <h4>📅 Schedule:</h4>
+                <code>cron: '0 6 * * *'</code>
+                <p style="margin-top: 0.5rem; color: #1e40af;">Daily at 6 AM UTC</p>
+            </div>
+
+            <div class="info-box stages-box">
+                <h4>🔄 Pipeline Stages:</h4>
+                <ul>
+                    <li>Stage 1: Validate & Prepare</li>
+                    <li>Stage 2: Discover Jobs (LinkedIn, Glassdoor, Reed, Indeed)</li>
+                    <li>Stage 3: Extract Keywords</li>
+                    <li>Stage 4: Update job-manager-config.yml</li>
+                    <li>Stage 5: Trigger Multi-Platform Discovery</li>
+                </ul>
+            </div>
+
+            <div class="info-box trigger-box">
+                <h4>🚀 Triggers Next Workflow:</h4>
+                <code>job-discovery-worker.yml</code>
+                <p style="margin-top: 0.5rem; color: #4f46e5;">Automatically passes extracted keywords and configuration</p>
+            </div>
+        </div>
+
+        <!-- Arrow -->
+        <div class="arrow">
+            <div class="arrow-icon">▼</div>
+        </div>
+
+        <!-- Workflow 2: WORKER -->
+        <div class="workflow-card" style="border-left-color: #4f46e5;">
+            <div class="workflow-header">
+                <div style="display: flex; align-items: start; flex: 1;">
+                    <span class="workflow-number" style="background: #4f46e5;">2</span>
+                    <div class="workflow-title">
+                        <h3>job-discovery-worker.yml</h3>
+                        <p>Secondary Worker - Executes job discovery, matching & application</p>
+                    </div>
+                </div>
+                <span class="badge badge-triggered">AUTO-TRIGGERED</span>
+            </div>
+
+            <div class="trigger-methods">
+                <h4 style="color: #4f46e5; margin-bottom: 1rem;">📅 Trigger Methods:</h4>
+                
+                <div class="trigger-method">
+                    <strong>1. Via workflow_run (Automatic)</strong>
+                    <code>Triggered by job-manager-center-platform.yml</code>
+                </div>
+                
+                <div class="trigger-method">
+                    <strong>2. Via schedule (Independent)</strong>
+                    <code>cron: '0 8,20 * * *' (8 AM & 8 PM UTC)</code>
+                </div>
+                
+                <div class="trigger-method">
+                    <strong>3. Via workflow_dispatch (Manual)</strong>
+                    <code>gh workflow run ...</code>
+                </div>
+            </div>
+
+            <div class="info-box stages-box">
+                <h4>🔄 Pipeline Stages:</h4>
+                <ul>
+                    <li>Stage 1: System Initialization</li>
+                    <li>Stage 2: Multi-Platform Job Discovery</li>
+                    <li>Stage 3: Job Matching & Scoring</li>
+                    <li>Stage 4: CV Optimization</li>
+                    <li>Stage 5: Application Submission (optional)</li>
+                    <li>Stage 6: Networking Activities</li>
+                    <li>Stage 7: Reporting & Analytics</li>
+                    <li>Stage 8: Maintenance & Cleanup</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="summary-box">
+            <h3>✅ Complete Automation Summary</h3>
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <h4>Daily Automatic Execution:</h4>
+                    <ul>
+                        <li>• 6:00 AM UTC - Keyword extraction starts</li>
+                        <li>• 6:30 AM UTC - Discovery triggered automatically</li>
+                        <li>• 8:00 AM UTC - Independent discovery check</li>
+                        <li>• 8:00 PM UTC - Evening discovery run</li>
+                    </ul>
+                </div>
+                <div class="summary-card">
+                    <h4>What Gets Automated:</h4>
+                    <ul>
+                        <li>✅ Job discovery (4 platforms)</li>
+                        <li>✅ Keyword extraction</li>
+                        <li>✅ Config updates</li>
+                        <li>✅ Job matching</li>
+                        <li>✅ CV optimization</li>
+                        <li>✅ Application tracking</li>
+                        <li>✅ Analytics & reporting</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Required -->
+        <div class="action-box">
+            <h3>⚠️ Action Required:</h3>
+            
+            <p style="font-weight: 600; margin-top: 1rem;">1. Rename workflows:</p>
+            <code>git mv .github/workflows/auto-extract-keywords-config.yml .github/workflows/job-manager-center-platform.yml</code>
+            <code>git mv .github/workflows/job-manager-center-multiplatform.yml .github/workflows/job-discovery-worker.yml</code>
+            
+            <p style="font-weight: 600; margin-top: 1rem;">2. Update trigger references in BOSS workflow</p>
+            <p style="margin-left: 1rem; color: #92400e;">Change: job-manager-center-multiplatform.yml → job-discovery-worker.yml</p>
+            
+            <p style="font-weight: 600; margin-top: 1rem;">3. Delete old workflow:</p>
+            <code>rm .github/workflows/job-manager-center.yml</code>
+            
+            <p style="font-weight: 600; margin-top: 1rem;">4. Commit changes:</p>
+            <code>git add .github/workflows/</code>
+            <code>git commit -m "Rename workflows: BOSS and WORKER"</code>
+            <code>git push</code>
+        </div>
+
+        <!-- Quick Commands -->
+        <div class="commands-box">
+            <h3>🚀 Quick Commands</h3>
+            
+            <div class="command-item">
+                <p>Trigger full automation manually:</p>
+                <code>gh workflow run job-manager-center-platform.yml</code>
+            </div>
+            
+            <div class="command-item">
+                <p>Check if automation is running:</p>
+                <code>gh run list --workflow=job-manager-center-platform.yml</code>
+            </div>
+            
+            <div class="command-item">
+                <p>View latest results:</p>
+                <code>gh run view $(gh run list --limit 1 --json databaseId -q '.[0].databaseId')</code>
+            </div>
+            
+            <div class="command-item">
+                <p>Trigger WORKER directly:</p>
+                <code>gh workflow run job-discovery-worker.yml -f mode=full -f auto_apply=false</code>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

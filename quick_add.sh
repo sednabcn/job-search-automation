@@ -237,9 +237,9 @@ main() {
     print_color $BLUE "═══════════════════════════════════════\n"
     
     # Check if json_updater.py exists
-    if [ ! -f "${SCRIPT_DIR}/job_search_system/json_updater.py" ]; then
+    if [ ! -f "${SCRIPT_DIR}/job_search/json_updater.py" ]; then
         print_color $RED "❌ Error: json_updater.py not found!"
-        echo "   Expected location: ${SCRIPT_DIR}/job_search_system/json_updater.py"
+        echo "   Expected location: ${SCRIPT_DIR}/job_search/json_updater.py"
         exit 1
     fi
     

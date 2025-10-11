@@ -1,0 +1,537 @@
+name: Job Search Manager Center - Multi-Platform
+# Integrated with job-manager-center-multiplatform.yml
+
+on:
+  schedule:
+    # Run daily at 6 AM UTC
+    - cron: '0 6 * * *'
+  
+  workflow_dispatch:
+    inputs:
+      job_positions:
+        description: 'Job positions (comma-separated)'
+        required: true
+        default: 'Senior Software Engineer,Staff Engineer,Tech Lead,Engineering Manager'
+        type: string
+      
+      update_config:
+        description: 'Auto-update job-manager-config.yml'
+        required: true
+        default: true
+        type: boolean
+      
+      trigger_discovery:
+        description: 'Trigger job discovery after config update'
+        required: true
+        default: true
+        type: boolean
+      
+      skip_boards:
+        description: 'Skip specific boards (comma-separated)'
+        required: false
+        default: ''
+        type: string
+
+env:
+  PYTHON_VERSION: '3.10'
+  TIMEZONE: 'Europe/London'
+  REPORTS_DIR: './reports'
+  LOGS_DIR: './logs'
+
+jobs:
+  # ========================================
+  # STAGE 1: VALIDATE & PREPARE
+  # ========================================
+  prepare:
+    name: Prepare Extraction Environment
+    runs-on: ubuntu-latest
+    outputs:
+      job_positions: ${{ steps.parse.outputs.job_positions }}
+      boards_to_process: ${{ steps.parse.outputs.boards }}
+      run_id: ${{ steps.setup.outputs.run_id }}
+      timestamp: ${{ steps.setup.outputs.timestamp }}
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Parse and Validate Inputs
+        id: parse
+        run: |
+          # Parse job positions
+          POSITIONS="${{ github.event.inputs.job_positions }}"
+          if [ -z "$POSITIONS" ]; then
+            POSITIONS="Senior Software Engineer,Staff Engineer,Tech Lead,Engineering Manager"
+          fi
+          
+          # Convert to JSON array for Python
+          POSITIONS_JSON=$(echo "$POSITIONS" | python3 << 'EOF'
+          import sys
+          import json
+          positions = sys.stdin.read().strip().split(',')
+          positions = [p.strip() for p in positions if p.strip()]
+          print(json.dumps(positions))
+          EOF
+          )
+          
+          echo "job_positions=$POSITIONS_JSON" >> $GITHUB_OUTPUT
+          
+          # Determine boards to process
+          SKIP_BOARDS="${{ github.event.inputs.skip_boards }}"
+          BOARDS="linkedin,glassdoor,reed,indeed"
+          
+          if [ -n "$SKIP_BOARDS" ]; then
+            BOARDS=$(python3 << EOF
+skip_boards = "$SKIP_BOARDS".split(',')
+skip_boards = [b.strip().lower() for b in skip_boards if b.strip()]
+all_boards = ["linkedin", "glassdoor", "reed", "indeed"]
+boards = [b for b in all_boards if b not in skip_boards]
+print(",".join(boards))
+EOF
+          )
+          fi
+          
+          echo "boards=$BOARDS" >> $GITHUB_OUTPUT
+          
+          echo "ℹ️ Positions to analyze: $POSITIONS"
+          echo "ℹ️ Boards to process: $BOARDS"
+      
+      - name: Initialize Run Context
+        id: setup
+        run: |
+          RUN_ID="keyword-extract-$(date +%Y%m%d-%H%M%S)"
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          
+          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+          echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
+          
+          echo "🚀 Starting Unified Keyword Extraction"
+          echo "Run ID: $RUN_ID"
+          echo "Timestamp: $TIMESTAMP"
+      
+      - name: Setup Python Environment
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyyaml beautifulsoup4 requests
+
+  # ========================================
+  # STAGE 2: DISCOVER JOBS FROM ALL BOARDS
+  # ========================================
+  discover-all-boards:
+    name: Discover Jobs - ${{ matrix.board }}
+    runs-on: ubuntu-latest
+    needs: prepare
+    strategy:
+      matrix:
+        board: [linkedin, glassdoor, reed, indeed]
+      fail-fast: false
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: Check if Board Enabled
+        id: check_board
+        run: |
+          BOARDS_TO_PROCESS="${{ needs.prepare.outputs.boards_to_process }}"
+          if [[ "$BOARDS_TO_PROCESS" == *"${{ matrix.board }}"* ]]; then
+            echo "enabled=true" >> $GITHUB_OUTPUT
+            echo "✅ Board ${{ matrix.board }} is enabled"
+          else
+            echo "enabled=false" >> $GITHUB_OUTPUT
+            echo "⭐ Skipping ${{ matrix.board }}"
+          fi
+      
+      - name: Setup Python
+        if: steps.check_board.outputs.enabled == 'true'
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install Dependencies
+        if: steps.check_board.outputs.enabled == 'true'
+        run: |
+          pip install -r requirements.txt
+          pip install beautifulsoup4 requests lxml
+
+      - name: Discover Jobs from ${{ matrix.board }}
+        if: steps.check_board.outputs.enabled == 'true'
+        run: |
+          echo "🔍 Discovering jobs on ${{ matrix.board }}..."
+          
+          case "${{ matrix.board }}" in
+            linkedin)
+              python linkedin_automotion.py \
+                --mode discover \
+                --output linkedin_jobs.json \
+                --headless
+              ;;
+            glassdoor)
+              python enhanced_glassdoor_automotion.py \
+                --scrape \
+                --output glassdoor_jobs.json
+              ;;
+            reed)
+              if [ -n "${{ secrets.REED_API_KEY }}" ]; then
+                python reed_scraper.py \
+                  --api \
+                  --api-key "${{ secrets.REED_API_KEY }}" \
+                  --output reed_jobs.json
+              else
+                python reed_scraper.py \
+                  --scrape \
+                  --output reed_jobs.json
+              fi
+              ;;
+            indeed)
+              python indeed_scraper.py \
+                --search \
+                --output indeed_jobs.json \
+                --headless
+              ;;
+          esac
+        env:
+          LINKEDIN_EMAIL: ${{ secrets.LINKEDIN_EMAIL }}
+          LINKEDIN_PASSWORD: ${{ secrets.LINKEDIN_PASSWORD }}
+          GLASSDOOR_EMAIL: ${{ secrets.GLASSDOOR_EMAIL }}
+          GLASSDOOR_PASSWORD: ${{ secrets.GLASSDOOR_PASSWORD }}
+          REED_API_KEY: ${{ secrets.REED_API_KEY }}
+      
+      - name: Upload Discovered Jobs
+        if: steps.check_board.outputs.enabled == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: discovered-jobs-${{ matrix.board }}
+          path: ${{ matrix.board }}_jobs.json
+          retention-days: 7
+
+  # ========================================
+  # STAGE 3: EXTRACT KEYWORDS FROM ALL BOARDS
+  # ========================================
+  extract-keywords:
+    name: Extract Keywords & Update Config
+    runs-on: ubuntu-latest
+    needs: [prepare, discover-all-boards]
+    if: always() && needs.discover-all-boards.result != 'failure'
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyyaml beautifulsoup4 requests
+
+      - name: Download All Job Board Files
+        uses: actions/download-artifact@v4
+        with:
+          pattern: discovered-jobs-*
+          merge-multiple: true
+
+      - name: Extract Keywords with unified_keyword_extractor.py
+        id: extraction
+        run: |
+          python3 << 'EOF'
+          import subprocess
+          import json
+          import sys
+          from pathlib import Path
+          
+          # Parse job positions
+          positions_json = '${{ needs.prepare.outputs.job_positions }}'
+          positions = json.loads(positions_json)
+          positions_args = ' '.join([f'"{p}"' for p in positions])
+          
+          # Build command
+          cmd = [
+              'python', 'unified_keyword_extractor.py',
+              '--positions'] + positions + [
+              '--output-config', 'job-manager-config.yml',
+              '--output-report', 'keyword_analysis_report.json',
+              '--report',
+              '--create-tasks',
+              '--github-output'
+          ]
+          
+          # Add board files if they exist
+          boards = ['linkedin', 'glassdoor', 'reed', 'indeed']
+          for board in boards:
+              filepath = Path(f'{board}_jobs.json')
+              if filepath.exists():
+                  cmd.extend([f'--{board}', str(filepath)])
+          
+          print(f"Running: {' '.join(cmd)}")
+          result = subprocess.run(cmd, capture_output=False)
+          sys.exit(result.returncode)
+          EOF
+      
+      - name: Parse Extraction Results
+        id: results
+        run: |
+          if [ -f keyword_analysis_report.json ]; then
+            echo "✅ Analysis report generated"
+            
+            # Extract key metrics
+            TOTAL_MATCHES=$(python3 -c "import json; data = json.load(open('keyword_analysis_report.json')); matches = sum(data['board_stats'][k]['matching_jobs'] for k in data['board_stats'].keys()); print(matches)")
+            echo "total_matches=$TOTAL_MATCHES" >> $GITHUB_OUTPUT
+            
+            # Extract required keywords
+            KEYWORDS=$(python3 -c "import json; data = json.load(open('keyword_analysis_report.json')); print(','.join(data.get('keyword_analysis', {}).get('languages', {}).get('top_keywords', [])[:5]))")
+            echo "top_keywords=$KEYWORDS" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Backup Previous Config
+        run: |
+          if [ -f job-manager-config.yml ]; then
+            TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+            mkdir -p config_backups
+            cp job-manager-config.yml "config_backups/job-manager-config-backup-$TIMESTAMP.yml"
+            echo "ℹ️ Previous config backed up"
+          fi
+
+      - name: Validate Updated Config
+        run: |
+          python3 << 'EOF'
+          import yaml
+          import sys
+          
+          try:
+              with open('job-manager-config.yml', 'r') as f:
+                  config = yaml.safe_load(f)
+              
+              # Validate required sections
+              required = ['search', 'matching', 'generated_at', 'metadata']
+              missing = [s for s in required if s not in config]
+              
+              if missing:
+                  print(f"❌ Missing sections: {missing}")
+                  sys.exit(1)
+              
+              # Validate search section
+              search = config.get('search', {})
+              if not search.get('required_keywords'):
+                  print("❌ No required keywords found")
+                  sys.exit(1)
+              
+              print(f"✅ Config validation passed")
+              print(f"   Target roles: {len(search.get('target_roles', []))}")
+              print(f"   Required keywords: {len(search.get('required_keywords', []))}")
+              print(f"   Preferred keywords: {len(search.get('preferred_keywords', []))}")
+              print(f"   Locations: {len(search.get('locations', []))}")
+              
+          except Exception as e:
+              print(f"❌ Config validation failed: {e}")
+              sys.exit(1)
+          EOF
+
+      - name: Generate Summary Report
+        run: |
+          python3 << 'EOF'
+          import json
+          import yaml
+          from pathlib import Path
+          from datetime import datetime
+          
+          print("\n" + "="*80)
+          print("KEYWORD EXTRACTION SUMMARY")
+          print("="*80)
+          
+          # Load and display report
+          if Path('keyword_analysis_report.json').exists():
+              with open('keyword_analysis_report.json', 'r') as f:
+                  report = json.load(f)
+              
+              print("\n📊 ANALYSIS OVERVIEW:")
+              print(f"Positions Analyzed: {', '.join(report.get('positions_analyzed', []))}")
+              print(f"Report Generated: {report.get('timestamp', 'N/A')}")
+              
+              print("\n📈 BOARD STATISTICS:")
+              for board, stats in report.get('board_stats', {}).items():
+                  print(f"  {board.upper()}:")
+                  print(f"    Total Jobs: {stats.get('total_jobs', 0)}")
+                  print(f"    Matching Jobs: {stats.get('matching_jobs', 0)}")
+                  print(f"    Unique Companies: {stats.get('unique_companies', 0)}")
+                  print(f"    Salary Coverage: {stats.get('salary_coverage', 'N/A')}")
+              
+              print("\n💰 SALARY STATISTICS:")
+              salary = report.get('salary_stats', {})
+              print(f"  Minimum: £{salary.get('minimum', 0):,.0f}/{salary.get('period', 'year')}")
+              print(f"  Maximum: £{salary.get('maximum', 0):,.0f}/{salary.get('period', 'year')}")
+              print(f"  Currency: {salary.get('currency', 'GBP')}")
+              
+              print("\n🏙️ TOP LOCATIONS:")
+              for i, loc in enumerate(report.get('top_locations', [])[:5], 1):
+                  print(f"  {i}. {loc}")
+              
+              print("\n🏢 TOP COMPANIES:")
+              for i, company in enumerate(report.get('top_companies', [])[:10], 1):
+                  print(f"  {i}. {company}")
+              
+              print("\n🔑 TOP KEYWORDS BY CATEGORY:")
+              for category, data in report.get('keyword_analysis', {}).items():
+                  keywords = data.get('top_keywords', [])[:8]
+                  if keywords:
+                      print(f"  {category.upper()}:")
+                      print(f"    {', '.join(keywords)}")
+              
+              print("\n" + "="*80)
+          EOF
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: keyword-extraction-results
+          path: |
+            job-manager-config.yml
+            keyword_analysis_report.json
+            job_tasks.json
+          retention-days: 30
+
+      - name: Commit Updated Config
+        if: ${{ github.event.inputs.update_config == 'true' || github.event_name == 'schedule' }}
+        run: |
+          git config user.name "🤖 Job Search Bot"
+          git config user.email "bot@jobsearch.local"
+          
+          git add job-manager-config.yml
+          git add keyword_analysis_report.json 2>/dev/null || true
+          
+          if git diff-index --quiet HEAD --; then
+            echo "ℹ️ No changes to commit"
+          else
+            git commit -m "🤖 Auto-updated config with extracted keywords
+
+- Run ID: ${{ needs.prepare.outputs.run_id }}
+- Timestamp: ${{ needs.prepare.outputs.timestamp }}
+- Positions: ${{ needs.prepare.outputs.job_positions }}
+- Total Matches: ${{ steps.results.outputs.total_matches }}
+- Top Keywords: ${{ steps.results.outputs.top_keywords }}"
+            
+            git push origin HEAD
+            echo "✅ Config committed and pushed"
+          fi
+
+  # ========================================
+  # STAGE 4: TRIGGER MULTIPLATFORM DISCOVERY
+  # ========================================
+  trigger-discovery:
+    name: Trigger Multi-Platform Discovery
+    runs-on: ubuntu-latest
+    needs: [prepare, extract-keywords]
+    if: |
+      ${{ github.event.inputs.trigger_discovery == 'true' || 
+          github.event_name == 'schedule' }} &&
+      needs.extract-keywords.result == 'success'
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: Trigger job-manager-center-multiplatform.yml
+        run: |
+          echo "🚀 Triggering multi-platform job discovery workflow..."
+          
+          # Use GitHub CLI to trigger workflow
+          gh workflow run ob-discovery-worker.yml \
+            -f mode=full \
+            -f job_boards=all \
+            -f match_threshold=75 \
+            -f auto_apply=false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ========================================
+  # STAGE 5: FINAL NOTIFICATIONS
+  # ========================================
+  finalize:
+    name: Notify Completion
+    runs-on: ubuntu-latest
+    needs: [prepare, extract-keywords, trigger-discovery]
+    if: always()
+    
+    steps:
+      - name: Pipeline Status
+        run: |
+          echo "✅ KEYWORD EXTRACTION PIPELINE COMPLETE"
+          echo ""
+          echo "Run Details:"
+          echo "  Run ID: ${{ needs.prepare.outputs.run_id }}"
+          echo "  Timestamp: ${{ needs.prepare.outputs.timestamp }}"
+          echo "  Job Positions: ${{ needs.prepare.outputs.job_positions }}"
+          echo ""
+          echo "Stage Results:"
+          echo "  Preparation: ${{ needs.prepare.result }}"
+          echo "  Keyword Extraction: ${{ needs.extract-keywords.result }}"
+          echo "  Discovery Trigger: ${{ needs.trigger-discovery.result }}"
+      
+      - name: Send Slack Notification (Optional)
+        if: success() && vars.SLACK_WEBHOOK_URL != ''
+        run: |
+          python3 << 'EOF'
+          import requests
+          import json
+          
+          webhook_url = "${{ vars.SLACK_WEBHOOK_URL }}"
+          
+          message = {
+              "text": "🤖 Job Search Keyword Extraction Complete",
+              "blocks": [
+                  {
+                      "type": "section",
+                      "text": {
+                          "type": "mrkdwn",
+                          "text": "*Keyword Extraction Pipeline*\n✅ Completed Successfully"
+                      }
+                  },
+                  {
+                      "type": "section",
+                      "fields": [
+                          {
+                              "type": "mrkdwn",
+                              "text": f"*Run ID:*\n${{ needs.prepare.outputs.run_id }}"
+                          },
+                          {
+                              "type": "mrkdwn",
+                              "text": f"*Timestamp:*\n${{ needs.prepare.outputs.timestamp }}"
+                          },
+                          {
+                              "type": "mrkdwn",
+                              "text": f"*Status:*\n${{ needs.extract-keywords.result }}"
+                          }
+                      ]
+                  }
+              ]
+          }
+          
+          response = requests.post(webhook_url, json=message)
+          print(f"Notification sent: {response.status_code}")
+          EOF
+      
+      - name: Create Issue for Failed Runs
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Keyword Extraction Pipeline Failed',
+              body: `# Keyword Extraction Pipeline Failure\n\n**Run ID:** ${{ needs.prepare.outputs.run_id }}\n**Timestamp:** ${{ needs.prepare.outputs.timestamp }}\n\n[View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})`,
+              labels: ['bug', 'job-search-automation']
+            })
