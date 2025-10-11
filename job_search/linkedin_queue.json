@@ -1,0 +1,31 @@
+{
+  "pending_connections": [
+    {
+      "id": "CONN-20251011103200",
+      "profile_url": "https://linkedin.com/in/example",
+      "name": "Jane Smith",
+      "company": "Tech Corp",
+      "position": "Senior Engineer",
+      "reason": "job_application",
+      "message": "Hi Jane,\n\nI recently applied for a position at Tech Corp and was impressed by the team's work. I'd love to connect and learn more about Tech Corp's culture and the exciting projects you're working on.\n\nLooking forward to connecting!",
+      "priority": "high",
+      "added_date": "2025-10-11T10:32:00.688441",
+      "status": "queued"
+    },
+    {
+      "id": "CONN-20251011114227",
+      "profile_url": "https://linkedin.com/in/example",
+      "name": "Jane Smith",
+      "company": "Tech Corp",
+      "position": "Senior Engineer",
+      "reason": "job_application",
+      "message": "Hi Jane,\n\nI recently applied for a position at Tech Corp and was impressed by the team's work. I'd love to connect and learn more about Tech Corp's culture and the exciting projects you're working on.\n\nLooking forward to connecting!",
+      "priority": "high",
+      "added_date": "2025-10-11T11:42:27.571704",
+      "status": "queued"
+    }
+  ],
+  "pending_messages": [],
+  "pending_profile_views": [],
+  "scheduled_follow_ups": []
+}

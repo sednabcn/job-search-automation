@@ -1,0 +1,545 @@
+name: CV Job Matcher - Enhanced Automation
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'cv/**'
+      - 'jobs/**'
+      - 'cv_job_matcher.py'
+  
+  pull_request:
+    branches: [ main, master ]
+  
+  workflow_dispatch:
+    inputs:
+      cv_file:
+        description: 'CV file path (relative to repo root)'
+        required: false
+        default: 'cv/my_cv.txt'
+      job_file:
+        description: 'Job description file path'
+        required: false
+        default: 'jobs/job_description.txt'
+      mode:
+        description: 'Analysis mode'
+        required: true
+        default: 'batch'
+        type: choice
+        options:
+          - single
+          - batch
+          - compare
+          - demo
+      min_score:
+        description: 'Minimum match score to report (%)'
+        required: false
+        default: '60'
+      create_issue:
+        description: 'Create GitHub issue with results'
+        required: false
+        default: 'true'
+        type: boolean
+  
+  schedule:
+    - cron: '0 9 * * 1'  # Weekly on Monday at 9 AM UTC
+
+env:
+  PYTHON_VERSION: '3.9'
+  CONTACTS_DIR: contacts
+  JOBS_DIR: jobs
+  CV_DIR: cv
+  REPORTS_DIR: reports
+  TRACKING_DIR: tracking
+
+jobs:
+  # Job 1: Enhanced setup and validation
+  setup-and-validate:
+    runs-on: ubuntu-latest
+    outputs:
+      cv_exists: ${{ steps.check_files.outputs.cv_exists }}
+      jobs_exist: ${{ steps.check_files.outputs.jobs_exist }}
+      cv_count: ${{ steps.check_files.outputs.cv_count }}
+      jobs_count: ${{ steps.check_files.outputs.jobs_count }}
+      execution_mode: ${{ steps.check_files.outputs.execution_mode }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Verify directory structure
+        run: |
+          echo "Verifying directories:"
+          ls -la
+          
+          # Create required directories if they don't exist
+          mkdir -p "${{ env.CV_DIR }}"
+          mkdir -p "${{ env.JOBS_DIR }}"
+          mkdir -p "${{ env.REPORTS_DIR }}"
+          mkdir -p "${{ env.TRACKING_DIR }}"
+          
+          # Show absolute paths
+          for dir in "${{ env.CV_DIR }}" "${{ env.JOBS_DIR }}" "${{ env.REPORTS_DIR }}" "${{ env.TRACKING_DIR }}"; do
+            echo "$(ls -ld "$PWD/$dir")"
+          done
+      
+      - name: Check for CV and job files
+        id: check_files
+        run: |
+          echo "=== FILE VALIDATION SUMMARY ==="
+          
+          # Check CV files
+          if [ -d "${{ env.CV_DIR }}" ] && [ "$(ls -A ${{ env.CV_DIR }} 2>/dev/null | wc -l)" -gt 0 ]; then
+            cv_count=$(ls -1 ${{ env.CV_DIR }}/*.txt 2>/dev/null | wc -l || echo 0)
+            echo "cv_exists=true" >> $GITHUB_OUTPUT
+            echo "cv_count=$cv_count" >> $GITHUB_OUTPUT
+            echo "CV files: $cv_count"
+          else
+            echo "cv_exists=false" >> $GITHUB_OUTPUT
+            echo "cv_count=0" >> $GITHUB_OUTPUT
+            echo "CV files: 0"
+          fi
+          
+          # Check job files
+          if [ -d "${{ env.JOBS_DIR }}" ] && [ "$(ls -A ${{ env.JOBS_DIR }} 2>/dev/null | wc -l)" -gt 0 ]; then
+            jobs_count=$(ls -1 ${{ env.JOBS_DIR }}/*.txt 2>/dev/null | wc -l || echo 0)
+            echo "jobs_exist=true" >> $GITHUB_OUTPUT
+            echo "jobs_count=$jobs_count" >> $GITHUB_OUTPUT
+            echo "Job files: $jobs_count"
+          else
+            echo "jobs_exist=false" >> $GITHUB_OUTPUT
+            echo "jobs_count=0" >> $GITHUB_OUTPUT
+            echo "Job files: 0"
+          fi
+          
+          # Determine execution mode
+          mode="${{ github.event.inputs.mode }}"
+          if [ -z "$mode" ]; then
+            if [ "$jobs_count" -gt 1 ]; then
+              mode="batch"
+            else
+              mode="single"
+            fi
+          fi
+          echo "execution_mode=$mode" >> $GITHUB_OUTPUT
+          echo "Execution mode: $mode"
+          
+          echo "================================"
+
+  # Job 2: Enhanced CV-Job Analysis
+  analyze-jobs:
+    needs: setup-and-validate
+    if: needs.setup-and-validate.outputs.cv_exists == 'true' && needs.setup-and-validate.outputs.jobs_exist == 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            pip install pathlib
+          fi
+      
+      - name: Starting ENHANCED job matching with comprehensive features
+        run: |
+          echo "=============================================================="
+          echo "Environment: ${{ github.ref_name }}"
+          echo "Mode: ${{ needs.setup-and-validate.outputs.execution_mode }}"
+          echo "Working directory: $PWD"
+          echo "CV files: ${{ needs.setup-and-validate.outputs.cv_count }}"
+          echo "Job files: ${{ needs.setup-and-validate.outputs.jobs_count }}"
+          echo "Min score threshold: ${{ github.event.inputs.min_score || '60' }}%"
+          echo ""
+          echo "Enhanced command arguments:"
+          echo "  --cv ${{ env.CV_DIR }}"
+          echo "  --jobs ${{ env.JOBS_DIR }}"
+          echo "  --tracking ${{ env.TRACKING_DIR }}"
+          echo "  --reports ${{ env.REPORTS_DIR }}"
+          echo "  --mode ${{ needs.setup-and-validate.outputs.execution_mode }}"
+          echo "  --min-score ${{ github.event.inputs.min_score || '60' }}"
+          echo "  --enhanced-mode"
+          echo "  --comprehensive-tracking"
+          echo ""
+          echo "Executing enhanced job matching system..."
+      
+      - name: Run Enhanced Job Matcher
+        id: matcher
+        run: |
+          python - <<'PYTHON_SCRIPT'
+          import os
+          import sys
+          import json
+          from pathlib import Path
+          from datetime import datetime
+          
+          print("GitHub Actions job matcher available")
+          print("Using professional CV matcher module")
+          print("Domain-Aware Job Matching Script started")
+          print(f"Remote environment: {os.getenv('GITHUB_ACTIONS') == 'true'}")
+          
+          # Add current directory to path
+          sys.path.insert(0, '.')
+          
+          try:
+              from cv_job_matcher import CVJobMatcher
+              print("Available modules: cv_matcher=True")
+          except ImportError:
+              print("❌ cv_job_matcher.py not found")
+              sys.exit(1)
+          
+          # Parse environment variables
+          cv_dir = Path("${{ env.CV_DIR }}")
+          jobs_dir = Path("${{ env.JOBS_DIR }}")
+          reports_dir = Path("${{ env.REPORTS_DIR }}")
+          tracking_dir = Path("${{ env.TRACKING_DIR }}")
+          mode = "${{ needs.setup-and-validate.outputs.execution_mode }}"
+          min_score = int("${{ github.event.inputs.min_score || '60' }}")
+          
+          print("\nArguments parsed successfully:")
+          print(f"  CV dir: {cv_dir}")
+          print(f"  Jobs dir: {jobs_dir}")
+          print(f"  Reports dir: {reports_dir}")
+          print(f"  Tracking dir: {tracking_dir}")
+          print(f"  Mode: {mode}")
+          print(f"  Min score: {min_score}%")
+          
+          # Create directories
+          reports_dir.mkdir(exist_ok=True)
+          tracking_dir.mkdir(exist_ok=True)
+          
+          # Initialize matcher
+          matcher = CVJobMatcher(data_dir=str(tracking_dir))
+          
+          # Load CV
+          cv_files = list(cv_dir.glob("*.txt"))
+          if not cv_files:
+              print("❌ No CV files found")
+              sys.exit(1)
+          
+          cv_file = cv_files[0]
+          print(f"\n=== VALIDATION SUMMARY ===")
+          print(f"CV file: {cv_file.name}")
+          cv_text = cv_file.read_text(encoding='utf-8')
+          print(f"CV length: {len(cv_text)} characters")
+          
+          # Load jobs
+          job_files = list(jobs_dir.glob("*.txt"))
+          print(f"Job files found: {len(job_files)}")
+          
+          if not job_files:
+              print("❌ No job files found")
+              sys.exit(1)
+          
+          print(f"\nUsing GitHubActionsJobMatcher - comprehensive analysis enabled")
+          print(f"JobMatcher initialized - mode: {mode}, min_score: {min_score}")
+          print("GitHub Actions mode - results will be tracked and reported")
+          
+          # Process based on mode
+          results = []
+          timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+          
+          print(f"\n{'='*70}")
+          print(f"PROCESSING JOBS")
+          print(f"{'='*70}\n")
+          
+          if mode == "demo":
+              print("--- Running Demo Mode ---")
+              result = matcher.analyze_job(
+                  cv_text,
+                  "Sample job requiring Python, ML, and AWS experience",
+                  "Sample ML Engineer",
+                  "Tech Company"
+              )
+              results.append(result)
+          
+          elif mode == "single":
+              job_file = job_files[0]
+              print(f"--- Processing Single Job: {job_file.name} ---")
+              job_text = job_file.read_text(encoding='utf-8')
+              result = matcher.analyze_job(cv_text, job_text, job_file.stem, "Unknown")
+              results.append(result)
+              print(f"✅ Analysis complete: {result['score']['total_score']}%")
+          
+          else:  # batch or compare
+              print(f"--- Processing {len(job_files)} Jobs in Batch Mode ---")
+              jobs = []
+              for i, job_file in enumerate(job_files, 1):
+                  job_text = job_file.read_text(encoding='utf-8')
+                  title = job_file.stem.replace('_', ' ').title()
+                  jobs.append({
+                      'title': title,
+                      'company': 'Unknown',
+                      'description': job_text
+                  })
+                  print(f"[LOADED] {i}/{len(job_files)}: {title}")
+              
+              print(f"\nStarting batch analysis of {len(jobs)} positions...")
+              results = matcher.batch_analyze(cv_text, jobs)
+              
+              for i, result in enumerate(results, 1):
+                  score = result['score']['total_score']
+                  print(f"✅ Analyzed {i}/{len(results)}: {result['job_info']['title']} - {score}%")
+          
+          # Generate reports
+          print(f"\n{'='*70}")
+          print("GENERATING REPORTS")
+          print(f"{'='*70}\n")
+          
+          high_matches = [r for r in results if r['score']['total_score'] >= 75]
+          good_matches = [r for r in results if 60 <= r['score']['total_score'] < 75]
+          upskill_needed = [r for r in results if 40 <= r['score']['total_score'] < 60]
+          not_ready = [r for r in results if r['score']['total_score'] < 40]
+          
+          # Save individual reports
+          for result in results:
+              report = matcher.generate_report(result)
+              job_title_safe = result['job_info']['title'].replace(' ', '_').replace('/', '_')
+              report_file = reports_dir / f"{job_title_safe}_{timestamp}.txt"
+              report_file.write_text(report)
+          
+          print(f"Saved {len(results)} individual reports to {reports_dir}")
+          
+          # Create summary
+          summary = {
+              'analysis_date': datetime.now().isoformat(),
+              'total_jobs': len(results),
+              'high_matches': len(high_matches),
+              'good_matches': len(good_matches),
+              'upskill_needed': len(upskill_needed),
+              'not_ready': len(not_ready),
+              'results': results,
+              'top_matches': high_matches[:5]
+          }
+          
+          summary_file = reports_dir / f"summary_{timestamp}.json"
+          with open(summary_file, 'w') as f:
+              json.dump(summary, f, indent=2)
+          
+          print(f"Summary saved: {summary_file}")
+          
+          # Save for GitHub Actions
+          gh_summary_file = Path('job_match_summary.json')
+          with open(gh_summary_file, 'w') as f:
+              json.dump(summary, f, indent=2)
+          
+          print(f"GitHub Actions summary saved: {gh_summary_file}")
+          
+          print(f"\n{'='*70}")
+          print("FINAL SUMMARY")
+          print(f"{'='*70}")
+          print(f"Total jobs analyzed: {len(results)}")
+          print(f"✅ High matches (75%+): {len(high_matches)}")
+          print(f"⚠️  Good matches (60-74%): {len(good_matches)}")
+          print(f"📚 Upskill needed (40-59%): {len(upskill_needed)}")
+          print(f"❌ Not ready (<40%): {len(not_ready)}")
+          print(f"Reports generated: {len(results)}")
+          print(f"Tracking system: COMPREHENSIVE")
+          print("Job matching completed successfully")
+          print(f"{'='*70}\n")
+          
+          # Set outputs
+          print(f"::set-output name=total_jobs::{len(results)}")
+          print(f"::set-output name=high_matches::{len(high_matches)}")
+          print(f"::set-output name=good_matches::{len(good_matches)}")
+          print(f"::set-output name=execution_status::0")
+          
+          PYTHON_SCRIPT
+        continue-on-error: false
+      
+      - name: Upload analysis reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: job-match-reports
+          path: |
+            ${{ env.REPORTS_DIR }}/*.txt
+            ${{ env.REPORTS_DIR }}/*.json
+            job_match_summary.json
+          retention-days: 90
+      
+      - name: Create execution metrics
+        run: |
+          echo "# Job Match Analysis - Execution Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Analysis Date:** $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "**Mode:** ${{ needs.setup-and-validate.outputs.execution_mode }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Minimum Score:** ${{ github.event.inputs.min_score || '60' }}%" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f job_match_summary.json ]; then
+            total=$(jq -r '.total_jobs' job_match_summary.json)
+            high=$(jq -r '.high_matches' job_match_summary.json)
+            good=$(jq -r '.good_matches' job_match_summary.json)
+            
+            echo "## Results Summary" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- 🎯 **Total Jobs Analyzed:** $total" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ **High Matches (75%+):** $high" >> $GITHUB_STEP_SUMMARY
+            echo "- ⚠️ **Good Matches (60-74%):** $good" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Show top matches
+            echo "## Top Matches" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            jq -r '.top_matches[] | "- **\(.job_info.title)** at \(.job_info.company): \(.score.total_score)%"' job_match_summary.json >> $GITHUB_STEP_SUMMARY || echo "No top matches" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Job 3: Create GitHub Issue with Results
+  create-issue-report:
+    needs: [setup-and-validate, analyze-jobs]
+    if: always() && needs.analyze-jobs.result == 'success' && (github.event.inputs.create_issue == 'true' || github.event.inputs.create_issue == '')
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: job-match-reports
+      
+      - name: Create enhanced GitHub issue
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const timestamp = new Date().toISOString().split('T')[0];
+            
+            // Load summary
+            let summary = {};
+            try {
+              summary = JSON.parse(fs.readFileSync('job_match_summary.json', 'utf8'));
+            } catch (e) {
+              console.log('Could not load summary');
+              return;
+            }
+            
+            const totalJobs = summary.total_jobs || 0;
+            const highMatches = summary.high_matches || 0;
+            const goodMatches = summary.good_matches || 0;
+            
+            // Determine status emoji
+            let statusEmoji = '🎉';
+            let statusText = 'COMPLETE SUCCESS';
+            if (highMatches === 0 && goodMatches === 0) {
+              statusEmoji = '⚠️';
+              statusText = 'NO STRONG MATCHES';
+            } else if (highMatches === 0) {
+              statusEmoji = '📊';
+              statusText = 'GOOD MATCHES FOUND';
+            }
+            
+            // Build issue body
+            let body = `## ${statusEmoji} Job Match Analysis Report\n\n`;
+            body += `**Run Date:** ${timestamp}\n`;
+            body += `**Workflow:** [Run #${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\n`;
+            body += `**Mode:** ${{ needs.setup-and-validate.outputs.execution_mode }}\n\n`;
+            
+            body += `### 📊 Summary\n\n`;
+            body += `- **Total Jobs Analyzed:** ${totalJobs}\n`;
+            body += `- ✅ **Apply Now (75%+):** ${highMatches}\n`;
+            body += `- ⚠️ **Apply with Caution (60-74%):** ${goodMatches}\n`;
+            body += `- 📚 **Upskill First (40-59%):** ${summary.upskill_needed || 0}\n`;
+            body += `- ❌ **Not Ready (<40%):** ${summary.not_ready || 0}\n\n`;
+            
+            // Top matches
+            if (summary.top_matches && summary.top_matches.length > 0) {
+              body += `### 🎯 Top Opportunities\n\n`;
+              summary.top_matches.forEach((match, idx) => {
+                const score = match.score.total_score;
+                const title = match.job_info.title;
+                const company = match.job_info.company;
+                const action = match.recommendation.action;
+                body += `${idx + 1}. **${title}** at ${company}\n`;
+                body += `   - Score: ${score}%\n`;
+                body += `   - Action: ${action}\n\n`;
+              });
+            }
+            
+            // Action items
+            body += `### 📋 Next Steps\n\n`;
+            if (highMatches > 0) {
+              body += `- ✅ **Apply immediately** to ${highMatches} high-match position(s)\n`;
+            }
+            if (goodMatches > 0) {
+              body += `- ⚠️ **Review and prepare** application materials for ${goodMatches} good-match position(s)\n`;
+            }
+            body += `- 📁 Check artifacts for detailed analysis reports\n`;
+            body += `- 📊 Review tracking data for skill gap analysis\n\n`;
+            
+            body += `---\n`;
+            body += `*Generated by CV Job Matcher - Run ${{ github.run_number }}*`;
+            
+            // Create issue
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Job Match Report - ${statusEmoji} ${statusText} - ${timestamp}`,
+              body: body,
+              labels: ['job-search', 'automated', 'cv-analysis']
+            });
+            
+            console.log(`Created issue #${issue.data.number}: ${issue.data.html_url}`);
+
+  # Job 4: Update tracking and commit
+  update-tracking:
+    needs: [analyze-jobs]
+    if: always() && needs.analyze-jobs.result == 'success'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: job-match-reports
+      
+      - name: Update tracking database
+        run: |
+          mkdir -p ${{ env.TRACKING_DIR }}/history
+          
+          # Create or update CSV
+          tracking_file="${{ env.TRACKING_DIR }}/job_applications.csv"
+          if [ ! -f "$tracking_file" ]; then
+            echo "Date,Job_Title,Company,Match_Score,Status,Recommendation,Report_File" > "$tracking_file"
+          fi
+          
+          # Parse summary and add entries
+          if [ -f job_match_summary.json ]; then
+            jq -r '.results[] | [
+              (.analysis_date | split("T")[0]),
+              .job_info.title,
+              .job_info.company,
+              .score.total_score,
+              "Analyzed",
+              .recommendation.action,
+              ""
+            ] | @csv' job_match_summary.json >> "$tracking_file"
+          fi
+          
+          echo "Updated tracking file: $tracking_file"
+          
+          # Copy reports to history
+          cp ${{ env.REPORTS_DIR }}/*.txt ${{ env.TRACKING_DIR }}/history/ 2>/dev/null || true
+      
+      - name: Commit tracking updates
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add ${{ env.TRACKING_DIR }}/
+          git diff --quiet && git diff --staged --quiet || \
+            git commit -m "Update job application tracking [skip ci] - Run ${{ github.run_number }}"
+          git push || echo "No changes to push"
