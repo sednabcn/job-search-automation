@@ -1,1 +1,24 @@
-[]
+[
+  {
+    "id": "contact1",
+    "name": "Jane Smith",
+    "company": "Tech Corp",
+    "position": "Senior Engineer",
+    "linkedin_url": "https://linkedin.com/in/janesmith",
+    "email": "",
+    "connection_context": "Met at conference",
+    "relationship_strength": "cold",
+    "tags": ["tech", "engineering"],
+    "last_contact": "2025-10-11T00:00:00",
+    "next_followup": "2025-10-25T00:00:00",
+    "interactions": [
+      {
+        "date": "2025-10-11T00:00:00",
+        "type": "linkedin_message",
+        "notes": "Initial connection request sent",
+        "sentiment": "positive"
+      }
+    ],
+    "notes": "Interested in cloud architecture"
+  }
+]
