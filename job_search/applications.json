@@ -1,1 +1,22 @@
-[]
+[
+  {
+    "id": "company1_2025",
+    "company": "Tech Corp",
+    "position": "Software Engineer",
+    "url": "https://techcorp.com/careers/123",
+    "source": "LinkedIn",
+    "resume_version": "default",
+    "cover_letter": true,
+    "applied_date": "2025-10-11T10:00:00",
+    "status": "applied",
+    "follow_up_date": "2025-10-18T10:00:00",
+    "notes": "Applied through LinkedIn, good cultural fit",
+    "timeline": [
+      {
+        "date": "2025-10-11T10:00:00",
+        "event": "applied",
+        "notes": "Initial application submitted"
+      }
+    ]
+  }
+]
