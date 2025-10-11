@@ -1,0 +1,15 @@
+[
+  {
+    "id": "search1",
+    "name": "Python Developer Remote",
+    "keywords": ["python", "developer", "backend"],
+    "location": "",
+    "remote": true,
+    "boards": ["linkedin", "indeed", "remote.co"],
+    "min_salary": 80000,
+    "experience_level": "mid",
+    "created": "2025-10-11T00:00:00",
+    "last_checked": null,
+    "jobs_found": 0
+  }
+]
