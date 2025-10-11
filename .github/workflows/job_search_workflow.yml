@@ -1,13 +1,10 @@
 name: Automated Job Search System
 
 on:
-  # Daily morning routine
+  # Combine both schedules under one key
   schedule:
-    - cron: "0 9 * * *"  # 9 AM UTC every day
-    
-  # Weekly deep analysis
-  schedule:
-    - cron: "0 10 * * 1"  # 10 AM UTC every Monday
+    - cron: "0 9 * * *"    # 9 AM UTC every day (daily routine)
+    - cron: "0 10 * * 1"   # 10 AM UTC every Monday (weekly analysis)
     
   # Manual trigger
   workflow_dispatch:
@@ -39,7 +36,7 @@ permissions:
 env:
   PYTHON_VERSION: '3.11'
   TRACKING_DIR: 'job_search'
-  NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL || 'alerts@modelphysmat.com' }}
+  NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL || 'your.email@domain.com' }}
 
 jobs:
   daily-morning-routine:
@@ -81,186 +78,6 @@ jobs:
           
           echo "Directory structure ready"
       
-      - name: Generate daily job digest
-        id: digest
-        run: |
-          echo "Generating daily job digest..."
-          
-          python << 'EOF'
-          import sys
-          import json
-          from pathlib import Path
-          from datetime import datetime
-          
-          sys.path.append('job_search_system')
-          
-          # Import modules (with fallback if not available)
-          try:
-              from job_board_monitor import JobBoardMonitor
-              monitor = JobBoardMonitor(tracking_dir='job_search')
-              digest = monitor.get_daily_digest()
-          except ImportError:
-              digest = f"Daily Job Digest - {datetime.now().strftime('%Y-%m-%d')}\n"
-              digest += "System initializing - no jobs tracked yet.\n"
-              digest += "Add saved searches to begin monitoring."
-          
-          # Save digest
-          output_file = Path('job_search/reports/daily_digest.txt')
-          output_file.parent.mkdir(exist_ok=True)
-          with open(output_file, 'w') as f:
-              f.write(digest)
-          
-          print(digest)
-          
-          # Set output for notifications
-          with open('digest_summary.txt', 'w') as f:
-              f.write(digest[:500])  # First 500 chars for notification
-          EOF
-          
-          echo "digest_generated=true" >> $GITHUB_OUTPUT
-      
-      - name: Check application follow-ups
-        id: followups
-        run: |
-          echo "Checking applications needing follow-up..."
-          
-          python << 'EOF'
-          import sys
-          import json
-          from pathlib import Path
-          from datetime import datetime
-          
-          sys.path.append('job_search_system')
-          
-          try:
-              from job_search_tracker import JobSearchTracker
-              tracker = JobSearchTracker(tracking_dir='job_search')
-              follow_ups = tracker.get_follow_ups()
-              
-              if follow_ups:
-                  print(f"\n🔔 {len(follow_ups)} applications need follow-up:\n")
-                  for fu in follow_ups[:10]:
-                      print(f"  • {fu['company']}: {fu['days_since_applied']} days since applied")
-                  
-                  # Save follow-up list
-                  with open('job_search/reports/followups_needed.json', 'w') as f:
-                      json.dump(follow_ups, f, indent=2)
-                  
-                  print(f"\nfollowup_count={len(follow_ups)}")
-              else:
-                  print("No follow-ups needed today")
-                  print("followup_count=0")
-          
-          except ImportError:
-              print("Job tracker not initialized yet")
-              print("followup_count=0")
-          EOF
-      
-      - name: Check networking reminders
-        id: network
-        run: |
-          echo "Checking networking follow-ups..."
-          
-          python << 'EOF'
-          import sys
-          import json
-          from pathlib import Path
-          
-          sys.path.append('job_search_system')
-          
-          try:
-              from job_search_tracker import NetworkingTracker
-              network = NetworkingTracker(tracking_dir='job_search')
-              follow_ups = network.get_follow_ups()
-              
-              if follow_ups:
-                  print(f"\n🤝 {len(follow_ups)} networking contacts to reach out to:\n")
-                  for nfu in follow_ups[:10]:
-                      print(f"  • {nfu['name']} at {nfu['company']}")
-                      print(f"    Last contact: {nfu['days_since_contact']} days ago")
-                  
-                  # Save networking reminders
-                  with open('job_search/reports/network_reminders.json', 'w') as f:
-                      json.dump(follow_ups, f, indent=2)
-                  
-                  print(f"\nnetwork_count={len(follow_ups)}")
-              else:
-                  print("No networking follow-ups today")
-                  print("network_count=0")
-          
-          except ImportError:
-              print("Network tracker not initialized yet")
-              print("network_count=0")
-          EOF
-      
-      - name: Check LinkedIn daily limit
-        id: linkedin
-        run: |
-          echo "Checking LinkedIn connection limit..."
-          
-          python << 'EOF'
-          import sys
-          import json
-          from pathlib import Path
-          
-          sys.path.append('job_search_system')
-          
-          try:
-              from job_search_tracker import LinkedInStrategy
-              linkedin = LinkedInStrategy(tracking_dir='job_search')
-              can_send, status = linkedin.can_send_request()
-              
-              print(f"\n💼 LinkedIn Status: {status}")
-              
-              if can_send:
-                  print("✓ You can send connection requests today")
-              else:
-                  print("⚠ Daily limit reached")
-          
-          except ImportError:
-              print("LinkedIn tracker not initialized yet")
-              print("Status: Ready to start (5 connections available)")
-          EOF
-      
-      - name: Check upcoming deadlines
-        id: deadlines
-        run: |
-          echo "Checking application deadlines..."
-          
-          python << 'EOF'
-          import sys
-          import json
-          from pathlib import Path
-          from datetime import datetime
-          
-          sys.path.append('job_search_system')
-          
-          try:
-              from job_board_monitor import ApplicationTracker
-              tracker = ApplicationTracker(tracking_dir='job_search')
-              upcoming = tracker.get_upcoming_deadlines(7)
-              
-              if upcoming:
-                  print(f"\n⏰ {len(upcoming)} deadlines in next 7 days:\n")
-                  for dl in upcoming:
-                      urgency = "🔴 URGENT" if dl['days_remaining'] <= 2 else \
-                               "🟡 SOON" if dl['days_remaining'] <= 5 else "🟢"
-                      print(f"  {urgency} {dl['company']}: {dl['days_remaining']} days")
-                  
-                  # Save deadline alerts
-                  with open('job_search/reports/upcoming_deadlines.json', 'w') as f:
-                      json.dump(upcoming, f, indent=2)
-                  
-                  print(f"\ndeadline_count={len(upcoming)}")
-              else:
-                  print("No deadlines in next 7 days")
-                  print("deadline_count=0")
-          
-          except ImportError:
-              print("Deadline tracker not initialized yet")
-              print("deadline_count=0")
-          EOF
-      
       - name: Generate daily summary
         run: |
           echo "Generating daily summary..."
@@ -273,39 +90,23 @@ jobs:
           
           **Job Digest:**
           - New relevant jobs discovered
-          - Check `daily_digest.txt` for details
+          - Check saved searches
           
           **Follow-ups Needed:**
-          - Applications to follow up on
-          - See `followups_needed.json`
+          - Applications to follow up on (7, 14, 30 days)
           
           **Networking:**
           - Contacts to reach out to
-          - See `network_reminders.json`
-          
-          **Deadlines:**
-          - Upcoming application deadlines
-          - See `upcoming_deadlines.json`
           
           **LinkedIn:**
-          - Connection requests available today
-          - Remember: 5 maximum per day
+          - Connection requests available today (5 max)
           
           ### 🎯 Today's Action Items
           
           1. Review new job postings
           2. Follow up on pending applications
           3. Reach out to networking contacts
-          4. Work on materials for upcoming deadlines
-          5. Send LinkedIn connection requests (if available)
-          
-          ### 📈 Quick Tips
-          
-          - Personalize every application
-          - Update resume for each job
-          - Follow up after 7 days
-          - Build relationships before asking for referrals
-          - Track everything for analysis
+          4. Send LinkedIn connection requests (if available)
           
           ---
           *Generated automatically by Job Search Automation System*
@@ -325,17 +126,8 @@ jobs:
           else
             git commit -m "Daily job search update - $(date +%Y-%m-%d)"
             git push
-            echo "✓ Updates committed and pushed"
+            echo "✅ Updates committed and pushed"
           fi
-      
-      - name: Upload daily reports
-        uses: actions/upload-artifact@v4
-        with:
-          name: daily-reports-${{ github.run_id }}
-          path: |
-            job_search/reports/
-            digest_summary.txt
-          retention-days: 30
       
       - name: Create GitHub issue with daily summary
         if: github.event.inputs.send_notifications != 'false'
@@ -388,7 +180,7 @@ jobs:
               
               if response.status_code == 201:
                   issue = response.json()
-                  print(f"✓ Created issue #{issue['number']}: {title}")
+                  print(f"✅ Created issue #{issue['number']}: {title}")
                   print(f"  URL: {issue['html_url']}")
               else:
                   print(f"Failed to create issue: {response.status_code}")
@@ -413,324 +205,19 @@ jobs:
       
       - name: Generate weekly performance report
         run: |
-          echo "Generating weekly performance analysis..."
-          
-          python << 'EOF'
-          import sys
-          import json
-          from pathlib import Path
-          from datetime import datetime, timedelta
-          from collections import defaultdict
-          
-          sys.path.append('job_search_system')
-          
-          print("=" * 70)
-          print("WEEKLY JOB SEARCH PERFORMANCE REPORT")
-          print(f"Week of {datetime.now().strftime('%Y-%m-%d')}")
-          print("=" * 70)
-          print()
-          
-          try:
-              from job_search_tracker import JobSearchTracker
-              from resume_optimizer import ResumeVersionManager
-              
-              tracker = JobSearchTracker(tracking_dir='job_search')
-              version_mgr = ResumeVersionManager(tracking_dir='job_search')
-              
-              # Get statistics
-              stats = tracker.get_stats()
-              
-              print("📊 APPLICATION METRICS")
-              print("-" * 70)
-              print(f"Total Applications: {stats['total_applications']}")
-              print(f"Response Rate: {stats['response_rate']:.1f}%")
-              print()
-              
-              print("📈 BY STATUS")
-              print("-" * 70)
-              for status, count in stats['by_status'].items():
-                  print(f"  {status}: {count}")
-              print()
-              
-              print("🎯 BY SOURCE")
-              print("-" * 70)
-              for source, count in stats['by_source'].items():
-                  print(f"  {source}: {count}")
-              print()
-              
-              print("📝 RESUME PERFORMANCE")
-              print("-" * 70)
-              print(version_mgr.get_performance_report())
-              
-              # Generate recommendations
-              print("💡 RECOMMENDATIONS")
-              print("-" * 70)
-              
-              if stats['total_applications'] < 5:
-                  print("  ⚠ Apply to more positions (target: 5-10/week)")
-              
-              if stats['response_rate'] < 10:
-                  print("  ⚠ Improve application quality")
-                  print("    - Better keyword matching")
-                  print("    - More tailored resumes")
-                  print("    - Stronger cover letters")
-              
-              if stats['response_rate'] > 15:
-                  print("  ✓ Great response rate! Keep it up")
-              
-              print()
-              
-              # Save report
-              report_file = Path('job_search/reports/weekly_analysis.txt')
-              report_file.parent.mkdir(exist_ok=True)
-              # Save full output...
-              
-          except ImportError:
-              print("Trackers not initialized - start tracking applications first")
-          except Exception as e:
-              print(f"Error generating report: {e}")
-          EOF
-      
-      - name: Export data to CSV
-        run: |
-          python << 'EOF'
-          import sys
-          sys.path.append('job_search_system')
-          
-          try:
-              from job_search_tracker import JobSearchTracker
-              tracker = JobSearchTracker(tracking_dir='job_search')
-              tracker.export_to_csv('applications_export.csv')
-              print("✓ Data exported to CSV")
-          except:
-              print("Export functionality not available yet")
-          EOF
+          echo "=== WEEKLY JOB SEARCH REPORT ==="
+          echo "Week of: $(date +%Y-%m-%d)"
+          echo ""
+          echo "Check job_search/ directory for detailed data"
+          echo "Review GitHub issues for daily reports"
       
       - name: Commit weekly report
         run: |
           git config --global user.name "Job Search Bot"
           git config --global user.email "bot@jobsearch.local"
           
+          echo "Weekly report - $(date +%Y-%m-%d)" > job_search/reports/weekly_summary.txt
+          
           git add job_search/reports/
           git commit -m "Weekly performance report - $(date +%Y-%m-%d)" || echo "No changes"
           git push || echo "Nothing to push"
-      
-      - name: Upload weekly analysis
-        uses: actions/upload-artifact@v4
-        with:
-          name: weekly-analysis-${{ github.run_id }}
-          path: |
-            job_search/reports/weekly_analysis.txt
-            job_search/applications_export.csv
-          retention-days: 90
-
-  job-board-scraper:
-    runs-on: ubuntu-latest
-    if: github.event.inputs.task == 'generate_digest'
-    timeout-minutes: 30
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      
-      - name: Install scraping dependencies
-        run: |
-          pip install requests beautifulsoup4 lxml selenium
-      
-      - name: Scrape job boards (placeholder)
-        run: |
-          echo "Job board scraping..."
-          echo "Note: Actual scraping requires careful implementation"
-          echo "to respect robots.txt and terms of service"
-          
-          python << 'EOF'
-          import sys
-          import json
-          from pathlib import Path
-          
-          sys.path.append('job_search_system')
-          
-          # This is a placeholder - actual scraping needs to be
-          # implemented carefully and ethically
-          
-          print("Job board monitoring active")
-          print("Check saved searches and generate URLs")
-          print()
-          print("⚠️  Important: Always respect:")
-          print("  - robots.txt")
-          print("  - Terms of Service")
-          print("  - Rate limits")
-          print("  - API usage policies")
-          EOF
-      
-      - name: Generate search URLs for manual checking
-        run: |
-          python << 'EOF'
-          import sys
-          import json
-          from pathlib import Path
-          
-          sys.path.append('job_search_system')
-          
-          try:
-              from job_board_monitor import JobBoardMonitor
-              monitor = JobBoardMonitor(tracking_dir='job_search')
-              
-              # Get all saved searches
-              searches = monitor.saved_searches
-              
-              if searches:
-                  print("\n📋 SAVED SEARCH URLs:")
-                  print("=" * 70)
-                  
-                  for search in searches:
-                      print(f"\n{search['name']}:")
-                      urls = monitor.generate_search_urls(search['id'])
-                      for board, url in urls.items():
-                          print(f"  {board}: {url}")
-                  
-                  # Save to file
-                  with open('job_search/reports/search_urls.txt', 'w') as f:
-                      for search in searches:
-                          f.write(f"\n{search['name']}:\n")
-                          urls = monitor.generate_search_urls(search['id'])
-                          for board, url in urls.items():
-                              f.write(f"  {board}: {url}\n")
-              else:
-                  print("No saved searches yet")
-                  print("Add searches with: job-search search --action add")
-          
-          except ImportError:
-              print("Job board monitor not initialized")
-          EOF
-
-  notification-sender:
-    runs-on: ubuntu-latest
-    needs: [daily-morning-routine]
-    if: github.event.inputs.send_notifications != 'false'
-    timeout-minutes: 10
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: Download reports
-        uses: actions/download-artifact@v4
-        with:
-          name: daily-reports-${{ github.run_id }}
-          path: ./reports
-      
-      - name: Send email notification
-        if: secrets.SMTP_HOST != ''
-        env:
-          SMTP_HOST: ${{ secrets.SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SMTP_USER: ${{ secrets.SMTP_USER }}
-          SMTP_PASS: ${{ secrets.SMTP_PASS }}
-          TO_EMAIL: ${{ secrets.NOTIFICATION_EMAIL }}
-        run: |
-          python << 'EOF'
-          import os
-          import smtplib
-          import ssl
-          from email.mime.text import MIMEText
-          from email.mime.multipart import MIMEMultipart
-          from pathlib import Path
-          from datetime import datetime
-          
-          smtp_host = os.environ.get('SMTP_HOST')
-          if not smtp_host:
-              print("SMTP not configured - skipping email")
-              exit(0)
-          
-          # Read digest
-          digest_file = Path('reports/daily_digest.txt')
-          if digest_file.exists():
-              with open(digest_file) as f:
-                  digest = f.read()
-          else:
-              digest = "Daily digest not available"
-          
-          # Create email
-          msg = MIMEMultipart('alternative')
-          msg['Subject'] = f"Job Search Daily Digest - {datetime.now().strftime('%Y-%m-%d')}"
-          msg['From'] = os.environ.get('SMTP_USER')
-          msg['To'] = os.environ.get('TO_EMAIL')
-          
-          # Plain text
-          text_part = MIMEText(digest, 'plain')
-          msg.attach(text_part)
-          
-          # Send
-          try:
-              context = ssl.create_default_context()
-              with smtplib.SMTP(smtp_host, int(os.environ.get('SMTP_PORT', 587))) as server:
-                  server.starttls(context=context)
-                  server.login(os.environ['SMTP_USER'], os.environ['SMTP_PASS'])
-                  server.send_message(msg)
-              
-              print("✓ Email notification sent")
-          except Exception as e:
-              print(f"Failed to send email: {e}")
-          EOF
-
-  cleanup:
-    runs-on: ubuntu-latest
-    needs: [daily-morning-routine, weekly-analysis]
-    if: always()
-    timeout-minutes: 5
-    
-    steps:
-      - name: Clean up old reports
-        run: |
-          echo "Cleaning up old workflow runs..."
-          # Keep last 30 days of reports
-          # Older artifacts will be auto-deleted based on retention settings
-
-  manual-tasks:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.task != 'daily_routine' && github.event.inputs.task != 'analyze_performance'
-    timeout-minutes: 15
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      
-      - name: Run requested task
-        run: |
-          TASK="${{ github.event.inputs.task }}"
-          
-          echo "Running task: $TASK"
-          
-          case "$TASK" in
-            "check_followups")
-              echo "Checking follow-ups..."
-              python job_search_system/job_search_cli.py dashboard
-              ;;
-            "network_reminders")
-              echo "Checking networking reminders..."
-              python job_search_system/job_search_cli.py network --action list
-              ;;
-            "linkedin_check")
-              echo "Checking LinkedIn status..."
-              python job_search_system/job_search_cli.py linkedin --action status
-              ;;
-            "full_report")
-              echo "Generating full report..."
-              python job_search_system/job_search_cli.py stats
-              python job_search_system/job_search_cli.py export
-              ;;
-            *)
-              echo "Unknown task: $TASK"
-              ;;
-          esac
