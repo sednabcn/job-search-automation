@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Search Data Entry</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .tabs {
+            display: flex;
+            background: #f7fafc;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            font-size: 14px;
+            font-weight: 600;
+            color: #64748b;
+            transition: all 0.3s;
+        }
+        
+        .tab:hover {
+            background: #e2e8f0;
+        }
+        
+        .tab.active {
+            color: #667eea;
+            background: white;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .form-container {
+            padding: 30px;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 14px;
+        }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            font-family: inherit;
+        }
+        
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .output {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .output h3 {
+            margin-bottom: 15px;
+            color: #2d3748;
+        }
+        
+        .json-output {
+            background: #1a202c;
+            color: #68d391;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        
+        .copy-btn {
+            margin-top: 10px;
+            background: #48bb78;
+            width: auto;
+            padding: 8px 20px;
+            font-size: 14px;
+        }
+        
+        .copy-btn:hover {
+            background: #38a169;
+        }
+        
+        .success-message {
+            background: #c6f6d5;
+            color: #22543d;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+            display: none;
+        }
+        
+        .required {
+            color: #e53e3e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Job Search Data Entry</h1>
+            <p>Fill forms to generate JSON for your job search automation system</p>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('application')">📝 Application</button>
+            <button class="tab" onclick="switchTab('contact')">👤 Contact</button>
+            <button class="tab" onclick="switchTab('search')">🔍 Saved Search</button>
+        </div>
+        
+        <div class="form-container">
+            <!-- Application Form -->
+            <div id="application" class="tab-content active">
+                <form onsubmit="generateApplicationJSON(event)">
+                    <div class="form-group">
+                        <label>Company Name <span class="required">*</span></label>
+                        <input type="text" id="app_company" required placeholder="e.g., Google">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Position <span class="required">*</span></label>
+                        <input type="text" id="app_position" required placeholder="e.g., Senior Software Engineer">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Job URL <span class="required">*</span></label>
+                        <input type="url" id="app_url" required placeholder="https://company.com/careers/123">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Source <span class="required">*</span></label>
+                            <select id="app_source" required>
+                                <option value="">Select source</option>
+                                <option value="LinkedIn">LinkedIn</option>
+                                <option value="Indeed">Indeed</option>
+                                <option value="Company Website">Company Website</option>
+                                <option value="Glassdoor">Glassdoor</option>
+                                <option value="Remote.co">Remote.co</option>
+                                <option value="Referral">Referral</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Status</label>
+                            <select id="app_status">
+                                <option value="applied">Applied</option>
+                                <option value="viewed">Viewed</option>
+                                <option value="phone_screen">Phone Screen</option>
+                                <option value="interview">Interview</option>
+                                <option value="offer">Offer</option>
+                                <option value="rejected">Rejected</option>
+                                <option value="ghosted">Ghosted</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Resume Version</label>
+                            <input type="text" id="app_resume" placeholder="e.g., technical_v1">
+                        </div>
+                        
+                        <div class="form-group checkbox-group">
+                            <input type="checkbox" id="app_cover_letter">
+                            <label>Cover Letter Included</label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea id="app_notes" placeholder="Any relevant notes about this application..."></textarea>
+                    </div>
+                    
+                    <button type="submit">Generate Application JSON</button>
+                </form>
+                
+                <div id="app_output" class="output" style="display: none;">
+                    <h3>Generated JSON</h3>
+                    <div id="app_json" class="json-output"></div>
+                    <button class="copy-btn" onclick="copyToClipboard('app_json')">📋 Copy JSON</button>
+                    <div class="success-message" id="app_success">✅ Copied to clipboard!</div>
+                </div>
+            </div>
+            
+            <!-- Contact Form -->
+            <div id="contact" class="tab-content">
+                <form onsubmit="generateContactJSON(event)">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Name <span class="required">*</span></label>
+                            <input type="text" id="contact_name" required placeholder="e.g., Jane Smith">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Company</label>
+                            <input type="text" id="contact_company" placeholder="e.g., Google">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Position/Title</label>
+                        <input type="text" id="contact_position" placeholder="e.g., Senior Engineer">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>LinkedIn URL</label>
+                        <input type="url" id="contact_linkedin" placeholder="https://linkedin.com/in/janesmith">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="contact_email" placeholder="jane@example.com">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Connection Context <span class="required">*</span></label>
+                        <input type="text" id="contact_context" required placeholder="e.g., Met at conference, Alumni network">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Relationship Strength</label>
+                        <select id="contact_strength">
+                            <option value="cold">Cold (Just connected)</option>
+                            <option value="warming">Warming (1-2 interactions)</option>
+                            <option value="warm">Warm (Regular contact)</option>
+                            <option value="strong">Strong (Close relationship)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Tags (comma-separated)</label>
+                        <input type="text" id="contact_tags" placeholder="e.g., tech, engineering, AI">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea id="contact_notes" placeholder="Any relevant notes about this contact..."></textarea>
+                    </div>
+                    
+                    <button type="submit">Generate Contact JSON</button>
+                </form>
+                
+                <div id="contact_output" class="output" style="display: none;">
+                    <h3>Generated JSON</h3>
+                    <div id="contact_json" class="json-output"></div>
+                    <button class="copy-btn" onclick="copyToClipboard('contact_json')">📋 Copy JSON</button>
+                    <div class="success-message" id="contact_success">✅ Copied to clipboard!</div>
+                </div>
+            </div>
+            
+            <!-- Saved Search Form -->
+            <div id="search" class="tab-content">
+                <form onsubmit="generateSearchJSON(event)">
+                    <div class="form-group">
+                        <label>Search Name <span class="required">*</span></label>
+                        <input type="text" id="search_name" required placeholder="e.g., Python Developer Remote">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Keywords (comma-separated) <span class="required">*</span></label>
+                        <input type="text" id="search_keywords" required placeholder="e.g., python, developer, backend, django">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Location</label>
+                            <input type="text" id="search_location" placeholder="e.g., San Francisco, CA (leave empty for remote)">
+                        </div>
+                        
+                        <div class="form-group checkbox-group">
+                            <input type="checkbox" id="search_remote" checked>
+                            <label>Remote Work</label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Job Boards (select multiple)</label>
+                        <select id="search_boards" multiple size="5">
+                            <option value="linkedin" selected>LinkedIn</option>
+                            <option value="indeed" selected>Indeed</option>
+                            <option value="glassdoor">Glassdoor</option>
+                            <option value="remote.co">Remote.co</option>
+                            <option value="weworkremotely">We Work Remotely</option>
+                            <option value="stackoverflow">Stack Overflow Jobs</option>
+                        </select>
+                        <small style="color: #64748b;">Hold Ctrl/Cmd to select multiple</small>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Minimum Salary</label>
+                            <input type="number" id="search_salary" placeholder="e.g., 80000">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Experience Level</label>
+                            <select id="search_experience">
+                                <option value="entry">Entry Level</option>
+                                <option value="mid" selected>Mid Level</option>
+                                <option value="senior">Senior</option>
+                                <option value="lead">Lead/Principal</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <button type="submit">Generate Search JSON</button>
+                </form>
+                
+                <div id="search_output" class="output" style="display: none;">
+                    <h3>Generated JSON</h3>
+                    <div id="search_json" class="json-output"></div>
+                    <button class="copy-btn" onclick="copyToClipboard('search_json')">📋 Copy JSON</button>
+                    <div class="success-message" id="search_success">✅ Copied to clipboard!</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+        
+        function generateApplicationJSON(event) {
+            event.preventDefault();
+            
+            const now = new Date().toISOString();
+            const company = document.getElementById('app_company').value;
+            const position = document.getElementById('app_position').value;
+            
+            const data = {
+                id: `${company.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}`,
+                company: company,
+                position: position,
+                url: document.getElementById('app_url').value,
+                source: document.getElementById('app_source').value,
+                resume_version: document.getElementById('app_resume').value || "default",
+                cover_letter: document.getElementById('app_cover_letter').checked,
+                applied_date: now,
+                status: document.getElementById('app_status').value,
+                follow_up_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+                notes: document.getElementById('app_notes').value,
+                timeline: [
+                    {
+                        date: now,
+                        event: "applied",
+                        notes: "Initial application submitted"
+                    }
+                ]
+            };
+            
+            displayJSON('app_json', data);
+            document.getElementById('app_output').style.display = 'block';
+        }
+        
+        function generateContactJSON(event) {
+            event.preventDefault();
+            
+            const now = new Date().toISOString();
+            const name = document.getElementById('contact_name').value;
+            const tags = document.getElementById('contact_tags').value
+                .split(',')
+                .map(tag => tag.trim())
+                .filter(tag => tag);
+            
+            const data = {
+                id: `contact_${Date.now()}`,
+                name: name,
+                company: document.getElementById('contact_company').value,
+                position: document.getElementById('contact_position').value,
+                linkedin_url: document.getElementById('contact_linkedin').value,
+                email: document.getElementById('contact_email').value,
+                connection_context: document.getElementById('contact_context').value,
+                relationship_strength: document.getElementById('contact_strength').value,
+                tags: tags,
+                last_contact: now,
+                next_followup: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+                interactions: [
+                    {
+                        date: now,
+                        type: "linkedin_message",
+                        notes: "Initial connection",
+                        sentiment: "positive"
+                    }
+                ],
+                notes: document.getElementById('contact_notes').value
+            };
+            
+            displayJSON('contact_json', data);
+            document.getElementById('contact_output').style.display = 'block';
+        }
+        
+        function generateSearchJSON(event) {
+            event.preventDefault();
+            
+            const keywords = document.getElementById('search_keywords').value
+                .split(',')
+                .map(kw => kw.trim())
+                .filter(kw => kw);
+            
+            const boards = Array.from(document.getElementById('search_boards').selectedOptions)
+                .map(option => option.value);
+            
+            const data = {
+                id: `search_${Date.now()}`,
+                name: document.getElementById('search_name').value,
+                keywords: keywords,
+                location: document.getElementById('search_location').value,
+                remote: document.getElementById('search_remote').checked,
+                boards: boards,
+                min_salary: parseInt(document.getElementById('search_salary').value) || null,
+                experience_level: document.getElementById('search_experience').value,
+                created: new Date().toISOString(),
+                last_checked: null,
+                jobs_found: 0
+            };
+            
+            displayJSON('search_json', data);
+            document.getElementById('search_output').style.display = 'block';
+        }
+        
+        function displayJSON(elementId, data) {
+            document.getElementById(elementId).textContent = JSON.stringify(data, null, 2);
+        }
+        
+        function copyToClipboard(elementId) {
+            const text = document.getElementById(elementId).textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                const successMsg = elementId.replace('_json', '_success');
+                const element = document.getElementById(successMsg);
+                element.style.display = 'block';
+                setTimeout(() => {
+                    element.style.display = 'none';
+                }, 3000);
+            });
+        }
+    </script>
+</body>
+</html>
