@@ -1,0 +1,104 @@
+SENIOR FULL STACK ENGINEER
+
+Company: InnovateTech Solutions
+Location: San Francisco, CA (Hybrid)
+Experience: 5-8 years
+Salary: $150,000 - $200,000 + equity
+
+═══════════════════════════════════════════════════════════════
+
+ABOUT US
+
+InnovateTech Solutions is a fast-growing fintech startup revolutionizing 
+digital payments. We've raised $50M Series B and serve 1M+ customers.
+
+═══════════════════════════════════════════════════════════════
+
+THE ROLE
+
+Senior Full Stack Engineer responsible for designing and implementing 
+scalable web applications processing millions of transactions daily.
+
+═══════════════════════════════════════════════════════════════
+
+KEY RESPONSIBILITIES
+
+• Design and develop full-stack features using React and Node.js
+• Build and maintain microservices architecture
+• Write clean, well-tested code following best practices
+• Conduct code reviews and mentor junior developers
+• Collaborate with cross-functional teams
+• Optimize performance and database queries
+• Implement security best practices
+• Participate in on-call rotation
+
+═══════════════════════════════════════════════════════════════
+
+REQUIRED QUALIFICATIONS
+
+Technical Skills:
+• 5+ years professional software development experience
+• Expert-level JavaScript/TypeScript proficiency
+• Strong React.js and modern frontend experience
+• Backend development with Node.js or Python
+• PostgreSQL or similar relational databases
+• RESTful API design and implementation
+• Git and version control workflows
+• Cloud platforms (AWS, GCP, or Azure)
+• Docker and containerization
+• CI/CD pipelines and DevOps practices
+
+Soft Skills:
+• Excellent problem-solving abilities
+• Strong communication skills
+• Team player with leadership qualities
+• Agile/scrum experience
+• Passion for learning new technologies
+
+═══════════════════════════════════════════════════════════════
+
+PREFERRED QUALIFICATIONS
+
+• GraphQL experience
+• Kubernetes knowledge
+• Serverless architectures (Lambda)
+• Fintech or payment processing background
+• Microservices architecture experience
+• Redis or caching technologies
+• Monitoring tools (DataDog, New Relic)
+• Open-source contributions
+• TypeScript in production
+• Message queues (RabbitMQ, Kafka)
+• Event-driven architectures
+
+═══════════════════════════════════════════════════════════════
+
+EDUCATION
+
+• Bachelor's degree in Computer Science or related field
+• Advanced degree is a plus
+
+═══════════════════════════════════════════════════════════════
+
+TECH STACK
+
+Frontend: React.js, TypeScript, Next.js, Redux, Tailwind CSS
+Backend: Node.js, Express.js, Python, FastAPI, GraphQL
+Data: PostgreSQL, Redis, MongoDB
+Infrastructure: AWS, Docker, Kubernetes, GitHub Actions
+Monitoring: DataDog, Sentry
+
+═══════════════════════════════════════════════════════════════
+
+WHAT WE OFFER
+
+• Competitive salary ($150K - $200K)
+• Equity package (stock options)
+• Comprehensive health, dental, vision insurance
+• 401(k) with 4% company match
+• Unlimited PTO policy
+• Flexible hybrid work (3 days in office)
+• $2,500 annual learning budget
+• Latest MacBook Pro and equipment
+• Gym membership reimbursement
+• Career growth opportunities
