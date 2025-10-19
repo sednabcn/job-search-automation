@@ -290,35 +290,38 @@ jobs:
             fi
           fi
 
+  # Job 4: Send email notification with results
   notify:
     needs: [analyze-single, analyze-batch]
-    if: always()
+    if: always() && (needs.analyze-single.result == 'success' || needs.analyze-batch.result == 'success')
     runs-on: ubuntu-latest
+    
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-
-       - name: Send email notification
-         if: vars.ENABLE_EMAIL_NOTIFICATIONS == 'true'
-         uses: dawidd6/action-send-mail@v4
-         continue-on-error: true
-         with:
-           server_address: smtp.gmail.com
-           server_port: SMTP_PORT
-           username: ${{ secrets.SMTP__USER }}
-           password: ${{ secrets.SMTP_PASS }}
-           subject: "CV-Job Match Analysis Complete 🎯"
-           to: ${{ secrets.NOTIFICATION_EMAIL }}
-           from: "CV Job Matcher Bot"
-           body: |
-             Your CV-Job match analysis is complete!
+        uses: actions/download-artifact@v3
+      
+      - name: Send email notification
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: SMTP.PORT
+          username: ${{ secrets.SMTP_USER }}
+          password: ${{ secrets.SMTP_PASS }}
+          subject: "CV-Job Match Analysis Complete 🎯"
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: "CV Job Matcher Bot"
+          body: |
+            Your CV-Job match analysis is complete!
             
-             Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            Analysis Date: ${{ github.event.head_commit.timestamp }}
+            Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
             
-             Check the artifacts for detailed reports.
-           ignore_cert: true
-           convert_markdown: true  
+            Check the artifacts for detailed reports.
+          attachments: |
+            job-analysis-report/**/*.txt
+            batch-analysis-report/**/*.txt
+          ignore_cert: true
+          convert_markdown: true
   
   update-tracking:
     needs: [analyze-single, analyze-batch]
