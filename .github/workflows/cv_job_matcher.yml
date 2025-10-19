@@ -294,7 +294,6 @@ jobs:
     needs: [analyze-single, analyze-batch]
     if: always()
     runs-on: ubuntu-latest
-    
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
