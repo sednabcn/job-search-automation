@@ -1,0 +1,73 @@
+
+================================================================================
+CV vs JOB OFFER ANALYSIS REPORT
+================================================================================
+
+Job: target_job
+Company: Unknown
+Date: 2025-10-19 17:56
+
+================================================================================
+OVERALL MATCH SCORE: 69.5%
+================================================================================
+
+Recommendation: APPLY WITH CAUTION ⚠️
+Confidence: MEDIUM
+Message: Good match with some gaps. Highlight your transferable skills in your application.
+
+================================================================================
+DETAILED SCORES
+================================================================================
+
+Required Skills            75.0%  (Weight: 35%, Contribution: 26.2%)
+Preferred Skills           75.0%  (Weight: 15%, Contribution: 11.2%)
+Experience                100.0%  (Weight: 20%, Contribution: 20.0%)
+Education                  70.0%  (Weight: 10%, Contribution: 7.0%)
+Certifications            100.0%  (Weight: 5%, Contribution: 5.0%)
+Keywords                    0.0%  (Weight: 15%, Contribution: 0.0%)
+
+================================================================================
+GAP ANALYSIS
+================================================================================
+
+❌ Missing REQUIRED Skills (2):
+   - azure
+   - gcp
+
+⚠️  Missing PREFERRED Skills (3):
+   - kafka
+   - lambda
+   - options
+
+🎓 Education Gap:
+   Required: Bachelor's
+   Current: None
+
+================================================================================
+ACTION PLAN
+================================================================================
+
+1. [CRITICAL] Required Skills
+   Action: Learn these essential skills: azure, gcp
+   Time: 2-4 weeks per skill
+   Resources:
+      • Search for 'azure' courses on Coursera/Udemy
+      • Search for 'gcp' courses on Coursera/Udemy
+
+2. [MEDIUM] Education
+   Action: Consider pursuing Bachelor's degree or equivalent certifications
+   Time: 6 months - 2 years
+   Resources:
+      • Online Master's programs
+      • Professional certifications
+      • Bootcamps
+
+3. [LOW] Preferred Skills
+   Action: Nice to have: kafka, lambda, options
+   Time: 1-2 weeks per skill
+   Resources:
+      • Search for 'lambda' courses on Coursera/Udemy
+      • Search for 'kafka' courses on Coursera/Udemy
+      • Search for 'options' courses on Coursera/Udemy
+
+================================================================================
