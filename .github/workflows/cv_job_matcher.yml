@@ -302,28 +302,28 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         continue-on-error: true
-      
-      - name: Send email notification
-        if: secrets.SMTP_USER != '' && secrets.SMTP_PASS != ''
-        uses: dawidd6/action-send-mail@v3
-        continue-on-error: true
-        with:
-          server_address: smtp.gmail.com
-          server_port: 587
-          username: ${{ secrets.SMTP_USER }}
-          password: ${{ secrets.SMTP_PASS }}
-          subject: "CV-Job Match Analysis Complete 🎯"
-          to: ${{ secrets.NOTIFICATION_EMAIL }}
-          from: "CV Job Matcher Bot"
-          body: |
-            Your CV-Job match analysis is complete!
-            
-            Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-            
-            Check the artifacts for detailed reports.
-          ignore_cert: true
-          convert_markdown: true
 
+       - name: Send email notification
+         if: vars.ENABLE_EMAIL_NOTIFICATIONS == 'true'
+         uses: dawidd6/action-send-mail@v3
+         continue-on-error: true
+         with:
+           server_address: smtp.gmail.com
+           server_port: SMTP_PORT
+           username: ${{ secrets.SMTP__USER }}
+           password: ${{ secrets.SMTP_PASS }}
+           subject: "CV-Job Match Analysis Complete 🎯"
+           to: ${{ secrets.NOTIFICATION_EMAIL }}
+           from: "CV Job Matcher Bot"
+           body: |
+             Your CV-Job match analysis is complete!
+            
+             Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            
+             Check the artifacts for detailed reports.
+           ignore_cert: true
+           convert_markdown: true  
+  
   update-tracking:
     needs: [analyze-single, analyze-batch]
     if: always()
