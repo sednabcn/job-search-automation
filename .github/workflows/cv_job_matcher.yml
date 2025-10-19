@@ -20,7 +20,7 @@ on:
       job_file:
         description: 'Job description file path'
         required: false
-        default: 'jobs/latest_job.txt'
+        default: 'jobs/target_job.txt'
       mode:
         description: 'Analysis mode'
         required: true
@@ -102,12 +102,32 @@ jobs:
           
           # Run analysis using Python script directly
           python3 << 'PYTHON_SCRIPT'
-          import sys
+          import sys, os
           from pathlib import Path
-          
-          # Import the matcher
-          sys.path.insert(0, '.')
-          from cv_job_matcher import CVJobMatcher
+          # Add script directory to path
+
+          script_dir = os.path.join(os.getcwd(), '.github', 'scripts')
+          sys.path.insert(0, script_dir)
+          sys.path.insert(0, '.')  # Also check root directory
+
+          print(f"Python path: {sys.path[:3]}")
+          print(f"Current directory: {os.getcwd()}")
+          print(f"Script directory: {script_dir}")
+
+          try:
+            from cv_job_matcher import CVJobMatcher
+            print("✅ Available modules: cv_matcher=True")
+          except ImportError as e:
+            print(f"❌ cv_job_matcher.py not found")
+            print(f"Error: {e}")
+            print(f"Searched in: {sys.path}")
+    
+          # List files to debug
+          if os.path.exists('.github/scripts'):
+            print(f"Files in .github/scripts/: {os.listdir('.github/scripts')}")
+          sys.exit(1)
+
+
           
           matcher = CVJobMatcher()
           

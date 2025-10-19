@@ -195,15 +195,29 @@ jobs:
           print(f"Remote environment: {os.getenv('GITHUB_ACTIONS') == 'true'}")
           
           # Add current directory to path
-          sys.path.insert(0, '.')
-          
+          # Add script directory to path
+          import os
+          script_dir = os.path.join(os.getcwd(), '.github', 'scripts')
+          sys.path.insert(0, script_dir)
+          sys.path.insert(0, '.')  # Also check root directory
+
+          print(f"Python path: {sys.path[:3]}")
+          print(f"Current directory: {os.getcwd()}")
+          print(f"Script directory: {script_dir}")
+
           try:
-              from cv_job_matcher import CVJobMatcher
-              print("Available modules: cv_matcher=True")
-          except ImportError:
-              print("❌ cv_job_matcher.py not found")
-              sys.exit(1)
-          
+            from cv_job_matcher import CVJobMatcher
+            print("✅ Available modules: cv_matcher=True")
+          except ImportError as e:
+            print(f"❌ cv_job_matcher.py not found")
+            print(f"Error: {e}")
+            print(f"Searched in: {sys.path}")
+    
+          # List files to debug
+          if os.path.exists('.github/scripts'):
+            print(f"Files in .github/scripts/: {os.listdir('.github/scripts')}")
+          sys.exit(1)
+           
           # Parse environment variables
           cv_dir = Path("${{ env.CV_DIR }}")
           jobs_dir = Path("${{ env.JOBS_DIR }}")
