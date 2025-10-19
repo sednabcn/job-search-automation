@@ -162,7 +162,7 @@ jobs:
           
           # Add current directory to path
           sys.path.insert(0, '.')
-          from cv_job_matcher import CVJobMatcher
+          from .github/scripts/cv_job_matcher import CVJobMatcher
           
           matcher = CVJobMatcher()
           
