@@ -1,0 +1,96 @@
+name: Send CV Match Emails
+
+on:
+  workflow_run:
+    workflows: ["CV Job Matcher - Enhanced Automation"]
+    types:
+      - completed
+
+jobs:
+  send-emails:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: job-match-reports
+
+      - name: Ensure jq is available
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Check for queued emails
+        id: check_queue
+        run: |
+          if [ -d "github_actions_emails" ] && [ "$(ls -A github_actions_emails 2>/dev/null)" ]; then
+            echo "emails_exist=true" >> $GITHUB_OUTPUT
+            email_count=$(find github_actions_emails -name "*.json" | wc -l)
+            echo "email_count=$email_count" >> $GITHUB_OUTPUT
+            echo "Found $email_count queued emails"
+          else
+            echo "emails_exist=false" >> $GITHUB_OUTPUT
+            echo "email_count=0" >> $GITHUB_OUTPUT
+            echo "No queued emails found"
+          fi
+
+      - name: Send summary email (if queued emails exist)
+        if: steps.check_queue.outputs.emails_exist == 'true'
+        uses: dawidd6/action-send-mail@v4
+        with:
+          server_address: ${{ secrets.SMTP_SERVER || 'smtp.gmail.com' }}
+          server_port: ${{ secrets.SMTP_PORT || '587' }}
+          username: ${{ secrets.SMTP_USER }}
+          password: ${{ secrets.SMTP_PASS }}
+          subject: "CV Job Match Analysis Complete 🎯"
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: ${{ secrets.SMTP_USER }}
+          html_body: file://job_match_email.html
+          attachments: |
+            reports/*.txt
+            reports/*.json
+          ignore_cert: true
+          convert_markdown: true
+
+      - name: Send individual emails
+        if: steps.check_queue.outputs.emails_exist == 'true'
+        env:
+          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          EMAIL_USERNAME: ${{ secrets.SMTP_USER }}
+          EMAIL_PASSWORD: ${{ secrets.SMTP_PASS }}
+        run: |
+          echo "Sending ${{ steps.check_queue.outputs.email_count }} individual emails..."
+
+          for email_file in github_actions_emails/*.json; do
+            if [ -f "$email_file" ]; then
+              echo "Processing: $email_file"
+
+              recipient=$(jq -r '.to' "$email_file")
+              subject=$(jq -r '.subject' "$email_file")
+              body_file=$(jq -r '.body_file' "$email_file")
+              attachments=$(jq -r '.attachments | join(" ")' "$email_file")
+
+              echo "Sending to: $recipient — Subject: $subject"
+
+              docker run --rm \
+                -e MAIL_USERNAME="${EMAIL_USERNAME}" \
+                -e MAIL_PASSWORD="${EMAIL_PASSWORD}" \
+                -v "$(pwd)":/data \
+                dawidd6/action-send-mail \
+                  --server-address "${SMTP_SERVER:-smtp.gmail.com}" \
+                  --server-port "${SMTP_PORT:-587}" \
+                  --username "${EMAIL_USERNAME}" \
+                  --password "${EMAIL_PASSWORD}" \
+                  --subject "$subject" \
+                  --to "$recipient" \
+                  --from "${EMAIL_USERNAME}" \
+                  --html-body "file://$body_file" \
+                  --attachments $attachments \
+                  --ignore-cert \
+                  --convert-markdown
+            fi
+          done
