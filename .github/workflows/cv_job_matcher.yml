@@ -292,10 +292,7 @@ jobs:
 
   notify:
     needs: [analyze-single, analyze-batch]
-    if: |
-      always() && 
-      (needs.analyze-single.result == 'success' || needs.analyze-batch.result == 'success') &&
-      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    if: always() && (needs.analyze-single.result == 'success' || needs.analyze-batch.result == 'success') && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     
     steps:
@@ -305,7 +302,7 @@ jobs:
 
        - name: Send email notification
          if: vars.ENABLE_EMAIL_NOTIFICATIONS == 'true'
-         uses: dawidd6/action-send-mail@v3
+         uses: dawidd6/action-send-mail@v4
          continue-on-error: true
          with:
            server_address: smtp.gmail.com
