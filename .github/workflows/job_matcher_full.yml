@@ -178,7 +178,8 @@ jobs:
           echo "  --comprehensive-tracking"
           echo ""
           echo "Executing enhanced job matching system..."
-      
+
+
       - name: Run Enhanced Job Matcher
         id: matcher
         run: |
@@ -188,36 +189,35 @@ jobs:
           import json
           from pathlib import Path
           from datetime import datetime
+          import traceback
           
           print("GitHub Actions job matcher available")
           print("Using professional CV matcher module")
           print("Domain-Aware Job Matching Script started")
           print(f"Remote environment: {os.getenv('GITHUB_ACTIONS') == 'true'}")
           
-          # Add current directory to path
           # Add script directory to path
-          import os
           script_dir = os.path.join(os.getcwd(), '.github', 'scripts')
           sys.path.insert(0, script_dir)
-          sys.path.insert(0, '.')  # Also check root directory
-
+          sys.path.insert(0, '.')
+          
           print(f"Python path: {sys.path[:3]}")
           print(f"Current directory: {os.getcwd()}")
           print(f"Script directory: {script_dir}")
-
+          
           try:
-            from cv_job_matcher import CVJobMatcher
-            print("✅ Available modules: cv_matcher=True")
+              from cv_job_matcher import CVJobMatcher
+              print("✅ Available modules: cv_matcher=True")
           except ImportError as e:
-            print(f"❌ cv_job_matcher.py not found")
-            print(f"Error: {e}")
-            print(f"Searched in: {sys.path}")
-    
-          # List files to debug
+              print(f"❌ cv_job_matcher.py not found")
+              print(f"Error: {e}")
+              traceback.print_exc()
+              sys.exit(1)
+          
+          # Debug: List files
           if os.path.exists('.github/scripts'):
-            print(f"Files in .github/scripts/: {os.listdir('.github/scripts')}")
-          sys.exit(1)
-           
+              print(f"Files in .github/scripts/: {os.listdir('.github/scripts')}")
+          
           # Parse environment variables
           cv_dir = Path("${{ env.CV_DIR }}")
           jobs_dir = Path("${{ env.JOBS_DIR }}")
@@ -226,147 +226,181 @@ jobs:
           mode = "${{ needs.setup-and-validate.outputs.execution_mode }}"
           min_score = int("${{ github.event.inputs.min_score || '60' }}")
           
-          print("\nArguments parsed successfully:")
-          print(f"  CV dir: {cv_dir}")
-          print(f"  Jobs dir: {jobs_dir}")
-          print(f"  Reports dir: {reports_dir}")
-          print(f"  Tracking dir: {tracking_dir}")
+          print("\n=== CONFIGURATION ===")
+          print(f"Arguments parsed successfully:")
+          print(f"  CV dir: {cv_dir} (exists: {cv_dir.exists()})")
+          print(f"  Jobs dir: {jobs_dir} (exists: {jobs_dir.exists()})")
+          print(f"  Reports dir: {reports_dir} (exists: {reports_dir.exists()})")
+          print(f"  Tracking dir: {tracking_dir} (exists: {tracking_dir.exists()})")
           print(f"  Mode: {mode}")
           print(f"  Min score: {min_score}%")
           
-          # Create directories
-          reports_dir.mkdir(exist_ok=True)
-          tracking_dir.mkdir(exist_ok=True)
-          
-          # Initialize matcher
-          matcher = CVJobMatcher(data_dir=str(tracking_dir))
-          
-          # Load CV
-          cv_files = list(cv_dir.glob("*.txt"))
-          if not cv_files:
-              print("❌ No CV files found")
-              sys.exit(1)
-          
-          cv_file = cv_files[0]
-          print(f"\n=== VALIDATION SUMMARY ===")
-          print(f"CV file: {cv_file.name}")
-          cv_text = cv_file.read_text(encoding='utf-8')
-          print(f"CV length: {len(cv_text)} characters")
-          
-          # Load jobs
-          job_files = list(jobs_dir.glob("*.txt"))
-          print(f"Job files found: {len(job_files)}")
-          
-          if not job_files:
-              print("❌ No job files found")
-              sys.exit(1)
-          
-          print(f"\nUsing GitHubActionsJobMatcher - comprehensive analysis enabled")
-          print(f"JobMatcher initialized - mode: {mode}, min_score: {min_score}")
-          print("GitHub Actions mode - results will be tracked and reported")
-          
-          # Process based on mode
-          results = []
-          timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-          
-          print(f"\n{'='*70}")
-          print(f"PROCESSING JOBS")
-          print(f"{'='*70}\n")
-          
-          if mode == "demo":
-              print("--- Running Demo Mode ---")
-              result = matcher.analyze_job(
-                  cv_text,
-                  "Sample job requiring Python, ML, and AWS experience",
-                  "Sample ML Engineer",
-                  "Tech Company"
-              )
-              results.append(result)
-          
-          elif mode == "single":
-              job_file = job_files[0]
-              print(f"--- Processing Single Job: {job_file.name} ---")
-              job_text = job_file.read_text(encoding='utf-8')
-              result = matcher.analyze_job(cv_text, job_text, job_file.stem, "Unknown")
-              results.append(result)
-              print(f"✅ Analysis complete: {result['score']['total_score']}%")
-          
-          else:  # batch or compare
-              print(f"--- Processing {len(job_files)} Jobs in Batch Mode ---")
-              jobs = []
-              for i, job_file in enumerate(job_files, 1):
+          try:
+              # Create directories
+              reports_dir.mkdir(exist_ok=True)
+              tracking_dir.mkdir(exist_ok=True)
+              print("\n✅ Directories created/verified")
+              
+              # Initialize matcher
+              print("\n=== INITIALIZING MATCHER ===")
+              matcher = CVJobMatcher(data_dir=str(tracking_dir))
+              print("✅ Matcher initialized")
+              
+              # Load CV
+              print("\n=== LOADING CV ===")
+              cv_files = list(cv_dir.glob("*.txt"))
+              if not cv_files:
+                  print("❌ No CV files found")
+                  print(f"Searched in: {cv_dir.absolute()}")
+                  print(f"Contents: {list(cv_dir.glob('*')) if cv_dir.exists() else 'Directory does not exist'}")
+                  sys.exit(1)
+              
+              cv_file = cv_files[0]
+              print(f"CV file: {cv_file.name}")
+              cv_text = cv_file.read_text(encoding='utf-8')
+              print(f"CV length: {len(cv_text)} characters")
+              
+              # Load jobs
+              print("\n=== LOADING JOBS ===")
+              job_files = list(jobs_dir.glob("*.txt"))
+              print(f"Job files found: {len(job_files)}")
+              
+              if not job_files:
+                  print("❌ No job files found")
+                  print(f"Searched in: {jobs_dir.absolute()}")
+                  print(f"Contents: {list(jobs_dir.glob('*')) if jobs_dir.exists() else 'Directory does not exist'}")
+                  sys.exit(1)
+              
+              for job_file in job_files:
+                  print(f"  - {job_file.name}")
+              
+              print(f"\n✅ Using GitHubActionsJobMatcher")
+              print(f"JobMatcher initialized - mode: {mode}, min_score: {min_score}")
+              
+              # Process based on mode
+              results = []
+              timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+              
+              print(f"\n{'='*70}")
+              print(f"PROCESSING JOBS")
+              print(f"{'='*70}\n")
+              
+              if mode == "demo":
+                  print("--- Running Demo Mode ---")
+                  result = matcher.analyze_job(
+                      cv_text,
+                      "Sample job requiring Python, ML, and AWS experience",
+                      "Sample ML Engineer",
+                      "Tech Company"
+                  )
+                  results.append(result)
+              
+              elif mode == "single":
+                  job_file = job_files[0]
+                  print(f"--- Processing Single Job: {job_file.name} ---")
                   job_text = job_file.read_text(encoding='utf-8')
-                  title = job_file.stem.replace('_', ' ').title()
-                  jobs.append({
-                      'title': title,
-                      'company': 'Unknown',
-                      'description': job_text
-                  })
-                  print(f"[LOADED] {i}/{len(job_files)}: {title}")
+                  result = matcher.analyze_job(cv_text, job_text, job_file.stem, "Unknown")
+                  results.append(result)
+                  print(f"✅ Analysis complete: {result['score']['total_score']}%")
               
-              print(f"\nStarting batch analysis of {len(jobs)} positions...")
-              results = matcher.batch_analyze(cv_text, jobs)
+              else:  # batch or compare
+                  print(f"--- Processing {len(job_files)} Jobs in Batch Mode ---")
+                  jobs = []
+                  for i, job_file in enumerate(job_files, 1):
+                      job_text = job_file.read_text(encoding='utf-8')
+                      title = job_file.stem.replace('_', ' ').title()
+                      jobs.append({
+                          'title': title,
+                          'company': 'Unknown',
+                          'description': job_text
+                      })
+                      print(f"[LOADED] {i}/{len(job_files)}: {title}")
+                  
+                  print(f"\nStarting batch analysis of {len(jobs)} positions...")
+                  results = matcher.batch_analyze(cv_text, jobs)
+                  
+                  for i, result in enumerate(results, 1):
+                      score = result['score']['total_score']
+                      print(f"✅ Analyzed {i}/{len(results)}: {result['job_info']['title']} - {score}%")
               
-              for i, result in enumerate(results, 1):
-                  score = result['score']['total_score']
-                  print(f"✅ Analyzed {i}/{len(results)}: {result['job_info']['title']} - {score}%")
+              # Generate reports
+              print(f"\n{'='*70}")
+              print("GENERATING REPORTS")
+              print(f"{'='*70}\n")
+              
+              high_matches = [r for r in results if r['score']['total_score'] >= 75]
+              good_matches = [r for r in results if 60 <= r['score']['total_score'] < 75]
+              upskill_needed = [r for r in results if 40 <= r['score']['total_score'] < 60]
+              not_ready = [r for r in results if r['score']['total_score'] < 40]
+              
+              # Save individual reports
+              for result in results:
+                  report = matcher.generate_report(result)
+                  job_title_safe = result['job_info']['title'].replace(' ', '_').replace('/', '_')
+                  report_file = reports_dir / f"{job_title_safe}_{timestamp}.txt"
+                  report_file.write_text(report)
+              
+              print(f"Saved {len(results)} individual reports to {reports_dir}")
+              
+              # Create summary
+              summary = {
+                  'analysis_date': datetime.now().isoformat(),
+                  'total_jobs': len(results),
+                  'high_matches': len(high_matches),
+                  'good_matches': len(good_matches),
+                  'upskill_needed': len(upskill_needed),
+                  'not_ready': len(not_ready),
+                  'results': results,
+                  'top_matches': high_matches[:5]
+              }
+              
+              summary_file = reports_dir / f"summary_{timestamp}.json"
+              with open(summary_file, 'w') as f:
+                  json.dump(summary, f, indent=2)
+              
+              print(f"Summary saved: {summary_file}")
+              
+              # Save for GitHub Actions
+              gh_summary_file = Path('job_match_summary.json')
+              with open(gh_summary_file, 'w') as f:
+                  json.dump(summary, f, indent=2)
+              
+              print(f"GitHub Actions summary saved: {gh_summary_file}")
+              
+              print(f"\n{'='*70}")
+              print("FINAL SUMMARY")
+              print(f"{'='*70}")
+              print(f"Total jobs analyzed: {len(results)}")
+              print(f"✅ High matches (75%+): {len(high_matches)}")
+              print(f"⚠️  Good matches (60-74%): {len(good_matches)}")
+              print(f"📚 Upskill needed (40-59%): {len(upskill_needed)}")
+              print(f"❌ Not ready (<40%): {len(not_ready)}")
+              print(f"Reports generated: {len(results)}")
+              print(f"Tracking system: COMPREHENSIVE")
+              print("Job matching completed successfully")
+              print(f"{'='*70}\n")
+              
+              # Set outputs using environment files
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as output_file:
+                  output_file.write(f"total_jobs={len(results)}\n")
+                  output_file.write(f"high_matches={len(high_matches)}\n")
+                  output_file.write(f"good_matches={len(good_matches)}\n")
+                  output_file.write(f"execution_status=0\n")
+              
+              print("✅ Script completed successfully")
+              sys.exit(0)
+              
+          except Exception as e:
+              print(f"\n{'='*70}")
+              print("❌ ERROR OCCURRED")
+              print(f"{'='*70}")
+              print(f"Error type: {type(e).__name__}")
+              print(f"Error message: {str(e)}")
+              print("\nFull traceback:")
+              traceback.print_exc()
+              print(f"{'='*70}\n")
+              sys.exit(1)
           
-          # Generate reports
-          print(f"\n{'='*70}")
-          print("GENERATING REPORTS")
-          print(f"{'='*70}\n")
-          
-          high_matches = [r for r in results if r['score']['total_score'] >= 75]
-          good_matches = [r for r in results if 60 <= r['score']['total_score'] < 75]
-          upskill_needed = [r for r in results if 40 <= r['score']['total_score'] < 60]
-          not_ready = [r for r in results if r['score']['total_score'] < 40]
-          
-          # Save individual reports
-          for result in results:
-              report = matcher.generate_report(result)
-              job_title_safe = result['job_info']['title'].replace(' ', '_').replace('/', '_')
-              report_file = reports_dir / f"{job_title_safe}_{timestamp}.txt"
-              report_file.write_text(report)
-          
-          print(f"Saved {len(results)} individual reports to {reports_dir}")
-          
-          # Create summary
-          summary = {
-              'analysis_date': datetime.now().isoformat(),
-              'total_jobs': len(results),
-              'high_matches': len(high_matches),
-              'good_matches': len(good_matches),
-              'upskill_needed': len(upskill_needed),
-              'not_ready': len(not_ready),
-              'results': results,
-              'top_matches': high_matches[:5]
-          }
-          
-          summary_file = reports_dir / f"summary_{timestamp}.json"
-          with open(summary_file, 'w') as f:
-              json.dump(summary, f, indent=2)
-          
-          print(f"Summary saved: {summary_file}")
-          
-          # Save for GitHub Actions
-          gh_summary_file = Path('job_match_summary.json')
-          with open(gh_summary_file, 'w') as f:
-              json.dump(summary, f, indent=2)
-          
-          print(f"GitHub Actions summary saved: {gh_summary_file}")
-          
-          print(f"\n{'='*70}")
-          print("FINAL SUMMARY")
-          print(f"{'='*70}")
-          print(f"Total jobs analyzed: {len(results)}")
-          print(f"✅ High matches (75%+): {len(high_matches)}")
-          print(f"⚠️  Good matches (60-74%): {len(good_matches)}")
-          print(f"📚 Upskill needed (40-59%): {len(upskill_needed)}")
-          print(f"❌ Not ready (<40%): {len(not_ready)}")
-          print(f"Reports generated: {len(results)}")
-          print(f"Tracking system: COMPREHENSIVE")
-          print("Job matching completed successfully")
-          print(f"{'='*70}\n")
           
           # Set outputs using environment files
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output_file:
