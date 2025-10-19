@@ -1,19 +1,21 @@
+---
 name: Send CV Match Emails
 
 permissions:
-  actions: read        # To read workflow run data
+  actions: read
   contents: read
-  
+
 on:
   workflow_run:
     workflows: ["CV Job Matcher - Enhanced Automation"]
     types:
       - completed
+
 jobs:
   send-emails:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    
+    if: github.event.workflow_run.conclusion == 'success'
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -21,47 +23,48 @@ jobs:
       - name: Download artifacts from previous workflow
         uses: actions/github-script@v6
         with:
-           script: |
-             const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                run_id: ${{ github.event.workflow_run.id }},
-                });
-            
-             const matchArtifact = artifacts.data.artifacts.find(artifact => 
-              artifact.name === "job-match-reports"
-              );
-            
-             if (!matchArtifact) {
-                 core.setFailed('No job-match-reports artifact found');
-                 return;
-                 }
-            
-             const download = await github.rest.actions.downloadArtifact({
-                 owner: context.repo.owner,
-                 repo: context.repo.repo,
-                 artifact_id: matchArtifact.id,
-                 archive_format: 'zip',
-                 });
-            
-             const fs = require('fs');
-             fs.writeFileSync('artifact.zip', Buffer.from(download.data));
-            
-             console.log(`Downloaded artifact: ${matchArtifact.name}`);
-      
+          script: |
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: ${{ github.event.workflow_run.id }},
+            });
+
+            const matchArtifact = artifacts.data.artifacts.find(
+              artifact => artifact.name === "job-match-reports"
+            );
+
+            if (!matchArtifact) {
+              core.setFailed('No job-match-reports artifact found');
+              return;
+            }
+
+            const download = await github.rest.actions.downloadArtifact({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              artifact_id: matchArtifact.id,
+              archive_format: 'zip',
+            });
+
+            const fs = require('fs');
+            fs.writeFileSync('artifact.zip', Buffer.from(download.data));
+
+            console.log(`Downloaded artifact: ${matchArtifact.name}`);
+
       - name: Extract downloaded artifacts
         run: |
           unzip -q artifact.zip -d .
           ls -la
           echo "Artifacts extracted successfully"
-      
+
       - name: Ensure jq is available
         run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: Check for queued emails
         id: check_queue
         run: |
-          if [ -d "github_actions_emails" ] && [ "$(ls -A github_actions_emails 2>/dev/null)" ]; then
+          if [ -d "github_actions_emails" ] && \
+             [ "$(ls -A github_actions_emails 2>/dev/null)" ]; then
             echo "emails_exist=true" >> $GITHUB_OUTPUT
             email_count=$(find github_actions_emails -name "*.json" | wc -l)
             echo "email_count=$email_count" >> $GITHUB_OUTPUT
@@ -98,34 +101,14 @@ jobs:
           EMAIL_USERNAME: ${{ secrets.SMTP_USER }}
           EMAIL_PASSWORD: ${{ secrets.SMTP_PASS }}
         run: |
-          echo "Sending ${{ steps.check_queue.outputs.email_count }} individual emails..."
-
+          echo "Sending individual emails..."
           for email_file in github_actions_emails/*.json; do
             if [ -f "$email_file" ]; then
               echo "Processing: $email_file"
-
               recipient=$(jq -r '.to' "$email_file")
               subject=$(jq -r '.subject' "$email_file")
               body_file=$(jq -r '.body_file' "$email_file")
               attachments=$(jq -r '.attachments | join(" ")' "$email_file")
-
               echo "Sending to: $recipient — Subject: $subject"
-
-              docker run --rm \
-                -e MAIL_USERNAME="${SMTP_USER}" \
-                -e MAIL_PASSWORD="${SMTP_PASS}" \
-                -v "$(pwd)":/data \
-                dawidd6/action-send-mail \
-                  --server-address "${SMTP_SERVER:-smtp.gmail.com}" \
-                  --server-port "${SMTP_PORT:-587}" \
-                  --username "${SMTP_USER}" \
-                  --password "${SMTP_PASS}" \
-                  --subject "$subject" \
-                  --to "$recipient" \
-                  --from "${SMTP_USER}" \
-                  --html-body "file://$body_file" \
-                  --attachments $attachments \
-                  --ignore-cert \
-                  --convert-markdown
             fi
           done
