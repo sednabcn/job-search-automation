@@ -1,5 +1,11 @@
 name: CV Job Matcher - Enhanced Automation
 
+# Grant necessary permissions for the workflow
+permissions:
+  contents: write      # For committing tracking updates
+  issues: write        # For creating issue reports
+  pull-requests: read  # For PR triggers
+  
 on:
   push:
     branches: [ main, master ]
