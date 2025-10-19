@@ -9,19 +9,18 @@ on:
     workflows: ["CV Job Matcher - Enhanced Automation"]
     types:
       - completed
-
 jobs:
   send-emails:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
-
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        
-       - name: Download artifacts from previous workflow
-         uses: actions/github-script@v6
-         with:
+
+      - name: Download artifacts from previous workflow
+        uses: actions/github-script@v6
+        with:
            script: |
              const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
                 owner: context.repo.owner,
