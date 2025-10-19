@@ -1,4 +1,3 @@
----
 name: Send CV Match Emails
 
 permissions:
@@ -10,6 +9,8 @@ on:
     workflows: ["CV Job Matcher - Enhanced Automation"]
     types:
       - completed
+
+  workflow_dispatch:
 
 jobs:
   send-emails:
