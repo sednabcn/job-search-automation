@@ -1,0 +1,91 @@
+SARAH MARTINEZ
+Senior Software Engineer
+
+📧 sarah.martinez@email.com | 📱 +1 (555) 123-4567
+🌐 github.com/smartinez | 💼 linkedin.com/in/smartinez
+📍 San Francisco, CA
+
+═══════════════════════════════════════════════════════════════
+
+PROFESSIONAL SUMMARY
+
+Results-driven Senior Software Engineer with 6+ years of experience building 
+scalable web applications. Expertise in full-stack development using modern 
+JavaScript frameworks and cloud technologies. Proven track record of leading 
+technical initiatives and mentoring junior developers.
+
+═══════════════════════════════════════════════════════════════
+
+TECHNICAL SKILLS
+
+Programming Languages:
+• JavaScript/TypeScript (Expert) • Python (Advanced) • Java (Intermediate)
+• SQL (Advanced) • HTML5/CSS3 (Expert)
+
+Frontend: React.js, Vue.js, Next.js, Redux, Tailwind CSS
+Backend: Node.js, Express.js, Django, Flask, GraphQL, REST APIs
+Databases: PostgreSQL, MongoDB, Redis, MySQL
+DevOps: AWS, Docker, Kubernetes, GitHub Actions, Jenkins, CI/CD
+Tools: Git, JIRA, Jest, Cypress, DataDog
+
+═══════════════════════════════════════════════════════════════
+
+PROFESSIONAL EXPERIENCE
+
+Senior Software Engineer | TechCorp Inc. | San Francisco, CA
+March 2021 - Present
+
+• Led development of customer dashboard serving 100K+ daily users with React 
+  and TypeScript, improving load time by 45%
+• Architected microservices infrastructure using Docker and Kubernetes
+• Established CI/CD pipeline achieving 95% test coverage
+• Mentored team of 4 junior developers
+• Implemented GraphQL API reducing network requests by 60%
+• Technologies: React, TypeScript, Node.js, PostgreSQL, Redis, AWS, Docker
+
+Software Engineer | StartupXYZ | Mountain View, CA
+June 2019 - February 2021
+
+• Developed full-stack features for B2B SaaS platform using React and Python
+• Built real-time analytics dashboard processing 1M+ events daily
+• Optimized database queries reducing API response time by 70%
+• Technologies: React, Python, Flask, PostgreSQL, Redis, AWS
+
+Junior Developer | Digital Solutions Ltd. | San Jose, CA
+August 2018 - May 2019
+
+• Developed responsive web applications using React and Node.js
+• Implemented automated testing with Jest and Cypress
+• Technologies: React, Node.js, Express, MongoDB
+
+═══════════════════════════════════════════════════════════════
+
+EDUCATION
+
+Bachelor of Science in Computer Science | GPA: 3.7/4.0
+University of California, Berkeley
+Graduated: May 2018
+
+═══════════════════════════════════════════════════════════════
+
+PROJECTS
+
+E-Commerce Platform | github.com/smartinez/ecommerce
+• Full-stack marketplace with 10K+ users
+• Stack: Next.js, Node.js, PostgreSQL, Stripe, AWS
+
+Data Visualization Dashboard | github.com/smartinez/dataviz
+• Analytics platform processing 500K+ data points
+• Stack: React, D3.js, Python, FastAPI, WebSocket
+
+API Gateway | github.com/smartinez/api-gateway
+• Microservices architecture handling 1M+ requests/day
+• Stack: Node.js, Redis, Docker, Kubernetes
+
+═══════════════════════════════════════════════════════════════
+
+CERTIFICATIONS
+
+✓ AWS Certified Solutions Architect - Associate (2022)
+✓ MongoDB Certified Developer (2021)
+✓ Certified Kubernetes Administrator (2023)

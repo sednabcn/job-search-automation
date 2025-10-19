@@ -4,13 +4,6 @@
 *credentials*
 *password*
 
-# Personal documents
-*.pdf
-*.docx
-*.doc
-*resume*
-*cv*
-*CV*
 
 # Python
 __pycache__/

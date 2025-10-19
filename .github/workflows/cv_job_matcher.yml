@@ -1,0 +1,323 @@
+name: CV Job Matcher Automation
+
+on:
+  # Trigger on push to main branch
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'cv/**'
+      - 'jobs/**'
+      - 'cv_job_matcher.py'
+  
+  # Trigger on pull requests
+  pull_request:
+    branches: [ main, master ]
+  
+  # Manual trigger with inputs
+  workflow_dispatch:
+    inputs:
+      cv_file:
+        description: 'CV file path (relative to repo root)'
+        required: false
+        default: 'data/my_cv.txt'
+      job_file:
+        description: 'Job description file path'
+        required: false
+        default: 'data/job_description.txt'
+      mode:
+        description: 'Analysis mode'
+        required: true
+        default: 'single'
+        type: choice
+        options:
+          - single
+          - batch
+          - compare
+
+  # Schedule daily check for new jobs
+  schedule:
+    - cron: '0 9 * * *'  # Run daily at 9 AM UTC
+
+env:
+  PYTHON_VERSION: '3.9'
+
+jobs:
+  # Job 1: Setup and validate
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      cv_exists: ${{ steps.check_files.outputs.cv_exists }}
+      jobs_exist: ${{ steps.check_files.outputs.jobs_exist }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Check for CV and job files
+        id: check_files
+        run: |
+          if [ -d "cv" ] && [ "$(ls -A cv)" ]; then
+            echo "cv_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "cv_exists=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if [ -d "jobs" ] && [ "$(ls -A jobs)" ]; then
+            echo "jobs_exist=true" >> $GITHUB_OUTPUT
+          else
+            echo "jobs_exist=false" >> $GITHUB_OUTPUT
+          fi
+
+  # Job 2: Analyze single job offer
+  analyze-single:
+    needs: setup
+    if: needs.setup.outputs.cv_exists == 'true' && needs.setup.outputs.jobs_exist == 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+      
+      - name: Run CV-Job Matcher (Single Job)
+        run: |
+          python .github/scripts/cv_job_matcher.py --mode single \
+            --data "${{ github.event.inputs.cv_file || 'data/my_cv.txt' }}" \
+            --data "${{ github.event.inputs.job_file || 'data/latest_job.txt' }}" \
+            --output reports/analysis_$(date +%Y%m%d_%H%M%S).txt
+      
+      - name: Upload analysis report
+        uses: actions/upload-artifact@v3
+        with:
+          name: job-analysis-report
+          path: reports/*.txt
+          retention-days: 90
+      
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const reportFiles = fs.readdirSync('reports').filter(f => f.endsWith('.txt'));
+            if (reportFiles.length > 0) {
+              const reportContent = fs.readFileSync(`reports/${reportFiles[0]}`, 'utf8');
+              const summary = reportContent.split('\n').slice(0, 30).join('\n');
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `## 🎯 CV-Job Match Analysis\n\`\`\`\n${summary}\n\`\`\`\n\nFull report available in artifacts.`
+              });
+            }
+
+  # Job 3: Batch analyze multiple jobs
+  analyze-batch:
+    needs: setup
+    if: needs.setup.outputs.cv_exists == 'true' && needs.setup.outputs.jobs_exist == 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+      
+      - name: Run batch analysis
+        run: |
+          python - <<'EOF'
+          import os
+          import sys
+          from pathlib import Path
+          
+          # Add current directory to path
+          sys.path.insert(0, '.')
+          from cv_job_matcher import CVJobMatcher
+          
+          matcher = CVJobMatcher()
+          
+          # Load CV
+          cv_file = Path('cv/my_cv.txt')
+          if cv_file.exists():
+              cv_text = cv_file.read_text()
+          else:
+              print("❌ CV file not found")
+              sys.exit(1)
+          
+          # Load all job descriptions
+          jobs_dir = Path('jobs')
+          jobs = []
+          
+          for job_file in jobs_dir.glob('*.txt'):
+              job_text = job_file.read_text()
+              jobs.append({
+                  'title': job_file.stem.replace('_', ' ').title(),
+                  'company': 'Unknown',
+                  'description': job_text
+              })
+          
+          if not jobs:
+              print("❌ No job files found")
+              sys.exit(1)
+          
+          # Run comparison
+          print(f"📊 Analyzing {len(jobs)} job offers...")
+          report = matcher.compare_jobs(cv_text, jobs)
+          
+          # Save report
+          reports_dir = Path('reports')
+          reports_dir.mkdir(exist_ok=True)
+          
+          from datetime import datetime
+          report_file = reports_dir / f'batch_analysis_{datetime.now().strftime("%Y%m%d_%H%M%S")}.txt'
+          report_file.write_text(report)
+          
+          print(f"✅ Report saved to {report_file}")
+          print("\n" + "="*80)
+          print(report)
+          EOF
+      
+      - name: Upload batch report
+        uses: actions/upload-artifact@v3
+        with:
+          name: batch-analysis-report
+          path: reports/*.txt
+          retention-days: 90
+      
+      - name: Create job summary
+        run: |
+          echo "## 📊 Batch Analysis Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Analysis Date:** $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Extract summary from report
+          if [ -f reports/batch_analysis_*.txt ]; then
+            latest_report=$(ls -t reports/batch_analysis_*.txt | head -1)
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            head -50 "$latest_report" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Job 4: Send email notification with results
+  notify:
+    needs: [analyze-single, analyze-batch]
+    if: always() && (needs.analyze-single.result == 'success' || needs.analyze-batch.result == 'success')
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+      
+      - name: Send email notification
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "CV-Job Match Analysis Complete 🎯"
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: "CV Job Matcher Bot"
+          body: |
+            Your CV-Job match analysis is complete!
+            
+            Analysis Date: ${{ github.event.head_commit.timestamp }}
+            Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            
+            Check the artifacts for detailed reports.
+          attachments: |
+            job-analysis-report/**/*.txt
+            batch-analysis-report/**/*.txt
+          ignore_cert: true
+          convert_markdown: true
+
+  # Job 5: Update tracking spreadsheet (optional)
+  update-tracking:
+    needs: [analyze-single, analyze-batch]
+    if: always()
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Update CSV tracking file
+        run: |
+          mkdir -p tracking
+          
+          # Create or update tracking CSV
+          if [ ! -f tracking/job_applications.csv ]; then
+            echo "Date,Job_Title,Company,Match_Score,Status,Notes" > tracking/job_applications.csv
+          fi
+          
+          # Add entry (simplified example)
+          echo "$(date +%Y-%m-%d),Sample Job,Sample Company,0,Analyzed,Auto-analyzed by GH Actions" >> tracking/job_applications.csv
+      
+      - name: Commit tracking updates
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add tracking/
+          git diff --quiet && git diff --staged --quiet || git commit -m "Update job application tracking [skip ci]"
+          git push
+
+  # Job 6: Archive old reports
+  archive-reports:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 9 * * *'  # Only on scheduled runs
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Archive old reports
+        run: |
+          mkdir -p archive
+          
+          # Move reports older than 30 days to archive
+          find reports -name "*.txt" -mtime +30 -exec mv {} archive/ \;
+          
+          # Compress archive
+          if [ "$(ls -A archive)" ]; then
+            tar -czf archive_$(date +%Y%m).tar.gz archive/*.txt
+            rm archive/*.txt
+          fi
+      
+      - name: Commit archives
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add archive/ reports/
+          git diff --quiet && git diff --staged --quiet || git commit -m "Archive old reports [skip ci]"
+          git push
