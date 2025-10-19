@@ -19,11 +19,11 @@ on:
       cv_file:
         description: 'CV file path (relative to repo root)'
         required: false
-        default: 'data/my_cv.txt'
+        default: 'cv/my_cv.txt'
       job_file:
         description: 'Job description file path'
         required: false
-        default: 'data/job_description.txt'
+        default: 'jobs/target_job.txt'
       mode:
         description: 'Analysis mode'
         required: true
@@ -101,8 +101,8 @@ jobs:
       - name: Run CV-Job Matcher (Single Job)
         run: |
           python .github/scripts/cv_job_matcher.py --mode single \
-            --data "${{ github.event.inputs.cv_file || 'data/my_cv.txt' }}" \
-            --data "${{ github.event.inputs.job_file || 'data/latest_job.txt' }}" \
+            --cv "${{ github.event.inputs.cv_file || 'cv/my_cv.txt' }}" \
+            --jobs "${{ github.event.inputs.job_file || 'jobs/latest_job.txt' }}" \
             --output reports/analysis_$(date +%Y%m%d_%H%M%S).txt
       
       - name: Upload analysis report
