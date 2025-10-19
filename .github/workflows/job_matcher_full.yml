@@ -20,7 +20,7 @@ on:
       job_file:
         description: 'Job description file path'
         required: false
-        default: 'jobs/job_description.txt'
+        default: 'jobs/target_job.txt'
       mode:
         description: 'Analysis mode'
         required: true
@@ -358,7 +358,7 @@ jobs:
         continue-on-error: false
       
       - name: Upload analysis reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: job-match-reports
           path: |
@@ -405,7 +405,7 @@ jobs:
         uses: actions/checkout@v4
       
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: job-match-reports
       
@@ -503,7 +503,7 @@ jobs:
         uses: actions/checkout@v4
       
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: job-match-reports
       
