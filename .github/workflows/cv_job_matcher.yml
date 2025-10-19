@@ -84,7 +84,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
       
       - name: Cache pip dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
@@ -106,7 +106,7 @@ jobs:
             --output reports/analysis_$(date +%Y%m%d_%H%M%S).txt
       
       - name: Upload analysis report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: job-analysis-report
           path: reports/*.txt
@@ -208,7 +208,7 @@ jobs:
           EOF
       
       - name: Upload batch report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: batch-analysis-report
           path: reports/*.txt
@@ -237,10 +237,10 @@ jobs:
     
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
       
       - name: Send email notification
-        uses: dawidd6/action-send-mail@v3
+        uses: dawidd6/action-send-mail@v4
         with:
           server_address: smtp.gmail.com
           server_port: 587
@@ -267,7 +267,9 @@ jobs:
     needs: [analyze-single, analyze-batch]
     if: always()
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: write
+      
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -296,6 +298,8 @@ jobs:
   archive-reports:
     runs-on: ubuntu-latest
     if: github.event.schedule == '0 9 * * *'  # Only on scheduled runs
+    permissions:
+      contents: write 
     
     steps:
       - name: Checkout repository
