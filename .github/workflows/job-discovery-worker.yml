@@ -250,22 +250,27 @@ jobs:
         env:
           LINKEDIN_EMAIL: ${{ secrets.LINKEDIN_EMAIL }}
           LINKEDIN_PASSWORD: ${{ secrets.LINKEDIN_PASSWORD }}
-      
+
+      - name: Setup Chrome and ChromeDriver
+        if: steps.check_platform.outputs.enabled == 'true' && matrix.platform == 'glassdoor'
+        uses: browser-actions/setup-chrome@latest
+        with:
+          chrome-version: stable
+
       - name: Run Glassdoor Discovery
         if: steps.check_platform.outputs.enabled == 'true' && matrix.platform == 'glassdoor'
         run: |
           echo "🔍 Discovering jobs on Glassdoor..."
-          KEYWORDS=$(python3 -c "import yaml; config = yaml.safe_load(open('job-manager-config.yml')); print(config.get('search', {}).get('target_roles', ['Software Engineer'])[0])" 2>/dev/null || echo "Software Engineer")
-
           python ${{ env.SCRIPTS_DIR }}/glassdoor_scraper.py \
-          --keywords "$KEYWORDS" \
+          --keywords "${{ needs.initialize.outputs.keywords }}" \
           --location "London" \
+          --max-results 100 \
+          --headless \
           --output glassdoor_jobs.json
-         
         env:
           GLASSDOOR_EMAIL: ${{ secrets.GLASSDOOR_EMAIL }}
-          GLASSDOOR_PASSWORD: ${{ secrets.GLASSDOOR_PASSWORD }}
-      
+          GLASSDOOR_PASSWORD: ${{ secrets.GLASSDOOR_PASSWORD }}    
+ 
       - name: Run Indeed Discovery
         if: steps.check_platform.outputs.enabled == 'true' && matrix.platform == 'indeed'
         run: |
