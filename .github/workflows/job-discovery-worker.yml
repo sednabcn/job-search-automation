@@ -698,7 +698,7 @@ jobs:
       - name: Optimize Resumes for Top Matches
         run: |
           echo "📝 Optimizing resumes..."
-          python ${{ env.SCRIPTS_DIR }}/Resume-Cover-Letter_Optimizer.py \
+          python ${{ env.SCRIPTS_DIR }}/resume_optimizer.py \
             --jobs matched_jobs.json \
             --resume-dir documents/resumes \
             --output resume_versions.json
