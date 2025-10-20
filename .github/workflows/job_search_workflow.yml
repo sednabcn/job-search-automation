@@ -253,8 +253,9 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "Daily job search update - $(date +%Y-%m-%d) [skip ci]"
-            git push
-            echo "✅ Updates committed and pushed"
+             git pull --rebase origin master
+             git push origin master
+             echo "✅ Updates committed and pushed"
           fi
       
       - name: Create GitHub issue with daily summary
