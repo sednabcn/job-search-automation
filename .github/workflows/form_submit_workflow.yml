@@ -187,7 +187,8 @@ jobs:
 
       - name: Handle duplicate or error
         if: ${{ steps.process.outputs.success == 'False' }}
-        run: echo "⚠️ Duplicate or invalid entry: ${{ steps.process.outputs.message }}"
+        run: |
+          echo "⚠️ Duplicate or invalid entry: ${{ steps.process.outputs.message }}"
           
       - name: Commit changes
         if: steps.process.outputs.success == 'True'
