@@ -157,6 +157,7 @@ jobs:
      
       - name: Process JSON data
         id: process
+        continue-on-error: true 
         run: |
           python3 "${{ steps.dirs.outputs.system_dir }}/json_updater.py" \
             --type "${{ github.event.inputs.data_type }}" \
