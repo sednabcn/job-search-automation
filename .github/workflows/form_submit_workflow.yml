@@ -4,24 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       data_type:
-        description: 'Type of data'
+        description: "Type of data (application/contact/search)"
         required: true
-        type: choice
-        options:
-          - application
-          - contact
-          - search
-      
-      data_directory:
-        description: 'Data directory path (leave empty for root "job_search/")'
-        required: false
-        type: string
-        default: 'job_search'
-      
+        default: "application"
       json_data:
-        description: 'JSON data (paste from form)'
+        description:  "JSON object to add"
         required: true
-        type: string
+        default:  '{"company": "OpenAI", "position": "AI Researcher"}'
 
 permissions:
   contents: write
@@ -170,18 +159,18 @@ jobs:
       - name: Process JSON data
         id: process
         run: |
-          echo '${{ github.event.inputs.json_data }}' | \
-            python3 "${{ steps.dirs.outputs.system_dir }}/json_updater.py" \
-            "${{ github.event.inputs.data_type }}" \
-            "${{ steps.dirs.outputs.data_dir }}" \
-            > result.json
+          python3 "${{ steps.dirs.outputs.system_dir }}/json_updater.py" \
+          --type "${{ github.event.inputs.data_type }}" \
+          --json '${{ github.event.inputs.json_data }}' \
+          --tracking-dir "${{ steps.dirs.outputs.data_dir }}" \
+          > result.json
           
           cat result.json
           
           # Extract results
-          SUCCESS=$(cat result.json | python3 -c "import sys, json; print(json.load(sys.stdin)['success'])")
-          MESSAGE=$(cat result.json | python3 -c "import sys, json; print(json.load(sys.stdin)['message'])")
-          
+          SUCCESS=$(python3 -c "import json; print(json.load(open('result.json'))['success'])")
+          MESSAGE=$(python3 -c "import json; print(json.load(open('result.json'))['message'])")
+         
           echo "success=$SUCCESS" >> $GITHUB_OUTPUT
           echo "message=$MESSAGE" >> $GITHUB_OUTPUT
       
