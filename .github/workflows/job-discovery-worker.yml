@@ -558,16 +558,22 @@ jobs:
           matcher = CVJobMatcher()
     
           # Load CV
+          cv_input = '${{ github.event.inputs.cv_file }}'
           cv_file = Path('${{ github.event.inputs.cv_file }}' or 'cv/my_cv.txt')
           if not cv_file.exists():
             # Try to find any CV file
-            cv_files = list(Path('cv').glob('*.txt')) + list(Path('cv').glob('*.md'))
-          if cv_files:
-            cv_file = cv_files[0]
+            cv_dir = Path('cv')
+            if cv_dir.exists():
+               cv_files = list(cv_dir.glob('*.txt')) + list(cv_dir.glob('*.md'))
+               if cv_files:
+                  cv_file = cv_files[0]
+               else:
+                 print("❌ No CV file found in cv/ directory")
+                 sys.exit(1)
           else:
-            print("❌ No CV file found in cv/ directory")
-            sys.exit(1)
-    
+              print("❌ cv/ directory does not exist")
+              sys.exit(1)
+         
           cv_text = cv_file.read_text()
           print(f"✓ Loaded CV from {cv_file}")
     
