@@ -10,7 +10,7 @@ on:
       json_data:
         description:  "JSON object to add"
         required: true
-        default:  'job_search/applications.json'
+        default:  '{"company": "OpenAI", "position": "AI Researcher"}'
 
 permissions:
   contents: write
@@ -155,20 +155,19 @@ jobs:
             echo "Found existing: $SCRIPT_PATH"
           fi    
      
-      
       - name: Process JSON data
         id: process
         run: |
           python3 "${{ steps.dirs.outputs.system_dir }}/json_updater.py" \
-          --type "${{ github.event.inputs.data_type }}" \
-          --json '${{ github.event.inputs.json_data }}' \
-          --tracking-dir "${{ steps.dirs.outputs.data_dir }}" \
-          > result.json
+            --type "${{ github.event.inputs.data_type }}" \
+            --json '${{ github.event.inputs.json_data }}' \
+            --tracking-dir "${{ steps.dirs.outputs.data_dir }}" \
+            > result.json
           
           cat result.json
           
-          # Extract results
-          SUCCESS=$(python3 -c "import json; print(json.load(open('result.json'))['success'])")
+          # Extract results - convert Python True/False to string
+          SUCCESS=$(python3 -c "import json; print(str(json.load(open('result.json'))['success']))")
           MESSAGE=$(python3 -c "import json; print(json.load(open('result.json'))['message'])")
          
           echo "success=$SUCCESS" >> $GITHUB_OUTPUT
