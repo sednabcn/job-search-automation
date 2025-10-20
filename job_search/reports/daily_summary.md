@@ -3,11 +3,7 @@
 
 ### 📊 Today's Overview
 
-**New Jobs Discovered: 101**
-
-**By Platform:**
-- Linkedin: 1 jobs
-- Reed: 100 jobs
+**New Jobs Discovered: 0**
 
 **Job Matches:**
 - 🎯 High matches (80%+): 0
