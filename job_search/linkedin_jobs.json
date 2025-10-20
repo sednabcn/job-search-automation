@@ -1,0 +1,16 @@
+[
+  {
+    "id": "INSTRUCTIONS",
+    "title": "LinkedIn Jobs - Manual Export Required",
+    "company": "N/A",
+    "location": "N/A",
+    "description": "\nLinkedIn Job Discovery Instructions:\n1. Go to https://www.linkedin.com/jobs/\n2. Search for your desired roles\n3. Use LinkedIn's 'Save' feature for interesting jobs\n4. Export saved jobs using browser extension or manual collection\n5. Place the JSON in this file\n        ",
+    "url": "https://www.linkedin.com/jobs/",
+    "posted_date": "2025-10-20T08:50:31.019882",
+    "source": "linkedin",
+    "scraped_at": "2025-10-20T08:50:31.019887",
+    "discovery_date": "2025-10-20T08:50:31.060503",
+    "discovery_run_id": "job-search-20251020-085003",
+    "platform": "linkedin"
+  }
+]
