@@ -246,7 +246,7 @@ jobs:
           print(f"Follow-ups needed: {len(followup_needed)}")
           EOF
 
-          
+
       - name: Commit and push changes
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
