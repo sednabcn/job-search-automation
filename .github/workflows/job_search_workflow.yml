@@ -1,0 +1,444 @@
+name: Automated Job Search System
+
+on:
+  # Run after Job Discovery Worker completes
+  workflow_run:
+    workflows: ["Job Discovery Worker"]
+    types:
+      - completed
+  
+  # Also run daily for manual checks
+  schedule:
+    - cron: "0 9 * * *"    # 9 AM UTC every day
+    - cron: "0 10 * * 1"   # 10 AM UTC every Monday
+    
+  workflow_dispatch:
+    inputs:
+      task:
+        description: 'Task to run'
+        required: true
+        type: choice
+        options:
+          - 'daily_routine'
+          - 'generate_digest'
+          - 'check_followups'
+          - 'weekly_analysis'
+
+permissions:
+  contents: write
+  issues: write
+  actions: read
+
+env:
+  PYTHON_VERSION: '3.11'
+  TRACKING_DIR: 'job_search'
+  NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL || 'alerts@modelphysmat.com' }}
+
+jobs:
+  daily-morning-routine:
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_run' ||
+      github.event_name == 'schedule' ||
+      github.event.inputs.task == 'daily_routine'
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests beautifulsoup4 lxml pyyaml
+          
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+      
+      - name: Ensure directory structure
+        run: |
+          mkdir -p $TRACKING_DIR/{applications,network,searches,deadlines,reports}
+          
+          # Initialize tracking files if they don't exist
+          for file in applications network_contacts discovered_jobs linkedin_activity; do
+            if [ ! -f "$TRACKING_DIR/${file}.json" ]; then
+              echo "[]" > "$TRACKING_DIR/${file}.json"
+            fi
+          done
+      
+      - name: Download artifacts from Job Discovery Worker
+        if: github.event_name == 'workflow_run'
+        uses: actions/github-script@v6
+        continue-on-error: true
+        with:
+          script: |
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: ${{ github.event.workflow_run.id }},
+            });
+            
+            console.log(`Found ${artifacts.data.artifacts.length} artifacts`);
+            
+            for (const artifact of artifacts.data.artifacts) {
+              if (artifact.name === 'matched-jobs' || 
+                  artifact.name.startsWith('discovered-jobs-')) {
+                
+                console.log(`Downloading: ${artifact.name}`);
+                
+                const download = await github.rest.actions.downloadArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id,
+                  archive_format: 'zip',
+                });
+                
+                const fs = require('fs');
+                fs.writeFileSync(`${artifact.name}.zip`, Buffer.from(download.data));
+              }
+            }
+      
+      - name: Extract downloaded artifacts
+        if: github.event_name == 'workflow_run'
+        run: |
+          for zipfile in *.zip; do
+            if [ -f "$zipfile" ]; then
+              echo "Extracting: $zipfile"
+              unzip -o -q "$zipfile" -d .
+            fi
+          done
+          
+          # Move to tracking directory
+          mv -f discovered_jobs.json $TRACKING_DIR/ 2>/dev/null || true
+          mv -f matched_jobs.json $TRACKING_DIR/ 2>/dev/null || true
+          mv -f *_jobs.json $TRACKING_DIR/ 2>/dev/null || true
+          
+          echo "Available data files:"
+          ls -lh $TRACKING_DIR/*.json 2>/dev/null || echo "No JSON files found"
+      
+      - name: Generate daily summary with real data
+        run: |
+          python3 << 'EOF'
+          import json
+          from pathlib import Path
+          from datetime import datetime, timedelta
+          from collections import defaultdict
+          
+          tracking_dir = Path('job_search')
+          
+          # Load data files
+          def load_json(filename):
+              filepath = tracking_dir / filename
+              if filepath.exists():
+                  try:
+                      with open(filepath, 'r') as f:
+                          return json.load(f)
+                  except:
+                      pass
+              return []
+          
+          discovered = load_json('discovered_jobs.json')
+          matched = load_json('matched_jobs.json')
+          applications = load_json('applications.json')
+          
+          # Calculate stats
+          today = datetime.now()
+          new_jobs_today = [j for j in discovered if 
+                           datetime.fromisoformat(j.get('discovery_date', '2000-01-01T00:00:00'))
+                           .date() == today.date()]
+          
+          high_matches = [j for j in matched if j.get('match_score', 0) >= 80]
+          good_matches = [j for j in matched if 60 <= j.get('match_score', 0) < 80]
+          
+          # Group by platform
+          by_platform = defaultdict(int)
+          for job in new_jobs_today:
+              platform = job.get('platform', 'unknown')
+              by_platform[platform] += 1
+          
+          # Applications needing follow-up
+          followup_needed = []
+          for app in applications:
+              app_date = datetime.fromisoformat(app.get('applied_date', '2000-01-01T00:00:00'))
+              days_ago = (today - app_date).days
+              
+              if days_ago in [7, 14, 30] and app.get('status') == 'submitted':
+                  followup_needed.append({
+                      'title': app.get('job_title'),
+                      'company': app.get('company'),
+                      'days': days_ago
+                  })
+          
+          # Generate report
+          report = f"""# Daily Job Search Summary
+          ## {today.strftime('%Y-%m-%d %A')}
+
+          ### 📊 Today's Overview
+
+          **New Jobs Discovered: {len(new_jobs_today)}**
+          """
+          
+          if by_platform:
+              report += "\n**By Platform:**\n"
+              for platform, count in sorted(by_platform.items()):
+                  report += f"- {platform.title()}: {count} jobs\n"
+          
+          report += f"""
+          **Job Matches:**
+          - 🎯 High matches (80%+): {len(high_matches)}
+          - ⚠️ Good matches (60-79%): {len(good_matches)}
+          - 📊 Total matched jobs: {len(matched)}
+
+          **Applications Status:**
+          - Total applications: {len(applications)}
+          - Follow-ups needed: {len(followup_needed)}
+          """
+          
+          if followup_needed:
+              report += "\n### 🔔 Follow-up Required\n\n"
+              for fu in followup_needed[:5]:
+                  report += f"- **{fu['title']}** at {fu['company']} ({fu['days']} days ago)\n"
+          
+          if high_matches:
+              report += "\n### 🎯 Top Opportunities Today\n\n"
+              for i, job in enumerate(high_matches[:5], 1):
+                  title = job.get('title', 'Unknown')
+                  company = job.get('company', 'Unknown')
+                  score = job.get('match_score', 0)
+                  platform = job.get('platform', 'unknown')
+                  report += f"{i}. **{title}** at {company} ({score}% match) - {platform}\n"
+          
+          report += """
+          ### 🎯 Today's Action Items
+
+          1. Review high-match positions and prepare applications
+          2. Follow up on pending applications (see list above)
+          3. Check LinkedIn for new connections
+          4. Update application tracking
+
+          ---
+          *Generated automatically by Job Search Automation System*
+          *Data from Job Discovery Worker pipeline*
+          """
+          
+          # Save report
+          report_file = tracking_dir / 'reports' / 'daily_summary.md'
+          report_file.parent.mkdir(parents=True, exist_ok=True)
+          with open(report_file, 'w') as f:
+              f.write(report)
+          
+          print("✅ Daily summary generated with real data")
+          print(f"New jobs: {len(new_jobs_today)}")
+          print(f"High matches: {len(high_matches)}")
+          print(f"Follow-ups needed: {len(followup_needed)}")
+          EOF
+      
+      - name: Commit and push updates
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          git add job_search/
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Daily job search update - $(date +%Y-%m-%d) [skip ci]"
+            git push
+            echo "✅ Updates committed and pushed"
+          fi
+      
+      - name: Create GitHub issue with daily summary
+        if: github.event.inputs.send_notifications != 'false'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            // Read summary
+            const summaryPath = 'job_search/reports/daily_summary.md';
+            let summary = "Daily summary not available";
+            
+            if (fs.existsSync(summaryPath)) {
+              summary = fs.readFileSync(summaryPath, 'utf8');
+            }
+            
+            // Create issue
+            const title = `Daily Job Search Report - ${new Date().toISOString().split('T')[0]}`;
+            
+            try {
+              const issue = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: summary,
+                labels: ['job-search', 'daily-report', 'automated']
+              });
+              
+              console.log(`✅ Created issue #${issue.data.number}: ${title}`);
+              console.log(`  URL: ${issue.data.html_url}`);
+            } catch (error) {
+              console.log(`Failed to create issue: ${error.message}`);
+            }
+
+  weekly-analysis:
+    runs-on: ubuntu-latest
+    if: |
+      github.event.schedule == '0 10 * * 1' || 
+      github.event.inputs.task == 'weekly_analysis'
+    timeout-minutes: 20
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Generate weekly performance report
+        run: |
+          python3 << 'EOF'
+          import json
+          from pathlib import Path
+          from datetime import datetime, timedelta
+          from collections import defaultdict
+          
+          tracking_dir = Path('job_search')
+          
+          # Load data
+          def load_json(filename):
+              filepath = tracking_dir / filename
+              if filepath.exists():
+                  try:
+                      with open(filepath, 'r') as f:
+                          return json.load(f)
+                  except:
+                      pass
+              return []
+          
+          applications = load_json('applications.json')
+          discovered = load_json('discovered_jobs.json')
+          
+          # Calculate weekly stats
+          today = datetime.now()
+          week_ago = today - timedelta(days=7)
+          
+          weekly_apps = [a for a in applications if 
+                        datetime.fromisoformat(a.get('applied_date', '2000-01-01T00:00:00')) >= week_ago]
+          
+          weekly_discoveries = [j for j in discovered if 
+                               datetime.fromisoformat(j.get('discovery_date', '2000-01-01T00:00:00')) >= week_ago]
+          
+          # Application status breakdown
+          status_counts = defaultdict(int)
+          for app in weekly_apps:
+              status_counts[app.get('status', 'unknown')] += 1
+          
+          # Platform breakdown
+          platform_counts = defaultdict(int)
+          for job in weekly_discoveries:
+              platform_counts[job.get('platform', 'unknown')] += 1
+          
+          report = f"""# Weekly Job Search Performance Report
+          ## Week of {week_ago.strftime('%Y-%m-%d')} to {today.strftime('%Y-%m-%d')}
+
+          ### 📊 Summary
+
+          **Job Discovery:**
+          - Total jobs discovered: {len(weekly_discoveries)}
+          - Unique companies: {len(set(j.get('company', '') for j in weekly_discoveries))}
+
+          **Platform Performance:**
+          """
+          
+          for platform, count in sorted(platform_counts.items()):
+              report += f"- {platform.title()}: {count} jobs\n"
+          
+          report += f"""
+          **Applications:**
+          - Total applications submitted: {len(weekly_apps)}
+          - Response rate: {len([a for a in weekly_apps if a.get('status') != 'submitted'])/len(weekly_apps)*100 if weekly_apps else 0:.1f}%
+
+          **Status Breakdown:**
+          """
+          
+          for status, count in sorted(status_counts.items()):
+              report += f"- {status.title()}: {count}\n"
+          
+          report += f"""
+          ### 🎯 Key Metrics
+
+          - Average applications per day: {len(weekly_apps)/7:.1f}
+          - Jobs discovered per day: {len(weekly_discoveries)/7:.1f}
+          - Interview conversion rate: {len([a for a in weekly_apps if 'interview' in a.get('status', '').lower()])/len(weekly_apps)*100 if weekly_apps else 0:.1f}%
+
+          ### 📈 Recommendations
+
+          """
+          
+          if len(weekly_apps) < 5:
+              report += "- ⚠️ Low application volume - consider increasing daily targets\n"
+          
+          if len(weekly_discoveries) > 100:
+              report += "- ✅ Strong job discovery - maintain search criteria\n"
+          
+          report += "\n---\n*Auto-generated Weekly Performance Report*"
+          
+          # Save report
+          report_file = tracking_dir / 'reports' / f"weekly_summary_{today.strftime('%Y%m%d')}.md"
+          report_file.parent.mkdir(parents=True, exist_ok=True)
+          with open(report_file, 'w') as f:
+              f.write(report)
+          
+          print("✅ Weekly report generated")
+          print(f"Weekly applications: {len(weekly_apps)}")
+          print(f"Weekly discoveries: {len(weekly_discoveries)}")
+          EOF
+      
+      - name: Commit weekly report
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          git add job_search/reports/
+          git commit -m "Weekly performance report - $(date +%Y-%m-%d) [skip ci]" || echo "No changes"
+          git push || echo "Nothing to push"
+      
+      - name: Create weekly summary issue
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const glob = require('glob');
+            
+            // Find latest weekly report
+            const reports = glob.sync('job_search/reports/weekly_summary_*.md');
+            if (reports.length === 0) {
+              console.log('No weekly report found');
+              return;
+            }
+            
+            const latestReport = reports.sort().reverse()[0];
+            const summary = fs.readFileSync(latestReport, 'utf8');
+            
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Weekly Job Search Report - ${new Date().toISOString().split('T')[0]}`,
+              body: summary,
+              labels: ['job-search', 'weekly-report', 'automated']
+            });
+            
+            console.log(`✅ Created weekly issue #${issue.data.number}`);

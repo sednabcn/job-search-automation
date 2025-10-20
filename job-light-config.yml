@@ -1,0 +1,39 @@
+cat > job-manager-config.yml << 'EOF'
+search:
+  target_roles:
+    - "Senior Software Engineer"
+    - "Machine Learning Engineer"
+    - "Data Scientist"
+  
+  locations:
+    - "London"
+    - "Remote"
+  
+  keywords:
+    - "Python"
+    - "Machine Learning"
+    - "AWS"
+  
+  min_salary: 80000
+  
+platforms:
+  linkedin:
+    enabled: true
+    max_results: 100
+  
+  glassdoor:
+    enabled: true
+    max_results: 100
+  
+  indeed:
+    enabled: true
+    max_results: 100
+  
+  reed:
+    enabled: true
+    max_results: 100
+
+matching:
+  threshold: 75
+  auto_apply: false
+EOF
