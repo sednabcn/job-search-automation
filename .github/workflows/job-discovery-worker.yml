@@ -615,6 +615,7 @@ jobs:
       
           cv_text = cv_file.read_text()
           print(f"✓ Loaded CV from {cv_file}")
+          print(f"✓ CV size: {len(cv_text)} characters")
     
           # Load discovered jobs
           input_file = Path('discovered_jobs.json')
@@ -638,7 +639,35 @@ jobs:
              job_text = f"{job.get('title', '')} {job.get('description', '')} {job.get('requirements', '')}"
         
           # Run analysis
-          result = matcher.analyze_job(cv_text, job_text)
+          try:
+            result = matcher.analyze_job(cv_text, job_text)
+            
+            # ===== DEBUG LOGGING =====
+            print(f"\n🔍 Debug - Job {idx}/{len(jobs_data)}: {job.get('title', 'Unknown')}")
+            print(f"   Company: {job.get('company', 'Unknown')}")
+            print(f"   Platform: {job.get('platform', 'Unknown')}")
+            print(f"   CV length: {len(cv_text)} chars")
+            print(f"   Job text length: {len(job_text)} chars")
+            print(f"   Result type: {type(result)}")
+            
+            if isinstance(result, dict):
+              print(f"   Result keys: {list(result.keys())}")
+              print(f"   Overall score: {result.get('overall_score', 'KEY NOT FOUND')}")
+              
+              # Show detailed breakdown if available
+              if 'skills_match' in result:
+                print(f"   Skills match: {result.get('skills_match', 'N/A')}")
+              if 'experience_match' in result:
+                print(f"   Experience match: {result.get('experience_match', 'N/A')}")
+            else:
+              print(f"   ⚠️  WARNING: Result is not a dictionary! Got: {result}")
+            # ===== END DEBUG LOGGING =====
+            
+          except Exception as e:
+            print(f"   ❌ ERROR analyzing job: {e}")
+            import traceback
+            traceback.print_exc()
+            result = {'overall_score': 0, 'error': str(e)}
         
           # Add match score to job data
           job['match_score'] = result.get('overall_score', 0)
@@ -647,17 +676,22 @@ jobs:
           # Filter by threshold
           if job['match_score'] >= threshold:
             matched_jobs.append(job)
-            print(f"✅ Job {idx}/{len(jobs_data)}: {job.get('title')} - {job['match_score']}%")
+            print(f"   ✅ MATCH! Score: {job['match_score']}% (>= {threshold}%)")
           else:
-            print(f"⏭️  Job {idx}/{len(jobs_data)}: {job.get('title')} - {job['match_score']}% (below threshold)")
+            print(f"   ⏭️  Skip: {job['match_score']}% (< {threshold}%)")
     
           # Save matched jobs
           output_file = Path('matched_jobs.json')
           with open(output_file, 'w') as f:
             json.dump(matched_jobs, f, indent=2)
     
-          print(f"\n✅ {len(matched_jobs)} jobs matched (threshold: {threshold}%)")
-          print(f"✅ Results saved to {output_file}")
+          print(f"\n{'='*70}")
+          print(f"✅ Analysis complete!")
+          print(f"   Total jobs analyzed: {len(jobs_data)}")
+          print(f"   Jobs matched: {len(matched_jobs)}")
+          print(f"   Match rate: {len(matched_jobs)/len(jobs_data)*100:.1f}%" if jobs_data else "   Match rate: 0%")
+          print(f"   Results saved to: {output_file}")
+          print(f"{'='*70}")
     
           # Generate summary report
           report_lines = [
@@ -667,18 +701,26 @@ jobs:
           f"Total jobs analyzed: {len(jobs_data)}",
           f"Jobs matched: {len(matched_jobs)}",
           f"Match threshold: {threshold}%",
-          f"Match rate: {len(matched_jobs)/len(jobs_data)*100:.1f}%",
+          f"Match rate: {len(matched_jobs)/len(jobs_data)*100:.1f}%" if jobs_data else "Match rate: 0%",
           "",
           "TOP MATCHES:",
           "-"*80
           ]
     
           # Sort by match score and show top 10
-          top_matches = sorted(matched_jobs, key=lambda x: x['match_score'], reverse=True)[:10]
-          for job in top_matches:
-            report_lines.append(f"{job['match_score']}% - {job.get('title')} at {job.get('company', 'Unknown')}")
-            report_lines.append(f"       {job.get('location', 'Location unknown')}")
+          if matched_jobs:
+            top_matches = sorted(matched_jobs, key=lambda x: x['match_score'], reverse=True)[:10]
+            for job in top_matches:
+              report_lines.append(f"{job['match_score']}% - {job.get('title')} at {job.get('company', 'Unknown')}")
+              report_lines.append(f"       {job.get('location', 'Location unknown')}")
+              report_lines.append("")
+          else:
+            report_lines.append("No jobs matched the threshold criteria.")
             report_lines.append("")
+            report_lines.append("Suggestions:")
+            report_lines.append("- Lower the match_threshold parameter")
+            report_lines.append("- Check that your CV file contains relevant keywords")
+            report_lines.append("- Verify the CVJobMatcher scoring algorithm")
     
           report = "\n".join(report_lines)
     
@@ -688,6 +730,7 @@ jobs:
     
           print("\n" + report)
           PYTHON_SCRIPT
+
       
       - name: Categorize Matches by Platform
         run: |
