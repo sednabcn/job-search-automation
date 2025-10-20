@@ -29,6 +29,10 @@ permissions:
   issues: write
   actions: read
 
+concurrency:
+  group: job-search-update
+  cancel-in-progress: false
+
 env:
   PYTHON_VERSION: '3.11'
   TRACKING_DIR: 'job_search'
