@@ -434,7 +434,7 @@ class GlassdoorEnhanced:
 # Example usage functions
 def demo_export_features():
     """Demonstrate export functionality"""
-    from qq import GlassdoorAutomation
+    from glassdoor_automation import GlassdoorAutomation
     
     gd = GlassdoorAutomation()
     enhanced = GlassdoorEnhanced(gd)

@@ -225,12 +225,24 @@ jobs:
           
           # Add scripts directory to Python path
           echo "PYTHONPATH=$GITHUB_WORKSPACE/${{ env.SCRIPTS_DIR }}:$PYTHONPATH" >> $GITHUB_ENV
-      
+
       - name: Run LinkedIn Discovery
         if: steps.check_platform.outputs.enabled == 'true' && matrix.platform == 'linkedin'
         run: |
           echo "🔍 Discovering jobs on LinkedIn..."
-          python ${{ env.SCRIPTS_DIR }}/linkedin_automotion.py --mode discover --output linkedin_jobs.json
+          echo "⚠️  Note: LinkedIn requires manual authentication"
+          
+          # Check if a LinkedIn scraper exists
+          if [ -f "${{ env.SCRIPTS_DIR }}/linkedin_job_scraper.py" ]; then
+            python ${{ env.SCRIPTS_DIR }}/linkedin_job_scraper.py \
+              --mode discover \
+              --output linkedin_jobs.json
+          else
+            # Create empty placeholder
+            echo "Creating placeholder file..."
+            echo '[]' > linkedin_jobs.json
+            echo "💡 Add LinkedIn jobs manually to linkedin_jobs.json"
+          fi
         env:
           LINKEDIN_EMAIL: ${{ secrets.LINKEDIN_EMAIL }}
           LINKEDIN_PASSWORD: ${{ secrets.LINKEDIN_PASSWORD }}
