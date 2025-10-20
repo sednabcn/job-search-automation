@@ -134,22 +134,6 @@ jobs:
             chmod +x job_search_system/json_updater.py
           fi
 
-      - name: Process JSON data
-        id: process
-        run: |
-          echo '${{ github.event.inputs.json_data }}' | \
-          python3 job_search_system/json_updater.py ${{ github.event.inputs.data_type }} \
-          > result.json
-          
-          cat result.json
-          
-          # Extract results
-          SUCCESS=$(cat result.json | python3 -c "import sys, json; print(json.load(sys.stdin)['success'])")
-          MESSAGE=$(cat result.json | python3 -c "import sys, json; print(json.load(sys.stdin)['message'])")
-          
-          echo "success=$SUCCESS" >> $GITHUB_OUTPUT
-          echo "message=$MESSAGE" >> $GITHUB_OUTPUT
-
       - name: Debug - Show what we're piping
         run: |
           echo "📋 Debugging pipe content..."
@@ -168,6 +152,23 @@ jobs:
           except Exception as e:
             print(f'❌ Invalid JSON: {e}')
             "
+          
+      - name: Process JSON data
+        id: process
+        run: |
+          echo '${{ github.event.inputs.json_data }}' | \
+          python3 job_search_system/json_updater.py ${{ github.event.inputs.data_type }} \
+          > result.json
+          
+          cat result.json
+          
+          # Extract results
+          SUCCESS=$(cat result.json | python3 -c "import sys, json; print(json.load(sys.stdin)['success'])")
+          MESSAGE=$(cat result.json | python3 -c "import sys, json; print(json.load(sys.stdin)['message'])")
+          
+          echo "success=$SUCCESS" >> $GITHUB_OUTPUT
+          echo "message=$MESSAGE" >> $GITHUB_OUTPUT
+
             
       - name: Commit changes
         if: steps.process.outputs.success == 'True'
