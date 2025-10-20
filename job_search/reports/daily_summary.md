@@ -1,27 +1,26 @@
 # Daily Job Search Summary
-## $(date +"%Y-%m-%d %A")
+## 2025-10-20 Monday
 
 ### 📊 Today's Overview
 
-**Job Digest:**
-- New relevant jobs discovered
-- Check saved searches
+**New Jobs Discovered: 0**
 
-**Follow-ups Needed:**
-- Applications to follow up on (7, 14, 30 days)
+**Job Matches:**
+- 🎯 High matches (80%+): 0
+- ⚠️ Good matches (60-79%): 0
+- 📊 Total matched jobs: 0
 
-**Networking:**
-- Contacts to reach out to
-
-**LinkedIn:**
-- Connection requests available today (5 max)
+**Applications Status:**
+- Total applications: 1
+- Follow-ups needed: 0
 
 ### 🎯 Today's Action Items
 
-1. Review new job postings
-2. Follow up on pending applications
-3. Reach out to networking contacts
-4. Send LinkedIn connection requests (if available)
+1. Review high-match positions and prepare applications
+2. Follow up on pending applications (see list above)
+3. Check LinkedIn for new connections
+4. Update application tracking
 
 ---
 *Generated automatically by Job Search Automation System*
+*Data from Job Discovery Worker pipeline*
