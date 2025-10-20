@@ -8,9 +8,9 @@ on:
         required: true
         default: "application"
       json_data:
-        description:  "JSON object to add"
+        description: "JSON object to add"
         required: true
-        default:  '{"company": "OpenAI", "position": "AI Researcher"}'
+        default: '{"company": "OpenAI", "position": "AI Researcher"}'
 
 permissions:
   contents: write
@@ -33,13 +33,10 @@ jobs:
       - name: Set directory variables
         id: dirs
         run: |
-          # Use provided directory or default
           DATA_DIR="${{ github.event.inputs.data_directory }}"
           if [ -z "$DATA_DIR" ]; then
             DATA_DIR="job_search"
           fi
-          
-          # Remove trailing slashes
           DATA_DIR="${DATA_DIR%/}"
           
           echo "data_dir=$DATA_DIR" >> $GITHUB_OUTPUT
@@ -50,7 +47,6 @@ jobs:
         run: |
           mkdir -p "${{ steps.dirs.outputs.data_dir }}" "${{ steps.dirs.outputs.system_dir }}"
           
-          # Initialize files if they don't exist
           for file in applications network_contacts saved_searches; do
             FILE_PATH="${{ steps.dirs.outputs.data_dir }}/${file}.json"
             if [ ! -f "$FILE_PATH" ]; then
@@ -61,134 +57,49 @@ jobs:
             fi
           done
 
-      - name: Add json_updater.py if missing
+      - name: Verify json_updater.py exists
         run: |
           SCRIPT_PATH="${{ steps.dirs.outputs.system_dir }}/json_updater.py"
-          
           if [ ! -f "$SCRIPT_PATH" ]; then
-            cat > "$SCRIPT_PATH" << 'EOFPYTHON'
-          #!/usr/bin/env python3
-          import json
-          import sys
-          from pathlib import Path
-          from datetime import datetime
-
-          class JobSearchJSONUpdater:
-              def __init__(self, tracking_dir="job_search"):
-                  self.tracking_dir = Path(tracking_dir)
-                  self.tracking_dir.mkdir(parents=True, exist_ok=True)
-                  self.files = {
-                      "applications": self.tracking_dir / "applications.json",
-                      "contacts": self.tracking_dir / "network_contacts.json",
-                      "searches": self.tracking_dir / "saved_searches.json"
-                  }
-                  for file_path in self.files.values():
-                      if not file_path.exists():
-                          self._write_json(file_path, [])
-
-              def _read_json(self, file_path):
-                  try:
-                      with open(file_path, 'r') as f:
-                          return json.load(f)
-                  except:
-                      return []
-
-              def _write_json(self, file_path, data):
-                  with open(file_path, 'w') as f:
-                      json.dump(data, f, indent=2, default=str)
-
-              def add_application(self, app_data):
-                  applications = self._read_json(self.files["applications"])
-                  for app in applications:
-                      if app.get('company') == app_data.get('company') and \
-                         app.get('position') == app_data.get('position'):
-                          return {"success": False, "message": "Duplicate application"}
-                  applications.append(app_data)
-                  self._write_json(self.files["applications"], applications)
-                  return {"success": True, "message": f"Added application to {app_data['company']}", "total": len(applications)}
-
-              def add_contact(self, contact_data):
-                  contacts = self._read_json(self.files["contacts"])
-                  for contact in contacts:
-                      if contact.get('name') == contact_data.get('name'):
-                          return {"success": False, "message": "Duplicate contact"}
-                  contacts.append(contact_data)
-                  self._write_json(self.files["contacts"], contacts)
-                  return {"success": True, "message": f"Added contact {contact_data['name']}", "total": len(contacts)}
-
-              def add_search(self, search_data):
-                  searches = self._read_json(self.files["searches"])
-                  for search in searches:
-                      if search.get('name') == search_data.get('name'):
-                          return {"success": False, "message": "Duplicate search"}
-                  searches.append(search_data)
-                  self._write_json(self.files["searches"], searches)
-                  return {"success": True, "message": f"Added search '{search_data['name']}'", "total": len(searches)}
-
-              def process_input(self, input_json, data_type):
-                  try:
-                      data = json.loads(input_json)
-                  except:
-                      return {"success": False, "message": "Invalid JSON"}
-                  
-                  if data_type == "application":
-                      return self.add_application(data)
-                  elif data_type == "contact":
-                      return self.add_contact(data)
-                  elif data_type == "search":
-                      return self.add_search(data)
-                  else:
-                      return {"success": False, "message": f"Unknown type: {data_type}"}
-
-          if __name__ == "__main__":
-              data_type = sys.argv[1]
-              tracking_dir = sys.argv[2] if len(sys.argv) > 2 else "job_search"
-              json_input = sys.stdin.read()
-              updater = JobSearchJSONUpdater(tracking_dir)
-              result = updater.process_input(json_input, data_type)
-              print(json.dumps(result, indent=2))
-              sys.exit(0 if result["success"] else 1)
-          EOFPYTHON
-            chmod +x "$SCRIPT_PATH"
-            echo "Created: $SCRIPT_PATH"
-          else
-            echo "Found existing: $SCRIPT_PATH"
-          fi    
+            echo "❌ Error: json_updater.py not found at $SCRIPT_PATH"
+            exit 1
+          fi
+          echo "✅ Found json_updater.py"
 
       - name: Process JSON data
         id: process
         run: |
-          # Disable automatic job exit on error temporarily
           set +e
-
+          
+          # Call the Python script with proper argument syntax
           python3 "${{ steps.dirs.outputs.system_dir }}/json_updater.py" \
-          --type "${{ github.event.inputs.data_type }}" \
-          --json '${{ github.event.inputs.json_data }}' \
-          --tracking-dir "${{ steps.dirs.outputs.data_dir }}" \
-          > result.json
-
-          EXIT_CODE=$?   # capture the script's exit code
-          set -e         # restore default fail-on-error behavior
-
-          # Parse output values
+            --type "${{ github.event.inputs.data_type }}" \
+            --json '${{ github.event.inputs.json_data }}' \
+            --tracking-dir "${{ steps.dirs.outputs.data_dir }}" \
+            > result.json
+          
+          EXIT_CODE=$?
+          set -e
+          
+          # Parse the JSON result
           SUCCESS=$(python3 -c "import json; print(json.load(open('result.json'))['success'])")
           MESSAGE=$(python3 -c "import json; print(json.load(open('result.json'))['message'])")
-
+          
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
           echo "success=$SUCCESS" >> $GITHUB_OUTPUT
           echo "message=$MESSAGE" >> $GITHUB_OUTPUT
-
-          # Optionally print user-friendly message
+          
           echo "Result: success=$SUCCESS | message=$MESSAGE | exit_code=$EXIT_CODE"
 
       - name: Handle success
         if: steps.process.outputs.success == 'True'
-        run: echo "✅ Application added successfully!"
+        run: echo "✅ Data added successfully!"
 
-      - name: Handle duplicate or error
-        if: ${{ steps.process.outputs.success == 'False' }}
+      - name: Handle duplicate entry
+        if: steps.process.outputs.success == 'False'
         run: |
-          echo "⚠️ Duplicate or invalid entry: ${{ steps.process.outputs.message }}"
+          echo "⚠️ Entry already exists: ${{ steps.process.outputs.message }}"
+          echo "This is not an error - the data is already tracked."
           
       - name: Commit changes
         if: steps.process.outputs.success == 'True'
@@ -221,7 +132,6 @@ jobs:
           message = "${{ steps.process.outputs.message }}"
           json_data = '''${{ github.event.inputs.json_data }}'''
 
-          # Parse the data
           try:
               parsed_data = json.loads(json_data)
               
@@ -231,9 +141,9 @@ jobs:
 
           **Company:** {parsed_data.get('company')}  
           **Position:** {parsed_data.get('position')}  
-          **Source:** {parsed_data.get('source')}  
-          **Status:** {parsed_data.get('status')}  
-          **URL:** {parsed_data.get('url')}
+          **Source:** {parsed_data.get('source', 'N/A')}  
+          **Status:** {parsed_data.get('status', 'N/A')}  
+          **URL:** {parsed_data.get('url', 'N/A')}
 
           **Next Steps:**
           - Follow up in 7 days ({parsed_data.get('follow_up_date', 'TBD')})
@@ -251,10 +161,10 @@ jobs:
           **Name:** {parsed_data.get('name')}  
           **Company:** {parsed_data.get('company', 'N/A')}  
           **Position:** {parsed_data.get('position', 'N/A')}  
-          **Relationship:** {parsed_data.get('relationship_strength')}  
+          **Relationship:** {parsed_data.get('relationship_strength', 'N/A')}  
           **LinkedIn:** {parsed_data.get('linkedin_url', 'N/A')}
           
-          **Context:** {parsed_data.get('connection_context')}
+          **Context:** {parsed_data.get('connection_context', 'N/A')}
           
           **Next Steps:**
           - Follow up in 14 days
@@ -273,10 +183,10 @@ jobs:
 
           **Search Name:** {parsed_data.get('name')}  
           **Keywords:** {keywords}  
-          **Location:** {parsed_data.get('location') or 'Remote'}  
+          **Location:** {parsed_data.get('location', 'Remote')}  
           **Job Boards:** {boards}  
           **Min Salary:** ${parsed_data.get('min_salary', 'N/A')}  
-          **Experience:** {parsed_data.get('experience_level')}
+          **Experience:** {parsed_data.get('experience_level', 'N/A')}
 
           **Next Steps:**
           - Check search results daily
@@ -313,14 +223,9 @@ jobs:
                   issue = response.json()
                   print(f"✅ Created issue #{issue['number']}: {title}")
               else:
-                  print(f"Failed to create issue: {response.status_code}")
+                  print(f"⚠️ Failed to create issue: {response.status_code}")
+                  print(response.text)
 
           except Exception as e:
-              print(f"Error: {e}")
+              print(f"❌ Error creating issue: {e}")
           EOF
-      
-      - name: Comment on failure
-        if: steps.process.outputs.success == 'False'
-        run: |
-          echo "❌ Failed to add data: ${{ steps.process.outputs.message }}"
-          exit 1
