@@ -522,14 +522,127 @@ jobs:
           for platform, count in platform_stats.items():
               print(f"   {platform}: {count} jobs")
           EOF
-      
+
       - name: Run Job Matcher
         run: |
           echo "🎯 Running multi-platform job matcher..."
-          python ${{ env.SCRIPTS_DIR }}/cv_job_matcher.py \
-            --input discovered_jobs.json \
-            --threshold ${{ github.event.inputs.match_threshold || '75' }} \
-            --output matched_jobs.json
+    
+          # Create reports directory
+          mkdir -p reports
+    
+          # Run analysis using Python script directly
+          python3 << 'PYTHON_SCRIPT'
+          import sys, os
+          from pathlib import Path
+          from datetime import datetime
+    
+          # Add script directory to path
+          script_dir = os.path.join(os.getcwd(), '.github', 'scripts')
+          sys.path.insert(0, script_dir)
+          sys.path.insert(0, '.')
+    
+          print(f"Python path: {sys.path[:3]}")
+          print(f"Current directory: {os.getcwd()}")
+          print(f"Script directory: {script_dir}")
+    
+          try:
+            from cv_job_matcher import CVJobMatcher
+            print("✅ Successfully imported CVJobMatcher")
+          except ImportError as e:
+            print(f"❌ Failed to import cv_job_matcher.py")
+            print(f"Error: {e}")
+            print(f"Searched in: {sys.path}")
+            sys.exit(1)
+    
+          # Initialize matcher
+          matcher = CVJobMatcher()
+    
+          # Load CV
+          cv_file = Path('${{ github.event.inputs.cv_file }}' or 'cv/my_cv.txt')
+          if not cv_file.exists():
+            # Try to find any CV file
+            cv_files = list(Path('cv').glob('*.txt')) + list(Path('cv').glob('*.md'))
+         if cv_files:
+            cv_file = cv_files[0]
+         else:
+            print("❌ No CV file found in cv/ directory")
+            sys.exit(1)
+    
+         cv_text = cv_file.read_text()
+         print(f"✓ Loaded CV from {cv_file}")
+    
+         # Load discovered jobs
+         input_file = Path('discovered_jobs.json')
+         if not input_file.exists():
+           print(f"❌ Input file {input_file} not found")
+           sys.exit(1)
+    
+         import json
+         with open(input_file, 'r') as f:
+           jobs_data = json.load(f)
+    
+         print(f"✓ Loaded {len(jobs_data)} jobs from {input_file}")
+    
+         # Process each job
+         threshold = float('${{ github.event.inputs.match_threshold }}' or '75')
+         matched_jobs = []
+    
+         print(f"\n🔍 Analyzing jobs with threshold {threshold}%...\n")
+    
+         for idx, job in enumerate(jobs_data, 1):
+           job_text = f"{job.get('title', '')} {job.get('description', '')} {job.get('requirements', '')}"
+        
+         # Run analysis
+         result = matcher.analyze_job(cv_text, job_text)
+        
+         # Add match score to job data
+         job['match_score'] = result.get('overall_score', 0)
+         job['match_details'] = result
+        
+         # Filter by threshold
+         if job['match_score'] >= threshold:
+            matched_jobs.append(job)
+            print(f"✅ Job {idx}/{len(jobs_data)}: {job.get('title')} - {job['match_score']}%")
+         else:
+            print(f"⏭️  Job {idx}/{len(jobs_data)}: {job.get('title')} - {job['match_score']}% (below threshold)")
+    
+         # Save matched jobs
+         output_file = Path('matched_jobs.json')
+         with open(output_file, 'w') as f:
+           json.dump(matched_jobs, f, indent=2)
+    
+         print(f"\n✅ {len(matched_jobs)} jobs matched (threshold: {threshold}%)")
+         print(f"✅ Results saved to {output_file}")
+    
+         # Generate summary report
+         report_lines = [
+         "="*80,
+         "JOB MATCHING SUMMARY",
+         "="*80,
+         f"Total jobs analyzed: {len(jobs_data)}",
+         f"Jobs matched: {len(matched_jobs)}",
+         f"Match threshold: {threshold}%",
+         f"Match rate: {len(matched_jobs)/len(jobs_data)*100:.1f}%",
+         "",
+         "TOP MATCHES:",
+         "-"*80
+         ]
+    
+         # Sort by match score and show top 10
+         top_matches = sorted(matched_jobs, key=lambda x: x['match_score'], reverse=True)[:10]
+         for job in top_matches:
+           report_lines.append(f"{job['match_score']}% - {job.get('title')} at {job.get('company', 'Unknown')}")
+           report_lines.append(f"       {job.get('location', 'Location unknown')}")
+           report_lines.append("")
+    
+         report = "\n".join(report_lines)
+    
+         # Save report
+         report_file = Path('reports') / f'matching_summary_{datetime.now().strftime("%Y%m%d_%H%M%S")}.txt'
+         report_file.write_text(report)
+    
+         print("\n" + report)
+         PYTHON_SCRIPT
       
       - name: Categorize Matches by Platform
         run: |
