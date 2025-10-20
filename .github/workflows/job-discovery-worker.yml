@@ -526,7 +526,7 @@ jobs:
       - name: Run Job Matcher
         run: |
           echo "🎯 Running multi-platform job matcher..."
-          python ${{ env.SCRIPTS_DIR }}/job_matcher.py \
+          python ${{ env.SCRIPTS_DIR }}/cv_job_matcher.py \
             --input discovered_jobs.json \
             --threshold ${{ github.event.inputs.match_threshold || '75' }} \
             --output matched_jobs.json
