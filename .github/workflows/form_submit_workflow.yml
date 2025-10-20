@@ -10,7 +10,7 @@ on:
       json_data:
         description:  "JSON object to add"
         required: true
-        default:  '{"company": "OpenAI", "position": "AI Researcher"}'
+        default:  'job_search/applications.json'
 
 permissions:
   contents: write
