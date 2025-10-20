@@ -62,6 +62,10 @@ on:
         default: 'false'
         type: boolean
 
+concurrency:
+  group: job-discovery-pipeline
+  cancel-in-progress: false
+  
 env:
   PYTHON_VERSION: '3.10'
   TIMEZONE: 'Europe/London'
@@ -251,7 +255,13 @@ jobs:
         if: steps.check_platform.outputs.enabled == 'true' && matrix.platform == 'glassdoor'
         run: |
           echo "🔍 Discovering jobs on Glassdoor..."
-          python ${{ env.SCRIPTS_DIR }}/glassdoor_scraper.py --scrape --output glassdoor_jobs.json
+          KEYWORDS=$(python3 -c "import yaml; config = yaml.safe_load(open('job-manager-config.yml')); print(config.get('search', {}).get('target_roles', ['Software Engineer'])[0])" 2>/dev/null || echo "Software Engineer")
+
+          python ${{ env.SCRIPTS_DIR }}/glassdoor_scraper.py \
+          --keywords "$KEYWORDS" \
+          --location "London" \
+          --output glassdoor_jobs.json
+         
         env:
           GLASSDOOR_EMAIL: ${{ secrets.GLASSDOOR_EMAIL }}
           GLASSDOOR_PASSWORD: ${{ secrets.GLASSDOOR_PASSWORD }}
