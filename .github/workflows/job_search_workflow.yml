@@ -245,24 +245,24 @@ jobs:
           print(f"High matches: {len(high_matches)}")
           print(f"Follow-ups needed: {len(followup_needed)}")
           EOF
-      
-      - name: Commit and push updates
+
+          
+      - name: Commit and push changes
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-
+    
+          # Stage and commit first
+          git add .
+          git commit -m "Daily job search update - $(date +'%Y-%m-%d') [skip ci]" || exit 0
+    
+          # Try to push, if it fails, pull and retry
+          git push origin master || {
+          echo "Push failed, pulling and retrying..."
           git pull --rebase origin master
+          git push origin master
+          }
           
-          git add job_search/
-          
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-             git commit -m "Daily job search update - $(date +%Y-%m-%d) [skip ci]
-             git push origin master
-             echo "✅ Updates committed and pushed"
-          fi
-      
       - name: Create GitHub issue with daily summary
         if: github.event.inputs.send_notifications != 'false'
         uses: actions/github-script@v6
