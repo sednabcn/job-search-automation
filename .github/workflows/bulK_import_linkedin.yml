@@ -1,0 +1,506 @@
+name: Bulk Import LinkedIn Targets
+
+on:
+  workflow_dispatch:
+    inputs:
+      import_method:
+        description: 'Import method'
+        required: true
+        type: choice
+        options:
+          - csv_file
+          - json_paste
+          - linkedin_export
+        default: 'csv_file'
+      
+      file_path:
+        description: 'File path (for CSV/JSON file in repo, e.g., data/targets.csv)'
+        required: false
+        type: string
+        default: 'data/linkedin_targets.csv'
+      
+      json_data:
+        description: 'JSON data (paste here if using json_paste method)'
+        required: false
+        type: string
+      
+      auto_campaign:
+        description: 'Automatically create campaigns by industry'
+        required: false
+        type: boolean
+        default: true
+      
+      default_priority:
+        description: 'Default priority for imported targets'
+        required: false
+        type: choice
+        options:
+          - high
+          - medium
+          - low
+        default: 'medium'
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  bulk_import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas requests python-dateutil || true
+      
+      - name: Verify LinkedIn modules
+        run: |
+          mkdir -p job_search .github/scripts
+          
+          # Check for modules in both locations
+          if [ ! -f "job_search/linkedin_advanced_networking.py" ] && [ ! -f ".github/scripts/linkedin_advanced_networking.py" ]; then
+            echo "⚠️ LinkedIn modules not found, will use basic mode"
+          else
+            echo "✅ LinkedIn modules found"
+          fi
+      
+      - name: Bulk import targets
+        id: import
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import sys
+          import os
+          import json
+          import csv
+          from datetime import datetime
+          from pathlib import Path
+          
+          # Add paths
+          sys.path.insert(0, 'job_search')
+          sys.path.insert(0, '.github/scripts')
+          
+          # Try to import LinkedIn module
+          try:
+              from linkedin_advanced_networking import AdvancedLinkedInNetworking
+              linkedin = AdvancedLinkedInNetworking()
+              has_advanced = True
+              print("✅ Using Advanced LinkedIn Networking")
+          except ImportError:
+              try:
+                  from linkedin_automation import LinkedInAutomation
+                  linkedin = LinkedInAutomation()
+                  has_advanced = False
+                  print("✅ Using Basic LinkedIn Automation")
+              except ImportError:
+                  print("❌ No LinkedIn modules found, creating basic structure")
+                  has_advanced = False
+                  linkedin = None
+          
+          print("\n" + "=" * 70)
+          print("🚀 BULK LINKEDIN TARGET IMPORT")
+          print("=" * 70)
+          
+          import_method = "${{ github.event.inputs.import_method }}"
+          file_path = "${{ github.event.inputs.file_path }}"
+          json_data = '''${{ github.event.inputs.json_data }}'''
+          default_priority = "${{ github.event.inputs.default_priority }}"
+          auto_campaign = "${{ github.event.inputs.auto_campaign }}" == "true"
+          
+          targets_to_import = []
+          
+          # METHOD 1: CSV FILE
+          if import_method == "csv_file":
+              print(f"\n📄 Method: CSV File Import")
+              print(f"File: {file_path}")
+              
+              if not os.path.exists(file_path):
+                  print(f"❌ File not found: {file_path}")
+                  print("\n💡 Create a CSV file with these columns:")
+                  print("   name, company, position, profile_url, industry, priority")
+                  print("\nExample:")
+                  print("   John Smith,Google,Data Scientist,https://linkedin.com/in/john,tech,high")
+                  sys.exit(1)
+              
+              try:
+                  import pandas as pd
+                  df = pd.read_csv(file_path)
+                  
+                  print(f"✅ Loaded {len(df)} rows from CSV")
+                  print(f"\nColumns found: {', '.join(df.columns)}")
+                  
+                  # Validate required columns
+                  required = ['name', 'company', 'profile_url']
+                  missing = [col for col in required if col not in df.columns]
+                  if missing:
+                      print(f"❌ Missing required columns: {', '.join(missing)}")
+                      sys.exit(1)
+                  
+                  # Convert to targets
+                  for idx, row in df.iterrows():
+                      target = {
+                          'name': str(row['name']).strip(),
+                          'company': str(row['company']).strip(),
+                          'position': str(row.get('position', '')).strip(),
+                          'profile_url': str(row['profile_url']).strip(),
+                          'industry': str(row.get('industry', 'tech')).strip(),
+                          'priority': str(row.get('priority', default_priority)).strip()
+                      }
+                      
+                      # Skip empty rows
+                      if target['name'] and target['company'] and target['profile_url']:
+                          targets_to_import.append(target)
+                      else:
+                          print(f"⚠️ Row {idx+2}: Skipped incomplete data")
+                  
+              except Exception as e:
+                  print(f"❌ Error reading CSV: {e}")
+                  sys.exit(1)
+          
+          # METHOD 2: JSON PASTE
+          elif import_method == "json_paste":
+              print(f"\n📋 Method: JSON Paste")
+              
+              if not json_data or json_data.strip() == "":
+                  print("❌ No JSON data provided")
+                  print("\n💡 Expected format:")
+                  print('''[
+            {
+              "name": "John Smith",
+              "company": "Google",
+              "position": "Data Scientist",
+              "profile_url": "https://linkedin.com/in/john",
+              "industry": "tech",
+              "priority": "high"
+            }
+          ]''')
+                  sys.exit(1)
+              
+              try:
+                  data = json.loads(json_data)
+                  
+                  if isinstance(data, dict):
+                      data = [data]
+                  
+                  if not isinstance(data, list):
+                      print("❌ JSON must be a list of objects or a single object")
+                      sys.exit(1)
+                  
+                  print(f"✅ Parsed {len(data)} targets from JSON")
+                  
+                  for item in data:
+                      if not isinstance(item, dict):
+                          print(f"⚠️ Skipping non-object item: {item}")
+                          continue
+                      
+                      target = {
+                          'name': item.get('name', '').strip(),
+                          'company': item.get('company', '').strip(),
+                          'position': item.get('position', '').strip(),
+                          'profile_url': item.get('profile_url', '').strip(),
+                          'industry': item.get('industry', 'tech').strip(),
+                          'priority': item.get('priority', default_priority).strip()
+                      }
+                      
+                      if target['name'] and target['company'] and target['profile_url']:
+                          targets_to_import.append(target)
+                      else:
+                          print(f"⚠️ Skipped incomplete target: {item.get('name', 'Unknown')}")
+                  
+              except json.JSONDecodeError as e:
+                  print(f"❌ Invalid JSON: {e}")
+                  sys.exit(1)
+          
+          # METHOD 3: LinkedIn Export
+          elif import_method == "linkedin_export":
+              print(f"\n📦 Method: LinkedIn Data Export")
+              print(f"File: {file_path}")
+              
+              if not os.path.exists(file_path):
+                  print(f"❌ File not found: {file_path}")
+                  print("\n💡 Export your LinkedIn connections:")
+                  print("   1. Go to LinkedIn Settings > Data Privacy")
+                  print("   2. Download 'Connections' data")
+                  print("   3. Upload Connections.csv to your repo")
+                  sys.exit(1)
+              
+              try:
+                  import pandas as pd
+                  df = pd.read_csv(file_path)
+                  
+                  print(f"✅ Loaded {len(df)} connections from LinkedIn export")
+                  
+                  # LinkedIn export format: First Name, Last Name, Email, Company, Position, Connected On
+                  for idx, row in df.iterrows():
+                      first_name = str(row.get('First Name', '')).strip()
+                      last_name = str(row.get('Last Name', '')).strip()
+                      name = f"{first_name} {last_name}".strip()
+                      company = str(row.get('Company', '')).strip()
+                      position = str(row.get('Position', '')).strip()
+                      
+                      if name and company:
+                          target = {
+                              'name': name,
+                              'company': company,
+                              'position': position,
+                              'profile_url': f"https://linkedin.com/search/results/people/?keywords={name.replace(' ', '%20')}",
+                              'industry': 'unknown',
+                              'priority': default_priority
+                          }
+                          targets_to_import.append(target)
+                  
+              except Exception as e:
+                  print(f"❌ Error reading LinkedIn export: {e}")
+                  sys.exit(1)
+          
+          print(f"\n📊 Total targets to import: {len(targets_to_import)}")
+          
+          if len(targets_to_import) == 0:
+              print("❌ No valid targets found to import")
+              sys.exit(1)
+          
+          # Preview first 5 targets
+          print("\n👀 Preview (first 5 targets):")
+          print("-" * 70)
+          for i, target in enumerate(targets_to_import[:5], 1):
+              print(f"{i}. {target['name']} @ {target['company']}")
+              print(f"   Position: {target['position']}")
+              print(f"   Industry: {target['industry']} | Priority: {target['priority']}")
+          
+          if len(targets_to_import) > 5:
+              print(f"   ... and {len(targets_to_import) - 5} more")
+          
+          # Import targets
+          print("\n" + "=" * 70)
+          print("📥 IMPORTING TARGETS")
+          print("=" * 70)
+          
+          added = 0
+          skipped = 0
+          errors = 0
+          
+          # Ensure data directory exists
+          os.makedirs('job_search', exist_ok=True)
+          
+          # Load or create targets file
+          targets_file = Path('job_search/linkedin_targets.json')
+          if targets_file.exists():
+              with open(targets_file, 'r') as f:
+                  existing_targets = json.load(f)
+          else:
+              existing_targets = []
+          
+          # Track industries for auto-campaign
+          industries = {}
+          
+          for target in targets_to_import:
+              try:
+                  # Check if target already exists
+                  exists = any(
+                      t.get('name') == target['name'] and t.get('company') == target['company']
+                      for t in existing_targets
+                  )
+                  
+                  if exists:
+                      print(f"⚠️  Skipped (duplicate): {target['name']} @ {target['company']}")
+                      skipped += 1
+                      continue
+                  
+                  # Add target
+                  target['id'] = f"target_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{added}"
+                  target['status'] = 'queued'
+                  target['added_date'] = datetime.now().isoformat()
+                  
+                  if linkedin and has_advanced:
+                      result = linkedin.add_target(**target)
+                      if result.get('success'):
+                          print(f"✅ Added: {target['name']} @ {target['company']}")
+                          added += 1
+                          industries[target['industry']] = industries.get(target['industry'], 0) + 1
+                      else:
+                          print(f"❌ Failed: {target['name']} - {result.get('message')}")
+                          errors += 1
+                  else:
+                      # Manual mode - just add to JSON
+                      existing_targets.append(target)
+                      print(f"✅ Added: {target['name']} @ {target['company']}")
+                      added += 1
+                      industries[target['industry']] = industries.get(target['industry'], 0) + 1
+                  
+              except Exception as e:
+                  print(f"❌ Error adding {target.get('name', 'Unknown')}: {e}")
+                  errors += 1
+          
+          # Save if using manual mode
+          if not linkedin or not has_advanced:
+              with open(targets_file, 'w') as f:
+                  json.dump(existing_targets, f, indent=2)
+              print(f"\n💾 Saved {len(existing_targets)} targets to {targets_file}")
+          elif linkedin:
+              linkedin.save_data()
+          
+          # Summary
+          print("\n" + "=" * 70)
+          print("📊 IMPORT SUMMARY")
+          print("=" * 70)
+          print(f"✅ Successfully added: {added}")
+          print(f"⚠️  Skipped (duplicates): {skipped}")
+          print(f"❌ Errors: {errors}")
+          print(f"📈 Total in system: {len(existing_targets) if not linkedin else len(linkedin.targets)}")
+          
+          # Industry breakdown
+          if industries:
+              print(f"\n🏢 By Industry:")
+              for industry, count in sorted(industries.items(), key=lambda x: x[1], reverse=True):
+                  print(f"   {industry}: {count}")
+          
+          # Auto-create campaigns
+          if auto_campaign and linkedin and has_advanced and added > 0:
+              print("\n" + "=" * 70)
+              print("🎯 AUTO-CREATING CAMPAIGNS")
+              print("=" * 70)
+              
+              for industry, count in industries.items():
+                  if count >= 5:  # Only create campaign if 5+ targets
+                      campaign_name = f"{industry.title()} Outreach {datetime.now().strftime('%Y-%m')}"
+                      try:
+                          result = linkedin.create_targeted_campaign(
+                              campaign_name=campaign_name,
+                              industry=industry,
+                              target_level='mid_senior',
+                              daily_target=min(3, count // 7)  # Spread over week
+                          )
+                          if result.get('success'):
+                              print(f"✅ Created campaign: {campaign_name}")
+                          else:
+                              print(f"⚠️  Campaign exists: {campaign_name}")
+                      except Exception as e:
+                          print(f"❌ Failed to create campaign for {industry}: {e}")
+          
+          # Save summary for GitHub output
+          summary = {
+              'added': added,
+              'skipped': skipped,
+              'errors': errors,
+              'total': len(existing_targets) if not linkedin else len(linkedin.targets),
+              'industries': industries,
+              'success': added > 0
+          }
+          
+          with open('import_summary.json', 'w') as f:
+              json.dump(summary, f, indent=2)
+          
+          # Write to GitHub output
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"added={added}\n")
+              f.write(f"skipped={skipped}\n")
+              f.write(f"errors={errors}\n")
+              f.write(f"success={'true' if added > 0 else 'false'}\n")
+          
+          print("\n✅ Bulk import completed!")
+          
+          if added > 0:
+              print(f"\n💡 Next steps:")
+              print(f"   1. Run 'LinkedIn Networking Automation' workflow")
+              print(f"   2. Check generated daily action plan")
+              print(f"   3. Start connecting with {added} new targets!")
+          
+          PYTHON_SCRIPT
+      
+      - name: Create import summary artifact
+        if: always()
+        run: |
+          mkdir -p job_search/exports
+          
+          if [ -f import_summary.json ]; then
+            cp import_summary.json job_search/exports/
+            
+            # Create markdown summary
+            python3 << 'PYTHON_SCRIPT'
+          import json
+          from datetime import datetime
+          
+          with open('import_summary.json', 'r') as f:
+              summary = json.load(f)
+          
+          with open('job_search/exports/import_summary.md', 'w') as f:
+              f.write('# 📥 Bulk Import Summary\n\n')
+              f.write(f"**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M UTC')}\n\n")
+              f.write(f"## Results\n\n")
+              f.write(f"- ✅ **Added:** {summary['added']}\n")
+              f.write(f"- ⚠️  **Skipped:** {summary['skipped']}\n")
+              f.write(f"- ❌ **Errors:** {summary['errors']}\n")
+              f.write(f"- 📊 **Total Targets:** {summary['total']}\n\n")
+              
+              if summary['industries']:
+                  f.write(f"## Industry Breakdown\n\n")
+                  for industry, count in sorted(summary['industries'].items(), key=lambda x: x[1], reverse=True):
+                      f.write(f"- **{industry.title()}:** {count}\n")
+          PYTHON_SCRIPT
+          fi
+      
+      - name: Commit imported data
+        if: steps.import.outputs.success == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add job_search/*.json
+          git add job_search/exports/*.json job_search/exports/*.md || true
+          
+          git diff --quiet && git diff --staged --quiet || \
+            git commit -m "📥 Bulk imported ${{ steps.import.outputs.added }} LinkedIn targets - $(date +'%Y-%m-%d')"
+          
+          git push
+      
+      - name: Upload import artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: import-summary-${{ github.run_number }}
+          path: |
+            job_search/exports/import_summary.*
+            import_summary.json
+          retention-days: 90
+      
+      - name: Create success issue
+        if: steps.import.outputs.success == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            let summary = 'Import completed';
+            if (fs.existsSync('job_search/exports/import_summary.md')) {
+              summary = fs.readFileSync('job_search/exports/import_summary.md', 'utf8');
+            }
+            
+            const added = '${{ steps.import.outputs.added }}';
+            const skipped = '${{ steps.import.outputs.skipped }}';
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `📥 Bulk Import Complete: ${added} targets added`,
+              body: summary + '\n\n---\n\n**Next Steps:**\n- Run "LinkedIn Networking Automation" workflow\n- Review daily action plan\n- Start connecting!',
+              labels: ['linkedin', 'bulk-import', 'data-import']
+            });
+      
+      - name: Failure notification
+        if: steps.import.outputs.success != 'true'
+        run: |
+          echo "❌ Import failed or no targets were added"
+          echo "Check the logs above for details"
+          exit 1
