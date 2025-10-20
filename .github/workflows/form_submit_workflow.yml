@@ -4,301 +4,260 @@ on:
   workflow_dispatch:
     inputs:
       data_type:
-        description: 'Type of data'
+        description: 'Type of data to add'
         required: true
         type: choice
         options:
           - application
-          - contact
-          - search
-      
+          - company
+          - interview
+          - salary
+          - review
       json_data:
-        description: 'JSON data (paste from form)'
+        description: 'JSON data (paste complete JSON object - see examples in README)'
         required: true
         type: string
 
-permissions:
-  contents: write
-  issues: write
-
 jobs:
-  add-data:
+  add_data:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
       
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
       
-      - name: Ensure directory structure
+      - name: Validate and process JSON data
         run: |
-          mkdir -p job_search job_search_system
-          
-          # Initialize files if they don't exist
-          for file in applications network_contacts saved_searches; do
-            if [ ! -f "job_search/${file}.json" ]; then
-              echo "[]" > "job_search/${file}.json"
-            fi
-          done
-      
-      - name: Add json_updater.py if missing
-        run: |
-          if [ ! -f "job_search_system/json_updater.py" ]; then
-            cat > job_search_system/json_updater.py << 'EOFPYTHON'
-          #!/usr/bin/env python3
+          python3 << 'PYTHON_SCRIPT'
           import json
+          import os
           import sys
-          from pathlib import Path
           from datetime import datetime
+          import re
           
-          class JobSearchJSONUpdater:
-              def __init__(self, tracking_dir="job_search"):
-                  self.tracking_dir = Path(tracking_dir)
-                  self.tracking_dir.mkdir(exist_ok=True)
-                  self.files = {
-                      "applications": self.tracking_dir / "applications.json",
-                      "contacts": self.tracking_dir / "network_contacts.json",
-                      "searches": self.tracking_dir / "saved_searches.json"
-                  }
-                  for file_path in self.files.values():
-                      if not file_path.exists():
-                          self._write_json(file_path, [])
-              
-              def _read_json(self, file_path):
-                  try:
-                      with open(file_path, 'r') as f:
-                          return json.load(f)
-                  except:
-                      return []
-              
-              def _write_json(self, file_path, data):
-                  with open(file_path, 'w') as f:
-                      json.dump(data, f, indent=2, default=str)
-              
-              def add_application(self, app_data):
-                  applications = self._read_json(self.files["applications"])
-                  for app in applications:
-                      if app.get('company') == app_data.get('company') and \
-                         app.get('position') == app_data.get('position'):
-                          return {"success": False, "message": "Duplicate application"}
-                  applications.append(app_data)
-                  self._write_json(self.files["applications"], applications)
-                  return {"success": True, "message": f"Added application to {app_data['company']}", "total": len(applications)}
-              
-              def add_contact(self, contact_data):
-                  contacts = self._read_json(self.files["contacts"])
-                  for contact in contacts:
-                      if contact.get('name') == contact_data.get('name'):
-                          return {"success": False, "message": "Duplicate contact"}
-                  contacts.append(contact_data)
-                  self._write_json(self.files["contacts"], contacts)
-                  return {"success": True, "message": f"Added contact {contact_data['name']}", "total": len(contacts)}
-              
-              def add_search(self, search_data):
-                  searches = self._read_json(self.files["searches"])
-                  for search in searches:
-                      if search.get('name') == search_data.get('name'):
-                          return {"success": False, "message": "Duplicate search"}
-                  searches.append(search_data)
-                  self._write_json(self.files["searches"], searches)
-                  return {"success": True, "message": f"Added search '{search_data['name']}'", "total": len(searches)}
-              
-              def process_input(self, input_json, data_type):
-                  try:
-                      data = json.loads(input_json)
-                  except:
-                      return {"success": False, "message": "Invalid JSON"}
-                  
-                  if data_type == "application":
-                      return self.add_application(data)
-                  elif data_type == "contact":
-                      return self.add_contact(data)
-                  elif data_type == "search":
-                      return self.add_search(data)
-                  else:
-                      return {"success": False, "message": f"Unknown type: {data_type}"}
+          # Get inputs
+          data_type = os.environ.get('DATA_TYPE', '')
+          json_data_raw = os.environ.get('JSON_DATA', '')
           
-          if __name__ == "__main__":
-              data_type = sys.argv[1]
-              json_input = sys.stdin.read()
-              updater = JobSearchJSONUpdater()
-              result = updater.process_input(json_input, data_type)
-              print(json.dumps(result, indent=2))
-              sys.exit(0 if result["success"] else 1)
-          EOFPYTHON
-            chmod +x job_search_system/json_updater.py
-          fi
-
-      - name: Debug - Show what we're piping
-        run: |
-          echo "📋 Debugging pipe content..."
-          echo "Data type: ${{ github.event.inputs.data_type }}"
-          echo "JSON data preview:"
-          echo '${{ github.event.inputs.json_data }}' | head -c 200
-          echo ""
-          echo "JSON data length: $(echo '${{ github.event.inputs.json_data }}' | wc -c)"
-    
-          # Test if it's valid JSON
-          echo '${{ github.event.inputs.json_data }}' | python3 -c "
-          import sys, json
+          print(f"📊 Processing {data_type} data...")
+          
+          # Clean the input
+          json_data_raw = json_data_raw.strip()
+          
+          # Check if input looks like a file path
+          if json_data_raw.endswith('.json') and '/' in json_data_raw:
+              print(f"❌ ERROR: You pasted a file path, not JSON content!")
+              print(f"Received: {json_data_raw}")
+              print("\n" + "="*60)
+              print("CORRECT FORMAT - Paste JSON like this:")
+              print("="*60)
+              if data_type == 'application':
+                  print('''{
+            "id": "company_2025",
+            "company": "Example Corp",
+            "position": "Software Engineer",
+            "url": "https://example.com/careers/123",
+            "source": "LinkedIn",
+            "resume_version": "default",
+            "cover_letter": true,
+            "applied_date": "2025-10-20T10:00:00",
+            "status": "applied",
+            "notes": "Great company culture"
+          }''')
+              elif data_type == 'company':
+                  print('''{
+            "company_name": "Example Corp",
+            "overall_rating": 4.2,
+            "industry": "Technology",
+            "size": "1000-5000",
+            "headquarters": "San Francisco, CA"
+          }''')
+              print("="*60)
+              sys.exit(1)
+          
+          # Try to parse JSON
           try:
-            data = json.load(sys.stdin)
-            print(f'✅ Valid JSON with keys: {list(data.keys())}')
-          except Exception as e:
-            print(f'❌ Invalid JSON: {e}')
-            "
+              data = json.loads(json_data_raw)
+              print("✅ JSON parsed successfully")
+              print(f"📋 Data keys: {list(data.keys())}")
+          except json.JSONDecodeError as e:
+              print(f"❌ Invalid JSON: {e}")
+              print(f"\nFirst 200 chars received: {json_data_raw[:200]}")
+              print("\nTip: Make sure your JSON is valid. Use a JSON validator like jsonlint.com")
+              sys.exit(1)
           
-      - name: Process JSON data
-        id: process
-        run: |
-          echo '${{ github.event.inputs.json_data }}' | \
-          python3 job_search_system/json_updater.py ${{ github.event.inputs.data_type }} \
-          > result.json
+          # Determine file path
+          file_map = {
+              'application': 'job_search/applications.json',
+              'company': 'job_search/companies.json',
+              'interview': 'job_search/interviews.json',
+              'salary': 'job_search/salaries.json',
+              'review': 'job_search/reviews.json'
+          }
           
-          cat result.json
+          file_path = file_map.get(data_type)
+          if not file_path:
+              print(f"❌ Unknown data type: {data_type}")
+              sys.exit(1)
           
-          # Extract results
-          SUCCESS=$(cat result.json | python3 -c "import sys, json; print(json.load(sys.stdin)['success'])")
-          MESSAGE=$(cat result.json | python3 -c "import sys, json; print(json.load(sys.stdin)['message'])")
+          # Ensure directory exists
+          os.makedirs(os.path.dirname(file_path), exist_ok=True)
           
-          echo "success=$SUCCESS" >> $GITHUB_OUTPUT
-          echo "message=$MESSAGE" >> $GITHUB_OUTPUT
-
-            
+          # Load existing data
+          existing_data = []
+          if os.path.exists(file_path):
+              try:
+                  with open(file_path, 'r') as f:
+                      content = f.read().strip()
+                      if content:
+                          existing_data = json.loads(content)
+                  print(f"📂 Loaded {len(existing_data)} existing records")
+              except json.JSONDecodeError as e:
+                  print(f"⚠️  Existing file has invalid JSON: {e}")
+                  print("Starting with empty list")
+                  existing_data = []
+          else:
+              print(f"📄 Creating new file: {file_path}")
+          
+          # Validate required fields based on type
+          required_fields = {
+              'application': ['company', 'position', 'status'],
+              'company': ['company_name'],
+              'interview': ['company_name', 'position'],
+              'salary': ['company_name', 'role'],
+              'review': ['company_name']
+          }
+          
+          missing_fields = [f for f in required_fields.get(data_type, []) if f not in data]
+          if missing_fields:
+              print(f"⚠️  Warning: Missing recommended fields: {', '.join(missing_fields)}")
+          
+          # Add metadata
+          if 'logged_date' not in data and 'applied_date' not in data:
+              data['logged_date'] = datetime.now().isoformat()
+          
+          # For applications, initialize timeline if not present
+          if data_type == 'application' and 'timeline' not in data:
+              data['timeline'] = [{
+                  'date': data.get('applied_date', datetime.now().isoformat()),
+                  'event': data.get('status', 'applied'),
+                  'notes': 'Initial application submitted'
+              }]
+          
+          # Add the new data
+          existing_data.append(data)
+          
+          # Write back to file with proper formatting
+          with open(file_path, 'w') as f:
+              json.dump(existing_data, f, indent=2)
+          
+          print(f"✅ Successfully added {data_type} to {file_path}")
+          print(f"📊 Total records: {len(existing_data)}")
+          
+          # Create summary for commit message
+          summary_parts = []
+          if data_type == 'application':
+              summary_parts.append(f"{data.get('company', 'Unknown')} - {data.get('position', 'Unknown')}")
+          elif data_type == 'company':
+              summary_parts.append(data.get('company_name', 'Unknown'))
+              if data.get('overall_rating'):
+                  summary_parts.append(f"({data['overall_rating']}/5.0)")
+          elif data_type == 'interview':
+              summary_parts.append(f"{data.get('company_name', 'Unknown')} - {data.get('position', 'Unknown')}")
+          elif data_type == 'salary':
+              summary_parts.append(f"{data.get('company_name', 'Unknown')} - {data.get('role', 'Unknown')}")
+              if data.get('total_comp_avg'):
+                  summary_parts.append(f"${data['total_comp_avg']:,.0f}")
+          elif data_type == 'review':
+              summary_parts.append(data.get('company_name', 'Unknown'))
+          
+          summary = ' '.join(summary_parts)
+          
+          with open('add_summary.txt', 'w') as f:
+              f.write(summary)
+          
+          # Create detailed report
+          with open('add_details.txt', 'w') as f:
+              f.write(f"Type: {data_type}\n")
+              f.write(f"Summary: {summary}\n")
+              f.write(f"Total records: {len(existing_data)}\n")
+              f.write(f"\nData added:\n")
+              f.write(json.dumps(data, indent=2))
+          
+          print("\n✅ All done!")
+          
+          PYTHON_SCRIPT
+        env:
+          DATA_TYPE: ${{ github.event.inputs.data_type }}
+          JSON_DATA: ${{ github.event.inputs.json_data }}
+      
       - name: Commit changes
-        if: steps.process.outputs.success == 'True'
+        id: commit
         run: |
-          git config --global user.name "Job Search Bot"
-          git config --global user.email "bot@jobsearch.local"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
           
-          git add job_search/
+          # Read summary
+          SUMMARY="data updated"
+          if [ -f "add_summary.txt" ]; then
+            SUMMARY=$(cat add_summary.txt)
+          fi
           
-          DATA_TYPE="${{ github.event.inputs.data_type }}"
-          git commit -m "Add new ${DATA_TYPE} via web form - $(date +%Y-%m-%d)" || echo "No changes"
+          git add job_search/*.json
+          
+          if git diff --quiet && git diff --staged --quiet; then
+            echo "No changes to commit"
+            echo "changes=false" >> $GITHUB_OUTPUT
+          else
+            git commit -m "➕ Add ${{ github.event.inputs.data_type }}: $SUMMARY"
+            echo "changes=true" >> $GITHUB_OUTPUT
+            echo "summary=$SUMMARY" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Push changes
+        if: steps.commit.outputs.changes == 'true'
+        run: |
           git push
       
-      - name: Create success issue
-        if: steps.process.outputs.success == 'True'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          python << 'EOF'
-          import os
-          import json
-          import requests
-          from datetime import datetime
-          
-          github_token = os.environ.get('GITHUB_TOKEN')
-          repo = os.environ.get('GITHUB_REPOSITORY')
-          data_type = "${{ github.event.inputs.data_type }}"
-          message = "${{ steps.process.outputs.message }}"
-          json_data = '''${{ github.event.inputs.json_data }}'''
-          
-          # Parse the data
-          try:
-              parsed_data = json.loads(json_data)
-              
-              if data_type == "application":
-                  title = f"✅ Application Added: {parsed_data.get('company')} - {parsed_data.get('position')}"
-                  body = f"""# New Application Tracked
-          
-          **Company:** {parsed_data.get('company')}  
-          **Position:** {parsed_data.get('position')}  
-          **Source:** {parsed_data.get('source')}  
-          **Status:** {parsed_data.get('status')}  
-          **URL:** {parsed_data.get('url')}
-          
-          **Next Steps:**
-          - Follow up in 7 days ({parsed_data.get('follow_up_date', 'TBD')})
-          - Track response
-          - Update status as needed
-          
-          ---
-          *Added via web form on {datetime.now().strftime('%Y-%m-%d %H:%M UTC')}*
-          """
-              
-              elif data_type == "contact":
-                  title = f"👤 Contact Added: {parsed_data.get('name')}"
-                  body = f"""# New Contact Added to Network
-          
-          **Name:** {parsed_data.get('name')}  
-          **Company:** {parsed_data.get('company', 'N/A')}  
-          **Position:** {parsed_data.get('position', 'N/A')}  
-          **Relationship:** {parsed_data.get('relationship_strength')}  
-          **LinkedIn:** {parsed_data.get('linkedin_url', 'N/A')}
-          
-          **Context:** {parsed_data.get('connection_context')}
-          
-          **Next Steps:**
-          - Follow up in 14 days
-          - Engage with their content
-          - Build relationship before asking for referrals
-          
-          ---
-          *Added via web form on {datetime.now().strftime('%Y-%m-%d %H:%M UTC')}*
-          """
-              
-              elif data_type == "search":
-                  title = f"🔍 Saved Search Added: {parsed_data.get('name')}"
-                  keywords = ', '.join(parsed_data.get('keywords', []))
-                  boards = ', '.join(parsed_data.get('boards', []))
-                  body = f"""# New Saved Search Created
-          
-          **Search Name:** {parsed_data.get('name')}  
-          **Keywords:** {keywords}  
-          **Location:** {parsed_data.get('location') or 'Remote'}  
-          **Job Boards:** {boards}  
-          **Min Salary:** ${parsed_data.get('min_salary', 'N/A')}  
-          **Experience:** {parsed_data.get('experience_level')}
-          
-          **Next Steps:**
-          - Check search results daily
-          - Adjust keywords if needed
-          - Set up job alerts on each board
-          
-          ---
-          *Added via web form on {datetime.now().strftime('%Y-%m-%d %H:%M UTC')}*
-          """
-              
-              else:
-                  title = f"✅ Data Added: {data_type}"
-                  body = f"New {data_type} added successfully.\n\n{message}"
-              
-              headers = {
-                  'Authorization': f'token {github_token}',
-                  'Accept': 'application/vnd.github.v3+json'
-              }
-              
-              data = {
-                  'title': title,
-                  'body': body,
-                  'labels': ['job-search', 'form-submission', data_type]
-              }
-              
-              response = requests.post(
-                  f'https://api.github.com/repos/{repo}/issues',
-                  headers=headers,
-                  json=data,
-                  timeout=30
-              )
-              
-              if response.status_code == 201:
-                  issue = response.json()
-                  print(f"✅ Created issue #{issue['number']}: {title}")
-              else:
-                  print(f"Failed to create issue: {response.status_code}")
-          
-          except Exception as e:
-              print(f"Error: {e}")
-          EOF
+      - name: Create success notification
+        if: success() && steps.commit.outputs.changes == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            let details = 'Data added successfully';
+            if (fs.existsSync('add_details.txt')) {
+              details = fs.readFileSync('add_details.txt', 'utf8');
+            }
+            
+            const summary = '${{ steps.commit.outputs.summary }}' || 'Data added';
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `✅ Added ${{ github.event.inputs.data_type }}: ${summary}`,
+              body: `## Data Added Successfully\n\n\`\`\`\n${details}\n\`\`\`\n\n**Added by:** @${context.actor}\n**Run:** [#${context.runNumber}](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
+              labels: ['data-update', 'automated']
+            });
       
-      - name: Comment on failure
-        if: steps.process.outputs.success == 'False'
-        run: |
-          echo "❌ Failed to add data: ${{ steps.process.outputs.message }}"
-          exit 1
+      - name: Create failure notification
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '❌ Failed to add ${{ github.event.inputs.data_type }} data',
+              body: `## Data Addition Failed\n\n**Type:** ${{ github.event.inputs.data_type }}\n\n**Common Issues:**\n- Did you paste a file path instead of JSON content?\n- Is your JSON valid? Test it at jsonlint.com\n- Are required fields included?\n\n**Triggered by:** @${context.actor}\n**Check logs:** [Run #${context.runNumber}](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
+              labels: ['error', 'data-update']
+            });
