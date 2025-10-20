@@ -51,8 +51,7 @@ on:
 jobs:
   morning_routine:
     runs-on: ubuntu-latest
-    if: github.event.schedule == '0 9 * * *' || github.event_name == 'workflow_dispatch'
-    
+    if: (github.event_name == 'schedule' && github.event.schedule == '0 9 * * *') ||(github.event_name == 'workflow_dispatch')
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

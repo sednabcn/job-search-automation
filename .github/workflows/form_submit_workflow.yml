@@ -71,100 +71,101 @@ jobs:
               echo "Found existing: $FILE_PATH"
             fi
           done
-      
+
       - name: Add json_updater.py if missing
         run: |
           SCRIPT_PATH="${{ steps.dirs.outputs.system_dir }}/json_updater.py"
           
           if [ ! -f "$SCRIPT_PATH" ]; then
-             cat > "$SCRIPT_PATH" << 'EOFPYTHON'
-             #!/usr/bin/env python3
-             import json
-             import sys
-             from pathlib import Path
-             from datetime import datetime
+            cat > "$SCRIPT_PATH" << 'EOFPYTHON'
+          #!/usr/bin/env python3
+          import json
+          import sys
+          from pathlib import Path
+          from datetime import datetime
 
-             class JobSearchJSONUpdater:
-                      def __init__(self, tracking_dir="job_search"):
-                           self.tracking_dir = Path(tracking_dir)
-                           self.tracking_dir.mkdir(parents=True, exist_ok=True)
-                           self.files = {
-                           "applications": self.tracking_dir / "applications.json",
-                           "contacts": self.tracking_dir / "network_contacts.json",
-                           "searches": self.tracking_dir / "saved_searches.json"
-                           }
-                      for file_path in self.files.values():
-                           if not file_path.exists():
-                                self._write_json(file_path, [])
-    
-                      def _read_json(self, file_path):
-                           try:
-                             with open(file_path, 'r') as f:
-                                 return json.load(f)
-                           except:
-                             return []
-    
-                      def _write_json(self, file_path, data):
-                           with open(file_path, 'w') as f:
-                             json.dump(data, f, indent=2, default=str)
-    
-                      def add_application(self, app_data):
-                           applications = self._read_json(self.files["applications"])
-                           for app in applications:
-                             if app.get('company') == app_data.get('company') and \
-                             app.get('position') == app_data.get('position'):
-                               return {"success": False, "message": "Duplicate application"}
-                           applications.append(app_data)
-                           self._write_json(self.files["applications"], applications)
-                           return {"success": True, "message": f"Added application to {app_data['company']}", "total": len(applications)}
-    
-                      def add_contact(self, contact_data):
-                           contacts = self._read_json(self.files["contacts"])
-                           for contact in contacts:
-                             if contact.get('name') == contact_data.get('name'):
-                               return {"success": False, "message": "Duplicate contact"}
-                           contacts.append(contact_data)
-                           self._write_json(self.files["contacts"], contacts)
-                           return {"success": True, "message": f"Added contact {contact_data['name']}", "total": len(contacts)}
-    
-                      def add_search(self, search_data):
-                           searches = self._read_json(self.files["searches"])
-                           for search in searches:
-                             if search.get('name') == search_data.get('name'):
-                               return {"success": False, "message": "Duplicate search"}
-                           searches.append(search_data)
-                           self._write_json(self.files["searches"], searches)
-                           return {"success": True, "message": f"Added search '{search_data['name']}'", "total": len(searches)}
-    
-                      def process_input(self, input_json, data_type):
-                           try:
-                             data = json.loads(input_json)
-                           except:
-                             return {"success": False, "message": "Invalid JSON"}
-        
-                           if data_type == "application":
-                             return self.add_application(data)
-                           elif data_type == "contact":
-                             return self.add_contact(data)
-                           elif data_type == "search":
-                             return self.add_search(data)
-                           else:
-                             return {"success": False, "message": f"Unknown type: {data_type}"}
+          class JobSearchJSONUpdater:
+              def __init__(self, tracking_dir="job_search"):
+                  self.tracking_dir = Path(tracking_dir)
+                  self.tracking_dir.mkdir(parents=True, exist_ok=True)
+                  self.files = {
+                      "applications": self.tracking_dir / "applications.json",
+                      "contacts": self.tracking_dir / "network_contacts.json",
+                      "searches": self.tracking_dir / "saved_searches.json"
+                  }
+                  for file_path in self.files.values():
+                      if not file_path.exists():
+                          self._write_json(file_path, [])
 
-             if __name__ == "__main__":
-               data_type = sys.argv[1]
-               tracking_dir = sys.argv[2] if len(sys.argv) > 2 else "job_search"
-               json_input = sys.stdin.read()
-               updater = JobSearchJSONUpdater(tracking_dir)
-               result = updater.process_input(json_input, data_type)
-               print(json.dumps(result, indent=2))
-               sys.exit(0 if result["success"] else 1)
-               EOFPYTHON
-             chmod +x "$SCRIPT_PATH"
-             echo "Created: $SCRIPT_PATH"
+              def _read_json(self, file_path):
+                  try:
+                      with open(file_path, 'r') as f:
+                          return json.load(f)
+                  except:
+                      return []
+
+              def _write_json(self, file_path, data):
+                  with open(file_path, 'w') as f:
+                      json.dump(data, f, indent=2, default=str)
+
+              def add_application(self, app_data):
+                  applications = self._read_json(self.files["applications"])
+                  for app in applications:
+                      if app.get('company') == app_data.get('company') and \
+                         app.get('position') == app_data.get('position'):
+                          return {"success": False, "message": "Duplicate application"}
+                  applications.append(app_data)
+                  self._write_json(self.files["applications"], applications)
+                  return {"success": True, "message": f"Added application to {app_data['company']}", "total": len(applications)}
+
+              def add_contact(self, contact_data):
+                  contacts = self._read_json(self.files["contacts"])
+                  for contact in contacts:
+                      if contact.get('name') == contact_data.get('name'):
+                          return {"success": False, "message": "Duplicate contact"}
+                  contacts.append(contact_data)
+                  self._write_json(self.files["contacts"], contacts)
+                  return {"success": True, "message": f"Added contact {contact_data['name']}", "total": len(contacts)}
+
+              def add_search(self, search_data):
+                  searches = self._read_json(self.files["searches"])
+                  for search in searches:
+                      if search.get('name') == search_data.get('name'):
+                          return {"success": False, "message": "Duplicate search"}
+                  searches.append(search_data)
+                  self._write_json(self.files["searches"], searches)
+                  return {"success": True, "message": f"Added search '{search_data['name']}'", "total": len(searches)}
+
+              def process_input(self, input_json, data_type):
+                  try:
+                      data = json.loads(input_json)
+                  except:
+                      return {"success": False, "message": "Invalid JSON"}
+                  
+                  if data_type == "application":
+                      return self.add_application(data)
+                  elif data_type == "contact":
+                      return self.add_contact(data)
+                  elif data_type == "search":
+                      return self.add_search(data)
+                  else:
+                      return {"success": False, "message": f"Unknown type: {data_type}"}
+
+          if __name__ == "__main__":
+              data_type = sys.argv[1]
+              tracking_dir = sys.argv[2] if len(sys.argv) > 2 else "job_search"
+              json_input = sys.stdin.read()
+              updater = JobSearchJSONUpdater(tracking_dir)
+              result = updater.process_input(json_input, data_type)
+              print(json.dumps(result, indent=2))
+              sys.exit(0 if result["success"] else 1)
+          EOFPYTHON
+            chmod +x "$SCRIPT_PATH"
+            echo "Created: $SCRIPT_PATH"
           else
             echo "Found existing: $SCRIPT_PATH"
-          fi
+          fi    
+     
       
       - name: Process JSON data
         id: process
