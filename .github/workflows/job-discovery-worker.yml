@@ -557,23 +557,47 @@ jobs:
           # Initialize matcher
           matcher = CVJobMatcher()
     
-          # Load CV
+          
+          # Load CV - try multiple locations
           cv_input = '${{ github.event.inputs.cv_file }}'
-          cv_file = Path('${{ github.event.inputs.cv_file }}' or 'cv/my_cv.txt')
-          if not cv_file.exists():
-            # Try to find any CV file
-            cv_dir = Path('cv')
-            if cv_dir.exists():
-               cv_files = list(cv_dir.glob('*.txt')) + list(cv_dir.glob('*.md'))
-               if cv_files:
-                  cv_file = cv_files[0]
-               else:
-                 print("❌ No CV file found in cv/ directory")
-                 sys.exit(1)
-          else:
-              print("❌ cv/ directory does not exist")
-              sys.exit(1)
-         
+          cv_file = None
+    
+          # Priority 1: User-specified file
+          if cv_input:
+            cv_file = Path(cv_input)
+            if not cv_file.exists():
+               print(f"⚠️  Specified CV file not found: {cv_input}")
+               cv_file = None
+    
+          # Priority 2: Look in cv/ directory
+          if not cv_file:
+             cv_dir = Path('cv')
+             if cv_dir.exists():
+                cv_files = list(cv_dir.glob('*.txt')) + list(cv_dir.glob('*.md'))
+                if cv_files:
+                   cv_file = cv_files[0]
+                   print(f"✓ Found CV in cv/ directory: {cv_file}")
+    
+          # Priority 3: Look in root directory
+          if not cv_file:
+            root_cv_files = list(Path('.').glob('*.txt')) + list(Path('.').glob('*cv*.md')) + list(Path('.').glob('*resume*.md'))
+            if root_cv_files:
+              cv_file = root_cv_files[0]
+              print(f"✓ Found CV in root directory: {cv_file}")
+    
+          # Priority 4: Check if README could serve as CV
+          if not cv_file and Path('README.md').exists():
+            cv_file = Path('README.md')
+            print(f"⚠️  Using README.md as CV (no dedicated CV file found)")
+    
+          if not cv_file:
+            print("❌ No CV file found. Please:")
+            print("   1. Create a cv/ directory and add your CV file, or")
+            print("   2. Add a CV file to the root directory, or")
+            print("   3. Specify a CV file path in the workflow inputs")
+            sys.exit(1)
+    
+      
           cv_text = cv_file.read_text()
           print(f"✓ Loaded CV from {cv_file}")
     
