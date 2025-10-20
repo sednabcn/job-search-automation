@@ -251,7 +251,7 @@ jobs:
         if: steps.check_platform.outputs.enabled == 'true' && matrix.platform == 'glassdoor'
         run: |
           echo "🔍 Discovering jobs on Glassdoor..."
-          python ${{ env.SCRIPTS_DIR }}/enhanced_glassdoor_automotion.py --scrape --output glassdoor_jobs.json
+          python ${{ env.SCRIPTS_DIR }}/glassdoor_scraper.py --scrape --output glassdoor_jobs.json
         env:
           GLASSDOOR_EMAIL: ${{ secrets.GLASSDOOR_EMAIL }}
           GLASSDOOR_PASSWORD: ${{ secrets.GLASSDOOR_PASSWORD }}
