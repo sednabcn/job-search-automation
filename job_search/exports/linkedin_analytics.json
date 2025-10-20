@@ -1,0 +1,26 @@
+{
+  "date": "2025-10-20T16:57:55.729966",
+  "overall": {
+    "total_targets": 0,
+    "total_campaigns": 0,
+    "active_conversations": 0,
+    "response_rate": 0.0
+  },
+  "by_status": {
+    "queued": 0,
+    "pending": 0,
+    "connected": 0,
+    "rejected": 0
+  },
+  "by_industry": {
+    "data_science_ai": 0,
+    "finance": 0,
+    "trading": 0
+  },
+  "weekly_progress": {
+    "connections_sent": 0,
+    "limit": 35,
+    "percentage": 0.0
+  },
+  "campaigns": []
+}
