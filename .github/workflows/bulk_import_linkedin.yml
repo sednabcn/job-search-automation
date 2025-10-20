@@ -156,7 +156,8 @@ jobs:
                           'position': str(row.get('position', '')).strip(),
                           'profile_url': str(row['profile_url']).strip(),
                           'industry': str(row.get('industry', 'tech')).strip(),
-                          'priority': str(row.get('priority', default_priority)).strip()
+                          'priority': str(row.get('priority', default_priority)).strip(),
+                          'mutual_connections': int(row.get('mutual_connections', 0))
                       }
                       
                       # Skip empty rows
@@ -167,6 +168,8 @@ jobs:
                   
               except Exception as e:
                   print(f"❌ Error reading CSV: {e}")
+                  import traceback
+                  traceback.print_exc()
                   sys.exit(1)
           
           # METHOD 2: JSON PASTE
@@ -211,7 +214,8 @@ jobs:
                           'position': item.get('position', '').strip(),
                           'profile_url': item.get('profile_url', '').strip(),
                           'industry': item.get('industry', 'tech').strip(),
-                          'priority': item.get('priority', default_priority).strip()
+                          'priority': item.get('priority', default_priority).strip(),
+                          'mutual_connections': int(item.get('mutual_connections', 0))
                       }
                       
                       if target['name'] and target['company'] and target['profile_url']:
@@ -257,12 +261,15 @@ jobs:
                               'position': position,
                               'profile_url': f"https://linkedin.com/search/results/people/?keywords={name.replace(' ', '%20')}",
                               'industry': 'unknown',
-                              'priority': default_priority
+                              'priority': default_priority,
+                              'mutual_connections': 0
                           }
                           targets_to_import.append(target)
                   
               except Exception as e:
                   print(f"❌ Error reading LinkedIn export: {e}")
+                  import traceback
+                  traceback.print_exc()
                   sys.exit(1)
           
           print(f"\n📊 Total targets to import: {len(targets_to_import)}")
@@ -318,22 +325,78 @@ jobs:
                       skipped += 1
                       continue
                   
-                  # Add target
-                  target['id'] = f"target_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{added}"
-                  target['status'] = 'queued'
-                  target['added_date'] = datetime.now().isoformat()
+                  # Add metadata
+                  target_id = f"target_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{added}"
+                  added_date = datetime.now().isoformat()
                   
+                  # Try using LinkedIn module if available
                   if linkedin and has_advanced:
-                      result = linkedin.add_target(**target)
-                      if result.get('success'):
+                      # AdvancedLinkedInNetworking uses add_connection_target()
+                      if hasattr(linkedin, 'add_connection_target'):
+                          result = linkedin.add_connection_target(
+                              profile_url=target['profile_url'],
+                              name=target['name'],
+                              company=target['company'],
+                              position=target.get('position', ''),
+                              industry=target.get('industry', 'tech'),
+                              priority=target.get('priority', default_priority),
+                              mutual_connections=target.get('mutual_connections', 0)
+                          )
+                          if result.get('success'):
+                              print(f"✅ Added: {target['name']} @ {target['company']}")
+                              added += 1
+                              industries[target['industry']] = industries.get(target['industry'], 0) + 1
+                          else:
+                              print(f"❌ Failed: {target['name']} - {result.get('message', 'Unknown error')}")
+                              errors += 1
+                      # Basic LinkedInAutomation might use add_target()
+                      elif hasattr(linkedin, 'add_target'):
+                          result = linkedin.add_target(**target)
+                          if result.get('success'):
+                              print(f"✅ Added: {target['name']} @ {target['company']}")
+                              added += 1
+                              industries[target['industry']] = industries.get(target['industry'], 0) + 1
+                          else:
+                              print(f"❌ Failed: {target['name']} - {result.get('message', 'Unknown error')}")
+                              errors += 1
+                      # Direct access to targets list
+                      elif hasattr(linkedin, 'targets'):
+                          target_dict = {
+                              'id': target_id,
+                              'profile_url': target['profile_url'],
+                              'name': target['name'],
+                              'company': target['company'],
+                              'position': target.get('position', ''),
+                              'industry': target.get('industry', 'tech'),
+                              'priority': target.get('priority', default_priority),
+                              'mutual_connections': target.get('mutual_connections', 0),
+                              'added_date': added_date,
+                              'status': 'queued',
+                              'connection_sent_date': None,
+                              'connection_accepted_date': None,
+                              'follow_up_scheduled': None
+                          }
+                          linkedin.targets.append(target_dict)
                           print(f"✅ Added: {target['name']} @ {target['company']}")
                           added += 1
                           industries[target['industry']] = industries.get(target['industry'], 0) + 1
                       else:
-                          print(f"❌ Failed: {target['name']} - {result.get('message')}")
-                          errors += 1
+                          # Fall back to manual mode
+                          target['id'] = target_id
+                          target['status'] = 'queued'
+                          target['added_date'] = added_date
+                          existing_targets.append(target)
+                          print(f"✅ Added: {target['name']} @ {target['company']}")
+                          added += 1
+                          industries[target['industry']] = industries.get(target['industry'], 0) + 1
                   else:
-                      # Manual mode - just add to JSON
+                      # Manual mode - add to JSON directly
+                      target['id'] = target_id
+                      target['status'] = 'queued'
+                      target['added_date'] = added_date
+                      target['connection_sent_date'] = None
+                      target['connection_accepted_date'] = None
+                      target['follow_up_scheduled'] = None
                       existing_targets.append(target)
                       print(f"✅ Added: {target['name']} @ {target['company']}")
                       added += 1
@@ -341,15 +404,28 @@ jobs:
                   
               except Exception as e:
                   print(f"❌ Error adding {target.get('name', 'Unknown')}: {e}")
+                  import traceback
+                  traceback.print_exc()
                   errors += 1
           
-          # Save if using manual mode
+          # Save data
           if not linkedin or not has_advanced:
               with open(targets_file, 'w') as f:
                   json.dump(existing_targets, f, indent=2)
               print(f"\n💾 Saved {len(existing_targets)} targets to {targets_file}")
           elif linkedin:
-              linkedin.save_data()
+              # Try to save using the module's save method
+              if hasattr(linkedin, '_save_json') and hasattr(linkedin, 'targets_file'):
+                  linkedin._save_json(linkedin.targets_file, linkedin.targets)
+                  print(f"\n💾 Saved {len(linkedin.targets)} targets using module")
+              elif hasattr(linkedin, 'save_data'):
+                  linkedin.save_data()
+                  print(f"\n💾 Saved data using save_data()")
+              else:
+                  # Manual save
+                  with open(targets_file, 'w') as f:
+                      json.dump(linkedin.targets if hasattr(linkedin, 'targets') else existing_targets, f, indent=2)
+                  print(f"\n💾 Saved targets to {targets_file}")
           
           # Summary
           print("\n" + "=" * 70)
@@ -358,7 +434,14 @@ jobs:
           print(f"✅ Successfully added: {added}")
           print(f"⚠️  Skipped (duplicates): {skipped}")
           print(f"❌ Errors: {errors}")
-          print(f"📈 Total in system: {len(existing_targets) if not linkedin else len(linkedin.targets)}")
+          
+          # Get total count
+          if linkedin and hasattr(linkedin, 'targets'):
+              total = len(linkedin.targets)
+          else:
+              total = len(existing_targets)
+          
+          print(f"📈 Total in system: {total}")
           
           # Industry breakdown
           if industries:
@@ -367,7 +450,7 @@ jobs:
                   print(f"   {industry}: {count}")
           
           # Auto-create campaigns
-          if auto_campaign and linkedin and has_advanced and added > 0:
+          if auto_campaign and linkedin and has_advanced and added > 0 and hasattr(linkedin, 'create_targeted_campaign'):
               print("\n" + "=" * 70)
               print("🎯 AUTO-CREATING CAMPAIGNS")
               print("=" * 70)
@@ -385,7 +468,7 @@ jobs:
                           if result.get('success'):
                               print(f"✅ Created campaign: {campaign_name}")
                           else:
-                              print(f"⚠️  Campaign exists: {campaign_name}")
+                              print(f"⚠️  Campaign exists or failed: {campaign_name}")
                       except Exception as e:
                           print(f"❌ Failed to create campaign for {industry}: {e}")
           
@@ -394,7 +477,7 @@ jobs:
               'added': added,
               'skipped': skipped,
               'errors': errors,
-              'total': len(existing_targets) if not linkedin else len(linkedin.targets),
+              'total': total,
               'industries': industries,
               'success': added > 0
           }
