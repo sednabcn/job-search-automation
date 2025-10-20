@@ -15,7 +15,7 @@
 - 📊 Total matched jobs: 0
 
 **Applications Status:**
-- Total applications: 1
+- Total applications: 2
 - Follow-ups needed: 0
 
 ### 🎯 Today's Action Items
