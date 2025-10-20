@@ -61,7 +61,7 @@ class JobSearchJSONUpdater:
         return {
             "success": True,
             "message": f"Added application to {app_data['company']}",
-            "id": app_data['id'],
+            "id": app_data.get('id'),
             "total_applications": len(applications)
         }
     
@@ -86,7 +86,7 @@ class JobSearchJSONUpdater:
         return {
             "success": True,
             "message": f"Added contact {contact_data['name']}",
-            "id": contact_data['id'],
+            "id": contact_data.get('id'),
             "total_contacts": len(contacts)
         }
     
@@ -110,7 +110,7 @@ class JobSearchJSONUpdater:
         return {
             "success": True,
             "message": f"Added saved search '{search_data['name']}'",
-            "id": search_data['id'],
+            "id": search_data.get('id'),
             "total_searches": len(searches)
         }
     
@@ -171,7 +171,24 @@ class JobSearchJSONUpdater:
 
 
 def main():
-    """CLI interface for the updater"""
+    """CLI interface for the updater - supports both old and new syntax"""
+    
+    # Check if using old syntax: script.py <type>
+    # vs new syntax: script.py --type <type>
+    if len(sys.argv) >= 2 and not sys.argv[1].startswith('-'):
+        # OLD SYNTAX: python script.py application
+        print("ℹ️  Using legacy syntax (positional argument)", file=sys.stderr)
+        data_type = sys.argv[1]
+        json_input = sys.stdin.read()
+        tracking_dir = "job_search"
+        
+        updater = JobSearchJSONUpdater(tracking_dir=tracking_dir)
+        result = updater.process_input(json_input, data_type)
+        
+        print(json.dumps(result, indent=2))
+        sys.exit(0 if result["success"] else 1)
+    
+    # NEW SYNTAX: Use argparse
     import argparse
     
     parser = argparse.ArgumentParser(description="Update job search JSON files")
@@ -203,7 +220,7 @@ def main():
         with open(args.file, 'r') as f:
             json_input = f.read()
     else:
-        print("Reading JSON from stdin...")
+        print("Reading JSON from stdin...", file=sys.stderr)
         json_input = sys.stdin.read()
     
     # Process input

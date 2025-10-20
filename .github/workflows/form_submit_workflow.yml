@@ -133,13 +133,13 @@ jobs:
           EOFPYTHON
             chmod +x job_search_system/json_updater.py
           fi
-      
+
       - name: Process JSON data
         id: process
         run: |
           echo '${{ github.event.inputs.json_data }}' | \
-            python3 job_search_system/json_updater.py ${{ github.event.inputs.data_type }} \
-            > result.json
+          python3 job_search_system/json_updater.py ${{ github.event.inputs.data_type }} \
+          > result.json
           
           cat result.json
           
@@ -149,7 +149,26 @@ jobs:
           
           echo "success=$SUCCESS" >> $GITHUB_OUTPUT
           echo "message=$MESSAGE" >> $GITHUB_OUTPUT
-      
+
+      - name: Debug - Show what we're piping
+        run: |
+          echo "📋 Debugging pipe content..."
+          echo "Data type: ${{ github.event.inputs.data_type }}"
+          echo "JSON data preview:"
+          echo '${{ github.event.inputs.json_data }}' | head -c 200
+          echo ""
+          echo "JSON data length: $(echo '${{ github.event.inputs.json_data }}' | wc -c)"
+    
+          # Test if it's valid JSON
+          echo '${{ github.event.inputs.json_data }}' | python3 -c "
+          import sys, json
+          try:
+            data = json.load(sys.stdin)
+            print(f'✅ Valid JSON with keys: {list(data.keys())}')
+          except Exception as e:
+            print(f'❌ Invalid JSON: {e}')
+            "
+            
       - name: Commit changes
         if: steps.process.outputs.success == 'True'
         run: |
