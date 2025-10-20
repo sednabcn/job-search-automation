@@ -154,26 +154,42 @@ jobs:
           else
             echo "Found existing: $SCRIPT_PATH"
           fi    
-     
+
       - name: Process JSON data
         id: process
-        continue-on-error: true 
         run: |
+          # Disable automatic job exit on error temporarily
+          set +e
+
           python3 "${{ steps.dirs.outputs.system_dir }}/json_updater.py" \
-            --type "${{ github.event.inputs.data_type }}" \
-            --json '${{ github.event.inputs.json_data }}' \
-            --tracking-dir "${{ steps.dirs.outputs.data_dir }}" \
-            > result.json
-          
-          cat result.json
-          
-          # Extract results - convert Python True/False to string
-          SUCCESS=$(python3 -c "import json; print(str(json.load(open('result.json'))['success']))")
+          --type "${{ github.event.inputs.data_type }}" \
+          --json '${{ github.event.inputs.json_data }}' \
+          --tracking-dir "${{ steps.dirs.outputs.data_dir }}" \
+          > result.json
+
+          EXIT_CODE=$?   # capture the script's exit code
+          set -e         # restore default fail-on-error behavior
+
+          # Parse output values
+          SUCCESS=$(python3 -c "import json; print(json.load(open('result.json'))['success'])")
           MESSAGE=$(python3 -c "import json; print(json.load(open('result.json'))['message'])")
-         
+
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
           echo "success=$SUCCESS" >> $GITHUB_OUTPUT
           echo "message=$MESSAGE" >> $GITHUB_OUTPUT
-      
+
+          # Optionally print user-friendly message
+          echo "Result: success=$SUCCESS | message=$MESSAGE | exit_code=$EXIT_CODE"
+
+      - name: Handle success
+        if: steps.process.outputs.success == 'True'
+        run: echo "✅ Application added successfully!"
+
+      - name: Handle duplicate or error
+        if: steps.process.outputs.success == 'False'
+        run: echo "⚠️ Duplicate or invalid entry: ${{ steps.process.outputs.message }}"
+
+          
       - name: Commit changes
         if: steps.process.outputs.success == 'True'
         run: |
