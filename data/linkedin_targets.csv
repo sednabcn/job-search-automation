@@ -1,0 +1,16 @@
+name,company,position,profile_url,industry,priority
+John Smith,Google,Senior Data Scientist,https://linkedin.com/in/johnsmith,tech,high
+Jane Doe,Meta,Machine Learning Engineer,https://linkedin.com/in/janedoe,tech,high
+Michael Chen,Amazon,Principal Engineer,https://linkedin.com/in/michaelchen,tech,medium
+Sarah Johnson,Microsoft,AI Research Scientist,https://linkedin.com/in/sarahjohnson,tech,high
+David Brown,Apple,Data Science Manager,https://linkedin.com/in/davidbrown,tech,medium
+Emily Wilson,Netflix,Senior ML Engineer,https://linkedin.com/in/emilywilson,tech,medium
+James Lee,Tesla,Software Engineer,https://linkedin.com/in/jameslee,tech,low
+Maria Garcia,Spotify,Data Analyst,https://linkedin.com/in/mariagarcia,tech,medium
+Robert Taylor,Uber,Engineering Manager,https://linkedin.com/in/roberttaylor,tech,high
+Lisa Anderson,Airbnb,Product Manager,https://linkedin.com/in/lisaanderson,tech,medium
+Christopher Martinez,LinkedIn,Senior Software Engineer,https://linkedin.com/in/chrismartinez,tech,high
+Jennifer White,Salesforce,Technical Lead,https://linkedin.com/in/jenniferwhite,tech,medium
+William Harris,Oracle,Database Architect,https://linkedin.com/in/williamharris,tech,low
+Patricia Clark,IBM,Cloud Solutions Architect,https://linkedin.com/in/patriciaclark,tech,medium
+Thomas Lewis,Adobe,Frontend Developer,https://linkedin.com/in/thomaslewis,tech,low
