@@ -421,6 +421,7 @@ jobs:
       - name: Backup Old Config
         run: |
           if [ -f job-manager-config.yml ]; then
+            mkdir -p configs
             cp job-manager-config.yml "configs/job-manager-config-backup-$(date +%Y%m%d-%H%M%S).yml"
           fi
       
