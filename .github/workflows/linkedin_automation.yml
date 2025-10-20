@@ -1,0 +1,1277 @@
+name: LinkedIn Networking Automation
+
+on:
+  schedule:
+    # Run daily at 9 AM UTC (morning routine)
+    - cron: '0 9 * * *'
+    # Run evening routine at 6 PM UTC
+    - cron: '0 18 * * *'
+    # Run weekly analysis on Sundays at 7 PM UTC
+    - cron: '0 19 * * 0'
+  
+  workflow_dispatch:
+    inputs:
+      campaign_name:
+        description: 'Campaign name (optional)'
+        required: false
+        type: string
+      industry:
+        description: 'Industry to target'
+        required: false
+        type: choice
+        options:
+          - data_science_ai
+          - finance
+          - trading
+        default: 'data_science_ai'
+      run_weekly_analysis:
+        description: 'Run weekly analysis'
+        required: false
+        type: boolean
+        default: false
+      process_connections:
+        description: 'Process daily connections'
+        required: false
+        type: boolean
+        default: true
+      generate_reports:
+        description: 'Generate all reports'
+        required: false
+        type: boolean
+        default: true
+
+  push:
+    branches:
+      - main
+    paths:
+      - 'job_search/**'
+      - '.github/scripts/linkedin_*.py'
+      - '.github/workflows/linkedin_automation.yml'
+
+jobs:
+  morning_routine:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 9 * * *' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-linkedin-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-linkedin-
+            ${{ runner.os }}-pip-
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || echo "No requirements.txt found, installing defaults"
+          pip install requests python-dateutil || true
+      
+      - name: Verify LinkedIn modules exist
+        run: |
+          echo "🔍 Checking for required LinkedIn modules..."
+          
+          if [ ! -f ".github/scripts/linkedin_automation.py" ]; then
+            echo "⚠️ linkedin_automation.py not found, checking job_search/"
+            if [ ! -f "job_search/linkedin_automation.py" ]; then
+              echo "❌ linkedin_automation.py not found"
+              exit 1
+            else
+              echo "✅ Found linkedin_automation.py in job_search/"
+              cp job_search/linkedin_automation.py .github/scripts/ || true
+            fi
+          else
+            echo "✅ Found linkedin_automation.py in .github/scripts/"
+          fi
+          
+          if [ ! -f ".github/scripts/linkedin_advanced_networking.py" ]; then
+            echo "⚠️ linkedin_advanced_networking.py not found, checking job_search/"
+            if [ ! -f "job_search/linkedin_advanced_networking.py" ]; then
+              echo "⚠️ linkedin_advanced_networking.py not found (advanced features disabled)"
+            else
+              echo "✅ Found linkedin_advanced_networking.py in job_search/"
+              cp job_search/linkedin_advanced_networking.py .github/scripts/ || true
+            fi
+          else
+            echo "✅ Found linkedin_advanced_networking.py in .github/scripts/"
+          fi
+          
+          echo "✅ Module check complete"
+      
+      - name: Reset daily limits and prepare tasks
+        id: morning_prep
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import sys
+          import os
+          import json
+          from datetime import datetime
+          
+          # Add both locations to Python path
+          sys.path.insert(0, '.github/scripts')
+          sys.path.insert(0, 'job_search')
+          
+          try:
+              from linkedin_advanced_networking import AdvancedLinkedInNetworking
+              print("✅ Using Advanced LinkedIn Networking")
+              linkedin = AdvancedLinkedInNetworking()
+              has_advanced = True
+          except ImportError:
+              try:
+                  from linkedin_automation import LinkedInAutomation
+                  print("✅ Using Basic LinkedIn Automation")
+                  linkedin = LinkedInAutomation()
+                  has_advanced = False
+              except ImportError as e:
+                  print(f"❌ Failed to import LinkedIn modules: {e}")
+                  sys.exit(1)
+          
+          print("\n📋 Morning Routine - Preparing Daily Tasks")
+          print("=" * 60)
+          
+          # Get daily tasks
+          if has_advanced:
+              tasks = linkedin.get_daily_tasks()
+          else:
+              tasks = linkedin.get_pending_actions()
+          
+          print('\n📊 Daily Task Summary:')
+          print(json.dumps(tasks, indent=2))
+          
+          # Count tasks
+          connections_count = len(tasks.get('connections_to_send', []))
+          messages_count = len(tasks.get('messages_to_send', []))
+          followups_count = len(tasks.get('follow_ups_due', []))
+          
+          print(f'\n📈 Task Counts:')
+          print(f'  - Connections to send: {connections_count}')
+          print(f'  - Messages to send: {messages_count}')
+          print(f'  - Follow-ups due: {followups_count}')
+          
+          # Write to GitHub Actions output
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f'connections_count={connections_count}\n')
+              f.write(f'messages_count={messages_count}\n')
+              f.write(f'followups_count={followups_count}\n')
+              f.write(f'has_tasks={connections_count + messages_count + followups_count > 0}\n')
+          
+          # Export morning task list
+          os.makedirs('job_search/exports', exist_ok=True)
+          with open('job_search/exports/morning_tasks.json', 'w') as f:
+              json.dump(tasks, f, indent=2)
+          
+          print("\n✅ Morning routine preparation completed")
+          PYTHON_SCRIPT
+      
+      - name: Process daily connections
+        if: github.event.inputs.process_connections != 'false'
+        id: process_connections
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import sys
+          import json
+          
+          sys.path.insert(0, '.github/scripts')
+          sys.path.insert(0, 'job_search')
+          
+          try:
+              from linkedin_advanced_networking import AdvancedLinkedInNetworking
+              linkedin = AdvancedLinkedInNetworking()
+              has_advanced = True
+          except ImportError:
+              from linkedin_automation import LinkedInAutomation
+              linkedin = LinkedInAutomation()
+              has_advanced = False
+          
+          print("\n🤝 Processing Daily Connection Requests")
+          print("=" * 60)
+          
+          if has_advanced:
+              # Get campaign if specified
+              campaign_id = '${{ github.event.inputs.campaign_name }}' or None
+              result = linkedin.process_daily_connections(campaign_id=campaign_id)
+          else:
+              result = linkedin.process_daily_connections(manual_mode=True)
+          
+          print('\n📊 Connection Processing Results:')
+          print(json.dumps(result, indent=2))
+          
+          if result.get('actions'):
+              print(f'\n✅ {len(result["actions"])} connection requests ready to send')
+              print('\n📝 Connection Instructions:')
+              for i, action in enumerate(result['actions'][:5], 1):  # Show first 5
+                  print(f'\n{i}. {action.get("name", action.get("target"))}')
+                  print(f'   Company: {action["company"]}')
+                  print(f'   Profile: {action["profile_url"]}')
+                  print(f'   Priority: {action.get("priority", "N/A")}')
+                  if action.get("mutual_connections"):
+                      print(f'   Mutual Connections: {action["mutual_connections"]}')
+          
+          print("\n✅ Connection processing completed")
+          PYTHON_SCRIPT
+      
+      - name: Generate daily action plan
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import sys
+          import os
+          from datetime import datetime
+          
+          sys.path.insert(0, '.github/scripts')
+          sys.path.insert(0, 'job_search')
+          
+          try:
+              from linkedin_advanced_networking import AdvancedLinkedInNetworking
+              linkedin = AdvancedLinkedInNetworking()
+              has_advanced = True
+          except ImportError:
+              from linkedin_automation import LinkedInAutomation
+              linkedin = LinkedInAutomation()
+              has_advanced = False
+          
+          print("\n📋 Generating Daily Action Plan")
+          print("=" * 60)
+          
+          # Generate daily report
+          if has_advanced:
+              tasks = linkedin.get_daily_tasks()
+              status = {
+                  'date': datetime.now().strftime('%Y-%m-%d'),
+                  'connections': {
+                      'sent_today': linkedin.activity['daily_connections'],
+                      'limit': linkedin.DAILY_CONNECTION_LIMIT,
+                      'remaining': linkedin.DAILY_CONNECTION_LIMIT - linkedin.activity['daily_connections']
+                  },
+                  'messages': {
+                      'sent_today': linkedin.activity['daily_messages'],
+                      'limit': linkedin.DAILY_MESSAGE_LIMIT
+                  },
+                  'response_rate': linkedin.activity['response_rate']
+              }
+          else:
+              status = linkedin.get_daily_status()
+              tasks = linkedin.get_pending_actions()
+          
+          # Create action plan document
+          os.makedirs('job_search/exports', exist_ok=True)
+          with open('job_search/exports/daily_action_plan.md', 'w') as f:
+              f.write(f'# LinkedIn Daily Action Plan\n')
+              f.write(f'**Date:** {datetime.now().strftime("%Y-%m-%d %H:%M UTC")}\n\n')
+              
+              f.write('## 📊 Daily Status\n\n')
+              f.write(f'- Connections Sent Today: {status["connections"]["sent_today"]}/{status["connections"]["limit"]}\n')
+              f.write(f'- Remaining Today: {status["connections"]["remaining"]}\n')
+              if 'weekly_connections' in status:
+                  f.write(f'- Weekly Progress: {status["weekly_connections"]["sent_this_week"]}/{status["weekly_connections"]["limit"]}\n')
+              f.write(f'- Response Rate: {status.get("response_rate", 0):.1f}%\n\n')
+              
+              # Connections to send
+              connections = tasks.get('connections_to_send', [])
+              if connections:
+                  f.write(f'## 🤝 Connections to Send ({len(connections)})\n\n')
+                  for conn in connections:
+                      f.write(f'### {conn.get("name", conn.get("target"))}\n')
+                      f.write(f'- **Company:** {conn["company"]}\n')
+                      f.write(f'- **Position:** {conn.get("position", "N/A")}\n')
+                      f.write(f'- **Profile:** {conn["profile_url"]}\n')
+                      if conn.get('priority'):
+                          f.write(f'- **Priority:** {conn["priority"]}\n')
+                      if conn.get('mutual_connections'):
+                          f.write(f'- **Mutual Connections:** {conn["mutual_connections"]}\n')
+                      f.write(f'\n**Message:**\n```\n{conn["message"]}\n```\n\n')
+                      f.write('**Instructions:**\n')
+                      f.write(f'1. Visit: {conn["profile_url"]}\n')
+                      f.write('2. Click "Connect"\n')
+                      f.write('3. Add note and paste the message above\n\n')
+                      f.write('---\n\n')
+              
+              # Messages to send
+              messages = tasks.get('messages_to_send', [])
+              if messages:
+                  f.write(f'## 💬 Follow-up Messages ({len(messages)})\n\n')
+                  for msg in messages:
+                      f.write(f'### {msg["name"]} - {msg["company"]}\n')
+                      f.write(f'- **Type:** {msg["message_type"]}\n')
+                      f.write(f'- **Days Since Connection:** {msg.get("days_since_connection", "N/A")}\n')
+                      f.write(f'\n**Message:**\n```\n{msg["message"]}\n```\n\n')
+                      f.write('---\n\n')
+              
+              # Follow-ups due
+              followups = tasks.get('follow_ups_due', [])
+              if followups:
+                  f.write(f'## 🔔 Follow-ups Due ({len(followups)})\n\n')
+                  for fu in followups:
+                      f.write(f'- **{fu["name"]}** at {fu["company"]}\n')
+                      f.write(f'  - Days since last message: {fu.get("days_since_last_message", "N/A")}\n')
+                      f.write(f'  - Suggested action: {fu.get("suggested_action", "Follow up")}\n\n')
+              
+              # Content engagement
+              engagement = tasks.get('content_engagement', [])
+              if engagement:
+                  f.write(f'## 👍 Content Engagement ({len(engagement)})\n\n')
+                  for eng in engagement:
+                      f.write(f'- **{eng["name"]}** ({eng["company"]})\n')
+                      f.write(f'  - Action: {eng["action"]}\n')
+                      f.write(f'  - Why: {eng["why"]}\n\n')
+              
+              # Profile views
+              views = tasks.get('profile_views', [])
+              if views:
+                  f.write(f'## 👀 Strategic Profile Views ({len(views)})\n\n')
+                  for view in views:
+                      f.write(f'- **{view["name"]}**\n')
+                      f.write(f'  - Profile: {view["profile_url"]}\n')
+                      f.write(f'  - Reason: {view["reason"]}\n\n')
+          
+          print("✅ Daily action plan generated: job_search/exports/daily_action_plan.md")
+          PYTHON_SCRIPT
+      
+      - name: Upload morning artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: morning-tasks-${{ github.run_number }}
+          path: |
+            job_search/exports/morning_tasks.json
+            job_search/exports/daily_action_plan.md
+          retention-days: 30
+      
+      - name: Create issue for daily tasks
+        if: steps.morning_prep.outputs.has_tasks == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            let actionPlan = 'No action plan available';
+            if (fs.existsSync('job_search/exports/daily_action_plan.md')) {
+              actionPlan = fs.readFileSync('job_search/exports/daily_action_plan.md', 'utf8');
+            }
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `📋 LinkedIn Daily Tasks - ${new Date().toISOString().split('T')[0]}`,
+              body: actionPlan,
+              labels: ['linkedin', 'daily-tasks', 'networking']
+            });
+
+  create_campaign:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.campaign_name != ''
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || true
+      
+      - name: Create networking campaign
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import sys
+          import json
+          
+          sys.path.insert(0, '.github/scripts')
+          sys.path.insert(0, 'job_search')
+          
+          from linkedin_advanced_networking import AdvancedLinkedInNetworking
+          
+          linkedin = AdvancedLinkedInNetworking()
+          
+          campaign_name = '${{ github.event.inputs.campaign_name }}'
+          industry = '${{ github.event.inputs.industry }}' or 'data_science_ai'
+          
+          print(f"\n🎯 Creating Campaign: {campaign_name}")
+          print(f"Industry: {industry}")
+          print("=" * 60)
+          
+          result = linkedin.create_targeted_campaign(
+              campaign_name=campaign_name,
+              industry=industry,
+              target_level='mid_senior',
+              daily_target=3
+          )
+          
+          print('\n✅ Campaign Created:')
+          print(json.dumps(result, indent=2))
+          
+          if result.get('success'):
+              print(f'\n🎯 Campaign ID: {result["campaign_id"]}')
+              print(f'📍 Target Companies: {", ".join(result["target_companies"])}')
+          
+          PYTHON_SCRIPT
+      
+      - name: Commit campaign data
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add job_search/linkedin_campaigns.json
+          git diff --quiet && git diff --staged --quiet || \
+            git commit -m "🎯 Created LinkedIn campaign: ${{ github.event.inputs.campaign_name }}"
+          git push || true
+
+  evening_routine:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 18 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.generate_reports == 'true')
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || true
+      
+      - name: Generate campaign performance report
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import sys
+          import os
+          from datetime import datetime
+          
+          sys.path.insert(0, '.github/scripts')
+          sys.path.insert(0, 'job_search')
+          
+          try:
+              from linkedin_advanced_networking import AdvancedLinkedInNetworking
+              linkedin = AdvancedLinkedInNetworking()
+              has_advanced = True
+          except ImportError:
+              from linkedin_automation import LinkedInAutomation
+              linkedin = LinkedInAutomation()
+              has_advanced = False
+          
+          print("\n📊 Generating Evening Performance Report")
+          print("=" * 60)
+          
+          # Generate report
+          if has_advanced:
+              report = linkedin.generate_campaign_report()
+          else:
+              report = linkedin.generate_daily_report()
+          
+          print(report)
+          
+          # Save report
+          os.makedirs('job_search/exports', exist_ok=True)
+          timestamp = datetime.now().strftime('%Y%m%d')
+          with open(f'job_search/exports/linkedin_daily_report_{timestamp}.md', 'w') as f:
+              f.write(report)
+          
+          print(f"\n✅ Report saved: linkedin_daily_report_{timestamp}.md")
+          PYTHON_SCRIPT
+      
+      - name: Generate networking analytics
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import sys
+          import os
+          import json
+          from datetime import datetime, timedelta
+          
+          sys.path.insert(0, '.github/scripts')
+          sys.path.insert(0, 'job_search')
+          
+          try:
+              from linkedin_advanced_networking import AdvancedLinkedInNetworking
+              linkedin = AdvancedLinkedInNetworking()
+              has_advanced = True
+          except ImportError:
+              from linkedin_automation import LinkedInAutomation
+              linkedin = LinkedInAutomation()
+              has_advanced = False
+          
+          print("\n📈 Generating Networking Analytics")
+          print("=" * 60)
+          
+          analytics = {}
+          
+          if has_advanced:
+              # Advanced analytics
+              analytics = {
+                  'date': datetime.now().isoformat(),
+                  'overall': {
+                      'total_targets': len(linkedin.targets),
+                      'total_campaigns': len(linkedin.campaigns),
+                      'active_conversations': len([c for c in linkedin.conversations if c['status'] == 'active']),
+                      'response_rate': linkedin.activity['response_rate']
+                  },
+                  'by_status': {
+                      'queued': len([t for t in linkedin.targets if t['status'] == 'queued']),
+                      'pending': len([t for t in linkedin.targets if t['status'] == 'pending']),
+                      'connected': len([t for t in linkedin.targets if t['status'] == 'connected']),
+                      'rejected': len([t for t in linkedin.targets if t['status'] == 'rejected'])
+                  },
+                  'by_industry': linkedin.activity['industry_breakdown'],
+                  'weekly_progress': {
+                      'connections_sent': linkedin.activity['weekly_connections'],
+                      'limit': linkedin.WEEKLY_CONNECTION_LIMIT,
+                      'percentage': (linkedin.activity['weekly_connections'] / linkedin.WEEKLY_CONNECTION_LIMIT * 100)
+                  }
+              }
+              
+              # Campaign performance
+              analytics['campaigns'] = []
+              for campaign in linkedin.campaigns:
+                  if campaign['status'] == 'active':
+                      stats = campaign['stats']
+                      acceptance_rate = (stats['connections_accepted'] / stats['connections_sent'] * 100) if stats['connections_sent'] > 0 else 0
+                      analytics['campaigns'].append({
+                          'name': campaign['name'],
+                          'industry': campaign['industry'],
+                          'connections_sent': stats['connections_sent'],
+                          'acceptance_rate': acceptance_rate,
+                          'meetings_scheduled': stats['meetings_scheduled']
+                      })
+          else:
+              # Basic analytics
+              status = linkedin.get_daily_status()
+              analytics = {
+                  'date': datetime.now().isoformat(),
+                  'connections': status['connections'],
+                  'weekly_connections': status['weekly_connections'],
+                  'total_network': status['total_network'],
+                  'response_rate': status['response_rate']
+              }
+          
+          print('\n📊 Analytics Summary:')
+          print(json.dumps(analytics, indent=2))
+          
+          # Save analytics
+          os.makedirs('job_search/exports', exist_ok=True)
+          with open('job_search/exports/linkedin_analytics.json', 'w') as f:
+              json.dump(analytics, f, indent=2)
+          
+          print("\n✅ Analytics generated")
+          PYTHON_SCRIPT
+      
+      - name: Backup LinkedIn data
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import sys
+          import os
+          import shutil
+          from datetime import datetime
+          
+          print("\n💾 Backing up LinkedIn data")
+          print("=" * 60)
+          
+          # Create backup directory
+          backup_dir = f'job_search/backups/linkedin_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
+          os.makedirs(backup_dir, exist_ok=True)
+          
+          # Files to backup
+          files_to_backup = [
+              'job_search/linkedin_activity.json',
+              'job_search/linkedin_advanced_activity.json',
+              'job_search/linkedin_targets.json',
+              'job_search/linkedin_campaigns.json',
+              'job_search/linkedin_conversations.json',
+              'job_search/linkedin_queue.json',
+              'job_search/linkedin_connections.json'
+          ]
+          
+          backed_up = 0
+          for file in files_to_backup:
+              if os.path.exists(file):
+                  shutil.copy2(file, backup_dir)
+                  print(f'✅ Backed up: {file}')
+                  backed_up += 1
+          
+          print(f'\n✅ Backed up {backed_up} files to {backup_dir}')
+          PYTHON_SCRIPT
+      
+      - name: Upload evening artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: evening-reports-${{ github.run_number }}
+          path: |
+            job_search/exports/linkedin_daily_report_*.md
+            job_search/exports/linkedin_analytics.json
+            job_search/backups/
+          retention-days: 90
+      
+      - name: Commit updated data
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add job_search/*.json
+          git add job_search/exports/*.json job_search/exports/*.md || true
+          git diff --quiet && git diff --staged --quiet || \
+            git commit -m "🤖 LinkedIn automation update - $(date +'%Y-%m-%d %H:%M')"
+          git push || true
+
+  weekly_analysis:
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'schedule' && github.event.schedule == '0 19 * * 0') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_weekly_analysis == 'true')
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || true
+      
+      - name: Generate weekly summary
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import sys
+          import os
+          import json
+          from datetime import datetime, timedelta
+          
+          sys.path.insert(0, '.github/scripts')
+          sys.path.insert(0, 'job_search')
+          
+          try:
+              from linkedin_advanced_networking import AdvancedLinkedInNetworking
+              linkedin = AdvancedLinkedInNetworking()
+              has_advanced = True
+          except ImportError:
+              from linkedin_automation import LinkedInAutomation
+              linkedin = LinkedInAutomation()
+              has_advanced = False
+          
+          print("\n📊 Generating Weekly LinkedIn Summary")
+          print("=" * 60)
+          
+          week_ago = (datetime.now() - timedelta(days=7)).isoformat()
+          
+          # Calculate weekly stats
+          if has_advanced:
+              recent_targets = [t for t in linkedin.targets if t.get('added_date', '') >= week_ago]
+              accepted_this_week = [t for t in linkedin.targets if t.get('connection_accepted_date', '') >= week_ago]
+              messages_this_week = [t for t in linkedin.targets if t.get('last_message_date', '') >= week_ago]
+              meetings_this_week = [t for t in linkedin.targets if t.get('meeting_date', '') >= week_ago]
+              
+              # Industry breakdown
+              industry_stats = {}
+              for target in recent_targets:
+                  industry = target.get('industry', 'unknown')
+                  industry_stats[industry] = industry_stats.get(industry, 0) + 1
+              
+              # Top performing campaigns
+              top_campaigns = []
+              for campaign in linkedin.campaigns:
+                  if campaign['status'] == 'active':
+                      stats = campaign['stats']
+                      if stats['connections_sent'] > 0:
+                          top_campaigns.append({
+                              'name': campaign['name'],
+                              'industry': campaign['industry'],
+                              'acceptance_rate': (stats['connections_accepted'] / stats['connections_sent'] * 100)
+                          })
+              top_campaigns.sort(key=lambda x: x['acceptance_rate'], reverse=True)
+          
+          else:
+              recent_targets = [c for c in linkedin.connections if c.get('connection_date', '') >= week_ago]
+              accepted_this_week = [c for c in linkedin.connections if c['status'] == 'connected']
+              messages_this_week = []
+              meetings_this_week = []
+              industry_stats = {}
+              top_campaigns = []
+          
+          # Generate weekly report
+          os.makedirs('job_search/exports', exist_ok=True)
+          with open('job_search/exports/linkedin_weekly_summary.md', 'w') as f:
+              f.write('# 📊 LinkedIn Weekly Networking Summary\n\n')
+              f.write(f'**Period:** {week_ago[:10]} to {datetime.now().strftime("%Y-%m-%d")}\n\n')
+              
+              f.write('## 📈 Weekly Activity\n\n')
+              f.write(f'- 🎯 New Targets Added: {len(recent_targets)}\n')
+              f.write(f'- ✅ Connections Accepted: {len(accepted_this_week)}\n')
+              f.write(f'- 💬 Messages Sent: {len(messages_this_week)}\n')
+              f.write(f'- 🤝 Meetings Scheduled: {len(meetings_this_week)}\n\n')
+              
+              if has_advanced and industry_stats:
+                  f.write('## 🏢 Industry Breakdown\n\n')
+                  for industry, count in sorted(industry_stats.items(), key=lambda x: x[1], reverse=True):
+                      f.write(f'- {industry.replace("_", " ").title()}: {count}\n')
+                  f.write('\n')
+              
+              if top_campaigns:
+                  f.write('## 🏆 Top Performing Campaigns\n\n')
+                  for i, campaign in enumerate(top_campaigns[:5], 1):
+                      f.write(f'{i}. **{campaign["name"]}** ({campaign["industry"]})\n')
+                      f.write(f'   - Acceptance Rate: {campaign["acceptance_rate"]:.1f}%\n\n')
+              
+              # New connections this week
+              if accepted_this_week:
+                  f.write('## 🤝 New Connections This Week\n\n')
+                  for conn in accepted_this_week[:10]:
+                      f.write(f'- **{conn["name"]}** - {conn["company"]} ({conn.get("position", "N/A")})\n')
+                  f.write('\n')
+              
+              # Upcoming meetings
+              if meetings_this_week:
+                  f.write('## 📅 Meetings Scheduled\n\n')
+                  for meeting in meetings_this_week:
+                      f.write(f'- **{meeting["name"]}** ({meeting["company"]})\n')
+                      f.write(f'  - Date: {meeting.get("meeting_date", "TBD")}\n')
+                      f.write(f'  - Type: {meeting.get("meeting_type", "informational")}\n\n')
+              
+              # Recommendations for next week
+              f.write('## 💡 Recommendations for Next Week\n\n')
+              if has_advanced:
+                  queued = len([t for t in linkedin.targets if t['status'] == 'queued'])
+                  pending = len([t for t in linkedin.targets if t['status'] == 'pending'])
+                  
+                  if queued > 0:
+                      f.write(f'- Continue processing {queued} queued connection requests\n')
+                  if pending > 0:
+                      f.write(f'- Follow up on {pending} pending connection requests\n')
+                  if linkedin.activity['response_rate'] < 20:
+                      f.write('- Consider refining connection messages for better engagement\n')
+                  if linkedin.activity['weekly_connections'] < linkedin.WEEKLY_CONNECTION_LIMIT * 0.5:
+                      f.write('- Increase daily connection targets to maximize weekly limit\n')
+              else:
+                  f.write('- Continue building network strategically\n')
+                  f.write('- Follow up with recent connections\n')
+                  f.write('- Engage with connections\' content\n')
+          
+          print("✅ Weekly summary generated: linkedin_weekly_summary.md")
+          
+          # Print summary to console
+          with open('job_search/exports/linkedin_weekly_summary.md', 'r') as f:
+              print('\n' + f.read())
+          PYTHON_SCRIPT
+      
+      - name: Analyze campaign effectiveness
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import sys
+          import json
+          from datetime import datetime
+          
+          sys.path.insert(0, '.github/scripts')
+          sys.path.insert(0, 'job_search')
+          
+          try:
+              from linkedin_advanced_networking import AdvancedLinkedInNetworking
+              linkedin = AdvancedLinkedInNetworking()
+              has_advanced = True
+          except ImportError:
+              print("⚠️ Advanced features not available, skipping campaign analysis")
+              sys.exit(0)
+          
+          print("\n🔍 Analyzing Campaign Effectiveness")
+          print("=" * 60)
+          
+          analysis = {
+              'timestamp': datetime.now().isoformat(),
+              'campaigns': []
+          }
+          
+          for campaign in linkedin.campaigns:
+              if campaign['status'] == 'active':
+                  stats = campaign['stats']
+                  
+                  campaign_analysis = {
+                      'name': campaign['name'],
+                      'id': campaign['id'],
+                      'industry': campaign['industry'],
+                      'created': campaign['created_date'],
+                      'performance': {
+                          'connections_sent': stats['connections_sent'],
+                          'connections_accepted': stats['connections_accepted'],
+                          'acceptance_rate': (stats['connections_accepted'] / stats['connections_sent'] * 100) if stats['connections_sent'] > 0 else 0,
+                          'messages_sent': stats['messages_sent'],
+                          'responses_received': stats['responses_received'],
+                          'response_rate': (stats['responses_received'] / stats['messages_sent'] * 100) if stats['messages_sent'] > 0 else 0,
+                          'meetings_scheduled': stats['meetings_scheduled'],
+                          'conversion_rate': (stats['meetings_scheduled'] / stats['connections_accepted'] * 100) if stats['connections_accepted'] > 0 else 0
+                      },
+                      'recommendations': []
+                  }
+                  
+                  # Generate recommendations
+                  if campaign_analysis['performance']['acceptance_rate'] < 30:
+                      campaign_analysis['recommendations'].append('Low acceptance rate - review message templates')
+                  if campaign_analysis['performance']['response_rate'] < 20:
+                      campaign_analysis['recommendations'].append('Low response rate - improve follow-up messaging')
+                  if campaign_analysis['performance']['connections_sent'] < 10:
+                      campaign_analysis['recommendations'].append('Increase target pipeline for this campaign')
+                  if campaign_analysis['performance']['meetings_scheduled'] == 0 and campaign_analysis['performance']['connections_accepted'] > 5:
+                      campaign_analysis['recommendations'].append('Focus on converting connections to meetings')
+                  
+                  analysis['campaigns'].append(campaign_analysis)
+          
+          print('\n📊 Campaign Analysis Results:')
+          print(json.dumps(analysis, indent=2))
+          
+          # Save analysis
+          with open('job_search/exports/campaign_analysis.json', 'w') as f:
+              json.dump(analysis, f, indent=2)
+          
+          print("\n✅ Campaign analysis completed")
+          PYTHON_SCRIPT
+      
+      - name: Upload weekly summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-summary-${{ github.run_number }}
+          path: |
+            job_search/exports/linkedin_weekly_summary.md
+            job_search/exports/campaign_analysis.json
+          retention-days: 90
+      
+      - name: Create weekly summary issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            let summary = '# Weekly Summary\n\nNo summary available';
+            if (fs.existsSync('job_search/exports/linkedin_weekly_summary.md')) {
+              summary = fs.readFileSync('job_search/exports/linkedin_weekly_summary.md', 'utf8');
+            }
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '📊 LinkedIn Weekly Networking Summary',
+              body: summary,
+              labels: ['linkedin', 'weekly-report', 'networking']
+            });
+      
+      - name: Commit weekly data
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add job_search/exports/linkedin_weekly_summary.md
+          git add job_search/exports/campaign_analysis.json || true
+          git diff --quiet && git diff --staged --quiet || \
+            git commit -m "📊 LinkedIn weekly summary - $(date +'%Y-%m-%d')"
+          git push || true
+
+  data_quality_check:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || true
+      
+      - name: Run data quality checks
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import sys
+          import os
+          from datetime import datetime, timedelta
+          
+          sys.path.insert(0, '.github/scripts')
+          sys.path.insert(0, 'job_search')
+          
+          try:
+              from linkedin_advanced_networking import AdvancedLinkedInNetworking
+              linkedin = AdvancedLinkedInNetworking()
+              has_advanced = True
+          except ImportError:
+              from linkedin_automation import LinkedInAutomation
+              linkedin = LinkedInAutomation()
+              has_advanced = False
+          
+          print("\n🔍 Running LinkedIn Data Quality Checks")
+          print("=" * 60)
+          
+          issues = []
+          warnings = []
+          
+          if has_advanced:
+              # Check for stale pending connections (>14 days)
+              two_weeks_ago = (datetime.now() - timedelta(days=14)).isoformat()
+              stale_pending = [
+                  t for t in linkedin.targets 
+                  if t['status'] == 'pending' and t.get('connection_sent_date', '') < two_weeks_ago
+              ]
+              
+              if stale_pending:
+                  for target in stale_pending:
+                      days = (datetime.now() - datetime.fromisoformat(target['connection_sent_date'])).days
+                      warnings.append(f'⏰ {target["name"]} - Pending for {days} days (consider following up or marking as rejected)')
+              
+              # Check for connections without follow-up sequences
+              connected_no_sequence = []
+              for target in linkedin.targets:
+                  if target['status'] == 'connected':
+                      has_sequence = any(c['target_id'] == target['id'] for c in linkedin.conversations)
+                      if not has_sequence:
+                          connected_no_sequence.append(target)
+              
+              if connected_no_sequence:
+                  warnings.append(f'💬 {len(connected_no_sequence)} connected targets without follow-up sequences')
+              
+              # Check for inactive campaigns
+              for campaign in linkedin.campaigns:
+                  if campaign['status'] == 'active':
+                      if campaign['stats']['connections_sent'] == 0:
+                          warnings.append(f'📭 Campaign "{campaign["name"]}" has no activity')
+              
+              # Check rate limit usage
+              daily_usage = (linkedin.activity['daily_connections'] / linkedin.DAILY_CONNECTION_LIMIT) * 100
+              weekly_usage = (linkedin.activity['weekly_connections'] / linkedin.WEEKLY_CONNECTION_LIMIT) * 100
+              
+              if daily_usage > 80:
+                  warnings.append(f'⚠️ Daily limit at {daily_usage:.0f}% - approaching limit')
+              if weekly_usage > 90:
+                  warnings.append(f'⚠️ Weekly limit at {weekly_usage:.0f}% - approaching limit')
+              
+              # Check for low response rates
+              if linkedin.activity['total_connections'] > 20 and linkedin.activity['response_rate'] < 10:
+                  issues.append('📉 Response rate below 10% - review messaging strategy')
+              
+              # Check for targets with incomplete data
+              for target in linkedin.targets:
+                  if not target.get('industry'):
+                      issues.append(f'❌ {target["name"]} - Missing industry classification')
+                  if not target.get('message'):
+                      issues.append(f'❌ {target["name"]} - Missing personalized message')
+              
+              # Check for orphaned conversations
+              for conv in linkedin.conversations:
+                  target_exists = any(t['id'] == conv['target_id'] for t in linkedin.targets)
+                  if not target_exists:
+                      issues.append(f'🔗 Orphaned conversation: {conv["id"]} (target not found)')
+              
+          else:
+              # Basic checks
+              if linkedin.activity['total_connections'] > 0:
+                  if linkedin.activity['response_rate'] < 10:
+                      issues.append('📉 Low response rate - consider improving messages')
+              
+              if len(linkedin.queue['pending_connections']) == 0:
+                  warnings.append('📭 Connection queue is empty - add more targets')
+          
+          # Generate quality report
+          with open('linkedin_data_quality.txt', 'w') as f:
+              f.write('=' * 60 + '\n')
+              f.write('LinkedIn Data Quality Report\n')
+              f.write(f'Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\n')
+              f.write('=' * 60 + '\n\n')
+              
+              if not issues and not warnings:
+                  f.write('✅ All data quality checks passed!\n\n')
+                  f.write('No issues or warnings found.\n')
+              else:
+                  if issues:
+                      f.write(f'❌ ISSUES FOUND: {len(issues)}\n')
+                      f.write('-' * 60 + '\n')
+                      for issue in issues:
+                          f.write(f'{issue}\n')
+                      f.write('\n')
+                  
+                  if warnings:
+                      f.write(f'⚠️  WARNINGS: {len(warnings)}\n')
+                      f.write('-' * 60 + '\n')
+                      for warning in warnings:
+                          f.write(f'{warning}\n')
+                      f.write('\n')
+              
+              # Summary statistics
+              f.write('\n' + '=' * 60 + '\n')
+              f.write('Summary Statistics\n')
+              f.write('=' * 60 + '\n')
+              
+              if has_advanced:
+                  f.write(f'Total Targets: {len(linkedin.targets)}\n')
+                  f.write(f'Active Campaigns: {len([c for c in linkedin.campaigns if c["status"] == "active"])}\n')
+                  f.write(f'Active Conversations: {len([c for c in linkedin.conversations if c["status"] in ["active", "engaged"]])}\n')
+                  f.write(f'Daily Connections: {linkedin.activity["daily_connections"]}/{linkedin.DAILY_CONNECTION_LIMIT}\n')
+                  f.write(f'Weekly Connections: {linkedin.activity["weekly_connections"]}/{linkedin.WEEKLY_CONNECTION_LIMIT}\n')
+                  f.write(f'Response Rate: {linkedin.activity["response_rate"]:.1f}%\n')
+              else:
+                  f.write(f'Total Connections: {linkedin.activity["total_connections"]}\n')
+                  f.write(f'Daily Limit: {linkedin.activity["daily_connections"]}/{linkedin.DAILY_CONNECTION_LIMIT}\n')
+                  f.write(f'Queued: {len(linkedin.queue["pending_connections"])}\n')
+          
+          # Print to console
+          with open('linkedin_data_quality.txt', 'r') as f:
+              print('\n' + f.read())
+          
+          print("\n✅ Data quality check completed")
+          PYTHON_SCRIPT
+      
+      - name: Upload quality report
+        uses: actions/upload-artifact@v4
+        with:
+          name: linkedin-quality-report-${{ github.run_number }}
+          path: linkedin_data_quality.txt
+          retention-days: 30
+
+  connection_tracking:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || true
+      
+      - name: Interactive connection status update
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import sys
+          import json
+          from datetime import datetime
+          
+          sys.path.insert(0, '.github/scripts')
+          sys.path.insert(0, 'job_search')
+          
+          try:
+              from linkedin_advanced_networking import AdvancedLinkedInNetworking
+              linkedin = AdvancedLinkedInNetworking()
+              has_advanced = True
+          except ImportError:
+              print("⚠️ Advanced features required for connection tracking")
+              sys.exit(0)
+          
+          print("\n📊 Connection Status Overview")
+          print("=" * 60)
+          
+          # Show pending connections that may need status updates
+          pending = [t for t in linkedin.targets if t['status'] == 'pending']
+          
+          if pending:
+              print(f'\n📋 Pending Connections ({len(pending)}):')
+              print('-' * 60)
+              for i, target in enumerate(pending[:10], 1):
+                  days_pending = (datetime.now() - datetime.fromisoformat(target['connection_sent_date'])).days
+                  print(f'\n{i}. {target["name"]} ({target["company"]})')
+                  print(f'   Profile: {target["profile_url"]}')
+                  print(f'   Pending for: {days_pending} days')
+                  print(f'   Target ID: {target["id"]}')
+              
+              print('\n' + '=' * 60)
+              print('To update connection status, use the Python script:')
+              print('  - linkedin.mark_connection_accepted(target_id)')
+              print('  - linkedin.mark_connection_rejected(target_id)')
+          else:
+              print('\n✅ No pending connections')
+          
+          # Show recent connections that may need follow-up
+          recent_connected = [
+              t for t in linkedin.targets 
+              if t['status'] == 'connected' 
+              and not any(c['target_id'] == t['id'] for c in linkedin.conversations)
+          ]
+          
+          if recent_connected:
+              print(f'\n💬 Connections Needing Follow-up Sequence ({len(recent_connected)}):')
+              print('-' * 60)
+              for target in recent_connected[:5]:
+                  print(f'- {target["name"]} ({target["company"]})')
+                  print(f'  Target ID: {target["id"]}')
+              
+              print('\nTo create follow-up sequence:')
+              print('  linkedin.create_follow_up_sequence(target_id)')
+          
+          print('\n✅ Connection tracking overview complete')
+          PYTHON_SCRIPT
+
+  export_data:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.generate_reports == 'true'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || true
+      
+      - name: Export all LinkedIn data
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import sys
+          import os
+          import json
+          import csv
+          from datetime import datetime
+          
+          sys.path.insert(0, '.github/scripts')
+          sys.path.insert(0, 'job_search')
+          
+          try:
+              from linkedin_advanced_networking import AdvancedLinkedInNetworking
+              linkedin = AdvancedLinkedInNetworking()
+              has_advanced = True
+          except ImportError:
+              from linkedin_automation import LinkedInAutomation
+              linkedin = LinkedInAutomation()
+              has_advanced = False
+          
+          print("\n📦 Exporting All LinkedIn Data")
+          print("=" * 60)
+          
+          os.makedirs('job_search/exports', exist_ok=True)
+          timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+          
+          if has_advanced:
+              # Export targets as CSV
+              if linkedin.targets:
+                  csv_file = f'job_search/exports/linkedin_targets_{timestamp}.csv'
+                  with open(csv_file, 'w', newline='') as f:
+                      writer = csv.DictWriter(f, fieldnames=[
+                          'name', 'company', 'position', 'industry', 'status',
+                          'priority', 'added_date', 'connection_sent_date',
+                          'connection_accepted_date', 'profile_url'
+                      ])
+                      writer.writeheader()
+                      for target in linkedin.targets:
+                          writer.writerow({
+                              'name': target['name'],
+                              'company': target['company'],
+                              'position': target.get('position', ''),
+                              'industry': target.get('industry', ''),
+                              'status': target['status'],
+                              'priority': target.get('priority', ''),
+                              'added_date': target.get('added_date', ''),
+                              'connection_sent_date': target.get('connection_sent_date', ''),
+                              'connection_accepted_date': target.get('connection_accepted_date', ''),
+                              'profile_url': target.get('profile_url', '')
+                          })
+                  print(f'✅ Exported targets: {csv_file}')
+              
+              # Export campaigns as CSV
+              if linkedin.campaigns:
+                  csv_file = f'job_search/exports/linkedin_campaigns_{timestamp}.csv'
+                  with open(csv_file, 'w', newline='') as f:
+                      writer = csv.DictWriter(f, fieldnames=[
+                          'name', 'industry', 'status', 'connections_sent',
+                          'connections_accepted', 'messages_sent', 'responses_received',
+                          'meetings_scheduled', 'created_date'
+                      ])
+                      writer.writeheader()
+                      for campaign in linkedin.campaigns:
+                          stats = campaign['stats']
+                          writer.writerow({
+                              'name': campaign['name'],
+                              'industry': campaign['industry'],
+                              'status': campaign['status'],
+                              'connections_sent': stats['connections_sent'],
+                              'connections_accepted': stats['connections_accepted'],
+                              'messages_sent': stats['messages_sent'],
+                              'responses_received': stats['responses_received'],
+                              'meetings_scheduled': stats['meetings_scheduled'],
+                              'created_date': campaign['created_date']
+                          })
+                  print(f'✅ Exported campaigns: {csv_file}')
+              
+              # Export comprehensive JSON
+              export_data = {
+                  'exported_at': datetime.now().isoformat(),
+                  'activity': linkedin.activity,
+                  'targets_count': len(linkedin.targets),
+                  'campaigns_count': len(linkedin.campaigns),
+                  'conversations_count': len(linkedin.conversations),
+                  'targets': linkedin.targets,
+                  'campaigns': linkedin.campaigns,
+                  'conversations': linkedin.conversations
+              }
+              
+              json_file = f'job_search/exports/linkedin_full_export_{timestamp}.json'
+              with open(json_file, 'w') as f:
+                  json.dump(export_data, f, indent=2)
+              print(f'✅ Exported full data: {json_file}')
+          
+          else:
+              # Basic export
+              if linkedin.connections:
+                  csv_file = f'job_search/exports/linkedin_connections_{timestamp}.csv'
+                  with open(csv_file, 'w', newline='') as f:
+                      writer = csv.DictWriter(f, fieldnames=[
+                          'name', 'company', 'position', 'status', 'connection_date', 'profile_url'
+                      ])
+                      writer.writeheader()
+                      for conn in linkedin.connections:
+                          writer.writerow({
+                              'name': conn['name'],
+                              'company': conn['company'],
+                              'position': conn.get('position', ''),
+                              'status': conn['status'],
+                              'connection_date': conn.get('connection_date', ''),
+                              'profile_url': conn.get('profile_url', '')
+                          })
+                  print(f'✅ Exported connections: {csv_file}')
+          
+          print("\n✅ Data export completed")
+          PYTHON_SCRIPT
+      
+      - name: Upload exported data
+        uses: actions/upload-artifact@v4
+        with:
+          name: linkedin-data-export-${{ github.run_number }}
+          path: job_search/exports/linkedin_*
+          retention-days: 90
+
