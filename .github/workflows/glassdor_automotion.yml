@@ -1,0 +1,333 @@
+name: Glassdoor Research Automation
+
+on:
+  schedule:
+    # Run daily at 9 AM UTC
+    - cron: '0 9 * * *'
+  
+  workflow_dispatch:
+    inputs:
+      company_name:
+        description: 'Company to research (optional)'
+        required: false
+        type: string
+      export_reports:
+        description: 'Export reports after research'
+        required: false
+        type: boolean
+        default: true
+
+  push:
+    branches:
+      - main
+    paths:
+      - 'job_search/**'
+      - '.github/workflows/glassdoor_automation.yml'
+
+jobs:
+  research_automation:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || echo "No requirements.txt found"
+      
+      - name: Run daily research tasks
+        id: research
+        run: |
+          python -c "
+          from qq import GlassdoorAutomation
+          from qq_enhanced import GlassdoorEnhanced
+          import json
+          
+          gd = GlassdoorAutomation()
+          enhanced = GlassdoorEnhanced(gd)
+          
+          # Get daily tasks
+          tasks = gd.get_daily_research_tasks()
+          print('Daily Research Tasks:')
+          print(json.dumps(tasks, indent=2))
+          
+          # Check for high priority items
+          high_priority_count = len(tasks.get('high_priority', []))
+          print(f'\n::set-output name=high_priority::{high_priority_count}')
+          
+          # Export summary
+          if tasks['high_priority'] or tasks['medium_priority']:
+              with open('daily_tasks_summary.txt', 'w') as f:
+                  f.write(f'High Priority: {len(tasks[\"high_priority\"])}\n')
+                  f.write(f'Medium Priority: {len(tasks[\"medium_priority\"])}\n')
+                  f.write(f'Follow-ups: {len(tasks[\"follow_ups\"])}\n')
+          "
+      
+      - name: Research specific company (if provided)
+        if: github.event.inputs.company_name != ''
+        run: |
+          python -c "
+          from qq import GlassdoorAutomation
+          from qq_enhanced import GlassdoorEnhanced
+          
+          company = '${{ github.event.inputs.company_name }}'
+          
+          gd = GlassdoorAutomation()
+          enhanced = GlassdoorEnhanced(gd)
+          
+          # Generate report
+          report = gd.generate_full_research_report(company)
+          print(report)
+          
+          # Export report
+          result = enhanced.export_full_report_markdown(company)
+          print(f'\n{result}')
+          "
+      
+      - name: Export all reports
+        if: github.event.inputs.export_reports == 'true' || github.event_name == 'schedule'
+        run: |
+          python -c "
+          from qq import GlassdoorAutomation
+          from qq_enhanced import GlassdoorEnhanced
+          import json
+          
+          gd = GlassdoorAutomation()
+          enhanced = GlassdoorEnhanced(gd)
+          
+          # Export all data
+          results = enhanced.export_all_data()
+          print('Export Results:')
+          print(json.dumps(results, indent=2))
+          "
+      
+      - name: Generate monitoring report
+        run: |
+          python -c "
+          from qq import GlassdoorAutomation
+          from qq_enhanced import GlassdoorEnhanced
+          from datetime import datetime
+          
+          gd = GlassdoorAutomation()
+          enhanced = GlassdoorEnhanced(gd)
+          
+          # Generate monitoring stats
+          stats = {
+              'timestamp': datetime.now().isoformat(),
+              'total_companies': len(gd.companies),
+              'total_salaries': len(gd.salaries),
+              'total_interviews': len(gd.interviews),
+              'total_reviews': len(gd.reviews),
+              'research_queue': len(gd.research_queue)
+          }
+          
+          with open('monitoring_report.txt', 'w') as f:
+              f.write('=== Glassdoor Research Monitoring ===\n')
+              f.write(f'Generated: {stats[\"timestamp\"]}\n\n')
+              f.write(f'Companies Tracked: {stats[\"total_companies\"]}\n')
+              f.write(f'Salary Data Points: {stats[\"total_salaries\"]}\n')
+              f.write(f'Interview Records: {stats[\"total_interviews\"]}\n')
+              f.write(f'Employee Reviews: {stats[\"total_reviews\"]}\n')
+              f.write(f'Items in Queue: {stats[\"research_queue\"]}\n')
+          "
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: glassdoor-reports-${{ github.run_number }}
+          path: |
+            job_search/exports/
+            monitoring_report.txt
+            daily_tasks_summary.txt
+          retention-days: 30
+      
+      - name: Commit updated data
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add job_search/*.json
+          git add job_search/exports/*.csv job_search/exports/*.md || true
+          git diff --quiet && git diff --staged --quiet || git commit -m "🤖 Automated research update - $(date +'%Y-%m-%d %H:%M')"
+      
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}
+      
+      - name: Create issue for high priority tasks
+        if: steps.research.outputs.high_priority > 0
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('daily_tasks_summary.txt', 'utf8');
+            
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '⚠️ High Priority Research Tasks Pending',
+              body: `## Daily Research Alert\n\n${summary}\n\nPlease review and complete high priority research tasks.`,
+              labels: ['research', 'high-priority']
+            });
+  
+  weekly_analysis:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 9 * * 1'  # Monday only
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Generate weekly summary
+        run: |
+          python -c "
+          from qq import GlassdoorAutomation
+          from qq_enhanced import GlassdoorEnhanced
+          from datetime import datetime, timedelta
+          
+          gd = GlassdoorAutomation()
+          enhanced = GlassdoorEnhanced(gd)
+          
+          # Generate weekly report
+          week_ago = (datetime.now() - timedelta(days=7)).isoformat()
+          
+          recent_companies = [c for c in gd.companies if c.get('last_updated', '') >= week_ago]
+          recent_salaries = [s for s in gd.salaries if s.get('logged_date', '') >= week_ago]
+          recent_interviews = [i for i in gd.interviews if i.get('logged_date', '') >= week_ago]
+          
+          with open('weekly_summary.md', 'w') as f:
+              f.write('# 📊 Weekly Glassdoor Research Summary\n\n')
+              f.write(f'**Period:** {week_ago[:10]} to {datetime.now().strftime(\"%Y-%m-%d\")}\n\n')
+              f.write(f'## Activity This Week\n\n')
+              f.write(f'- 🏢 Companies Updated: {len(recent_companies)}\n')
+              f.write(f'- 💰 New Salary Data: {len(recent_salaries)}\n')
+              f.write(f'- 💼 New Interview Data: {len(recent_interviews)}\n\n')
+              
+              if recent_companies:
+                  f.write('## Updated Companies\n\n')
+                  for company in recent_companies:
+                      f.write(f'- {company[\"company_name\"]}')
+                      if company.get('overall_rating'):
+                          f.write(f' ({company[\"overall_rating\"]}/5.0)')
+                      f.write('\n')
+              
+              # Find best new opportunities
+              if recent_salaries:
+                  f.write('\n## 💎 Top Salary Opportunities\n\n')
+                  sorted_salaries = sorted(recent_salaries, key=lambda x: x.get('total_comp_avg', 0), reverse=True)[:5]
+                  for salary in sorted_salaries:
+                      f.write(f'- {salary[\"company_name\"]} - {salary[\"role\"]}: ${salary.get(\"total_comp_avg\", 0):,.0f}\n')
+          "
+      
+      - name: Upload weekly summary
+        uses: actions/upload-artifact@v3
+        with:
+          name: weekly-summary-${{ github.run_number }}
+          path: weekly_summary.md
+          retention-days: 90
+      
+      - name: Create weekly summary issue
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('weekly_summary.md', 'utf8');
+            
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '📊 Weekly Glassdoor Research Summary',
+              body: summary,
+              labels: ['weekly-report', 'research']
+            });
+
+  data_quality_check:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Run data quality checks
+        run: |
+          python -c "
+          from qq import GlassdoorAutomation
+          import json
+          
+          gd = GlassdoorAutomation()
+          
+          issues = []
+          
+          # Check for companies without key data
+          for company in gd.companies:
+              company_name = company['company_name']
+              
+              # Check for missing ratings
+              if not company.get('overall_rating'):
+                  issues.append(f'⚠️ {company_name}: Missing overall rating')
+              
+              # Check for salary data
+              salaries = [s for s in gd.salaries if s['company_name'] == company_name]
+              if not salaries:
+                  issues.append(f'💰 {company_name}: No salary data')
+              
+              # Check for interview data
+              interviews = [i for i in gd.interviews if i['company_name'] == company_name]
+              if not interviews:
+                  issues.append(f'💼 {company_name}: No interview data')
+              
+              # Check for reviews
+              reviews = [r for r in gd.reviews if r['company_name'] == company_name]
+              if not reviews:
+                  issues.append(f'⭐ {company_name}: No reviews')
+          
+          # Write quality report
+          with open('data_quality_report.txt', 'w') as f:
+              f.write('=== Data Quality Report ===\n\n')
+              if issues:
+                  f.write(f'Found {len(issues)} potential issues:\n\n')
+                  for issue in issues:
+                      f.write(f'{issue}\n')
+              else:
+                  f.write('✅ All data quality checks passed!\n')
+          
+          # Print to console
+          with open('data_quality_report.txt', 'r') as f:
+              print(f.read())
+          "
+      
+      - name: Upload quality report
+        uses: actions/upload-artifact@v3
+        with:
+          name: data-quality-report
+          path: data_quality_report.txt
+          retention-days: 30
