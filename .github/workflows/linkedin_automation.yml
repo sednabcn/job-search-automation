@@ -213,13 +213,22 @@ jobs:
               print(f'\n✅ {len(result["actions"])} connection requests ready to send')
               print('\n📝 Connection Instructions:')
               for i, action in enumerate(result['actions'][:5], 1):  # Show first 5
-                  print(f'\n{i}. {action.get("name", action.get("target"))}')
-                  print(f'   Company: {action["company"]}')
-                  print(f'   Profile: {action["profile_url"]}')
-                  print(f'   Priority: {action.get("priority", "N/A")}')
-                  if action.get("mutual_connections"):
-                      print(f'   Mutual Connections: {action["mutual_connections"]}')
+
+                  target_name = action.get("target") or action.get("name") or "Unknown"
+                  company = action.get("company", "N/A")
+                  profile_url = action.get("profile_url", "N/A")
+                  priority = action.get("priority", "N/A")
+                  mutual = action.get("mutual_connections", "N/A")
+                  
+                  print(f'\n{i}. {target_name}')
+                  print(f'   Company: {company}')
+                  print(f'   Profile: {profile_url}')
+                  print(f'   Priority: {priority}')
+                  if mutual != "N/A":
+                      print(f'   Mutual Connections: {mutual}')
           
+              
+                 
           print("\n✅ Connection processing completed")
           PYTHON_SCRIPT
       
@@ -283,59 +292,96 @@ jobs:
               if connections:
                   f.write(f'## 🤝 Connections to Send ({len(connections)})\n\n')
                   for conn in connections:
-                      f.write(f'### {conn.get("name", conn.get("target"))}\n')
-                      f.write(f'- **Company:** {conn["company"]}\n')
-                      f.write(f'- **Position:** {conn.get("position", "N/A")}\n')
-                      f.write(f'- **Profile:** {conn["profile_url"]}\n')
-                      if conn.get('priority'):
-                          f.write(f'- **Priority:** {conn["priority"]}\n')
-                      if conn.get('mutual_connections'):
-                          f.write(f'- **Mutual Connections:** {conn["mutual_connections"]}\n')
-                      f.write(f'\n**Message:**\n```\n{conn["message"]}\n```\n\n')
+                 
+                      # Safe name extraction with multiple fallbacks
+                      conn_name = conn.get("name") or conn.get("target") or "Unknown Person"
+
+                      company = conn.get("company", "Unknown Company")
+                      position = conn.get("position", "N/A")
+                      profile_url = conn.get("profile_url", "N/A")
+                      priority = conn.get("priority", "medium")
+                      mutual = conn.get("mutual_connections")
+                      message = conn.get("message", "No personalized message available")
+                      reason = conn.get("reason", "networking")
+                 
+                      f.write(f'### {conn_name}\n')
+                      f.write(f'- **Company:** {company}\n')
+                      f.write(f'- **Position:** {position}\n')
+                      f.write(f'- **Profile:** {profile_url}\n')
+                      f.write(f'- **Priority:** {priority}\n')
+                      f.write(f'- **Reason:** {reason}\n')
+                      if mutual:
+                          f.write(f'- **Mutual Connections:** {mutual}\n')
+                      f.write(f'\n**Message:**\n```\n{message}\n```\n\n')
                       f.write('**Instructions:**\n')
-                      f.write(f'1. Visit: {conn["profile_url"]}\n')
+                      f.write(f'1. Visit: {profile_url}\n')
                       f.write('2. Click "Connect"\n')
                       f.write('3. Add note and paste the message above\n\n')
                       f.write('---\n\n')
+              
               
               # Messages to send
               messages = tasks.get('messages_to_send', [])
               if messages:
                   f.write(f'## 💬 Follow-up Messages ({len(messages)})\n\n')
                   for msg in messages:
-                      f.write(f'### {msg["name"]} - {msg["company"]}\n')
-                      f.write(f'- **Type:** {msg["message_type"]}\n')
-                      f.write(f'- **Days Since Connection:** {msg.get("days_since_connection", "N/A")}\n')
-                      f.write(f'\n**Message:**\n```\n{msg["message"]}\n```\n\n')
+                      msg_name = msg.get("name", "Unknown")
+                      msg_company = msg.get("company", "Unknown Company")
+                      msg_type = msg.get("message_type", "follow-up")
+                      days_since = msg.get("days_since_connection", "N/A")
+                      message_text = msg.get("message", "No message template available")
+                      
+                      f.write(f'### {msg_name} - {msg_company}\n')
+                      f.write(f'- **Type:** {msg_type}\n')
+                      f.write(f'- **Days Since Connection:** {days_since}\n')
+                      f.write(f'\n**Message:**\n```\n{message_text}\n```\n\n')
                       f.write('---\n\n')
-              
+
+
+                      
               # Follow-ups due
               followups = tasks.get('follow_ups_due', [])
               if followups:
                   f.write(f'## 🔔 Follow-ups Due ({len(followups)})\n\n')
                   for fu in followups:
-                      f.write(f'- **{fu["name"]}** at {fu["company"]}\n')
-                      f.write(f'  - Days since last message: {fu.get("days_since_last_message", "N/A")}\n')
-                      f.write(f'  - Suggested action: {fu.get("suggested_action", "Follow up")}\n\n')
-              
+                      fu_name = fu.get("name", "Unknown")
+                      fu_company = fu.get("company", "Unknown Company")
+                      days_since = fu.get("days_since_last_message", "N/A")
+                      suggested = fu.get("suggested_action", "Follow up on previous conversation")
+                      
+                      f.write(f'- **{fu_name}** at {fu_company}\n')
+                      f.write(f'  - Days since last message: {days_since}\n')
+                      f.write(f'  - Suggested action: {suggested}\n\n')
+                     
               # Content engagement
               engagement = tasks.get('content_engagement', [])
               if engagement:
                   f.write(f'## 👍 Content Engagement ({len(engagement)})\n\n')
                   for eng in engagement:
-                      f.write(f'- **{eng["name"]}** ({eng["company"]})\n')
-                      f.write(f'  - Action: {eng["action"]}\n')
-                      f.write(f'  - Why: {eng["why"]}\n\n')
+                      eng_name = eng.get("name", "Unknown")
+                      eng_company = eng.get("company", "Unknown Company")
+                      action = eng.get("action", "Engage with content")
+                      why = eng.get("why", "Build relationship")
+                      
+                      f.write(f'- **{eng_name}** ({eng_company})\n')
+                      f.write(f'  - Action: {action}\n')
+                      f.write(f'  - Why: {why}\n\n')
+                      
+                     
               
               # Profile views
               views = tasks.get('profile_views', [])
               if views:
                   f.write(f'## 👀 Strategic Profile Views ({len(views)})\n\n')
                   for view in views:
-                      f.write(f'- **{view["name"]}**\n')
-                      f.write(f'  - Profile: {view["profile_url"]}\n')
-                      f.write(f'  - Reason: {view["reason"]}\n\n')
-          
+                      view_name = view.get("name", "Unknown")
+                      view_url = view.get("profile_url", "N/A")
+                      reason = view.get("reason", "Strategic networking")
+                      
+                      f.write(f'- **{view_name}**\n')
+                      f.write(f'  - Profile: {view_url}\n')
+                      f.write(f'  - Reason: {reason}\n\n')
+
           print("✅ Daily action plan generated: job_search/exports/daily_action_plan.md")
           PYTHON_SCRIPT
       
