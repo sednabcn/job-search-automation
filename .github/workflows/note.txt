@@ -1,0 +1,218 @@
+  # ========================================
+  # STAGE 2.5: KEYWORD EXTRACTION (Optional)
+  # ========================================
+  extract-keywords:
+    name: Extract Keywords & Update Config
+    runs-on: ubuntu-latest
+    needs: [initialize, discover-jobs]
+    if: |
+      always() &&
+      (needs.initialize.outputs.mode == 'keyword_extraction' ||
+       github.event.inputs.update_keywords == 'true')
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyyaml beautifulsoup4
+          
+          # Add scripts directory to Python path
+          echo "PYTHONPATH=$GITHUB_WORKSPACE/${{ env.SCRIPTS_DIR }}:$PYTHONPATH" >> $GITHUB_ENV
+      
+      - name: Download All Discovered Jobs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: discovered-jobs-*
+          merge-multiple: true
+      
+      - name: Run Keyword Extraction
+        run: |
+          echo "🔍 Extracting keywords from job listings..."
+          
+          # Load target positions from config
+          python3 << 'EOF'
+          import yaml
+          import subprocess
+          
+          try:
+              with open('job-manager-config.yml', 'r') as f:
+                  config = yaml.safe_load(f)
+              positions = config.get('search', {}).get('target_roles', [])
+          except:
+              positions = ['Senior Software Engineer', 'Staff Engineer', 'Tech Lead']
+          
+          # Run keyword extractor
+          positions_str = ' '.join([f'"{p}"' for p in positions])
+          cmd = f'python ${{ env.SCRIPTS_DIR }}/keyword_extractor.py --files "*_jobs.json" --positions {positions_str} --output job-manager-config-updated.yml'
+          subprocess.run(cmd, shell=True)
+          EOF
+      
+      - name: Compare Configurations
+        run: |
+          echo "📊 Configuration Changes:"
+          if [ -f job-manager-config-updated.yml ]; then
+            diff -u job-manager-config.yml job-manager-config-updated.yml || true
+          fi
+      
+      - name: Backup Old Config
+        run: |
+          if [ -f job-manager-config.yml ]; then
+            cp job-manager-config.yml "configs/job-manager-config-backup-$(date +%Y%m%d-%H%M%S).yml"
+          fi
+      
+      - name: Update Configuration
+        run: |
+          if [ -f job-manager-config-updated.yml ]; then
+            mv job-manager-config-updated.yml job-manager-config.yml
+            echo "✅ Configuration updated"
+          fi
+      
+      - name: Commit Updated Config
+        run: |
+          git config user.name "Job Search Bot"
+          git config user.email "bot@jobsearch.local"
+          git add job-manager-config.yml configs/
+          git commit -m "🤖 Auto-updated config with extracted keywords - Run ${{ needs.initialize.outputs.run_id }}" || echo "No changes"
+          git push || echo "Push failed"
+      
+      - name: Upload Analysis Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: keyword-analysis
+          path: |
+            keyword_analysis_report.json
+            job-manager-config.yml
+          retention-days: 30
+      
+  # ========================================
+  # STAGE 3: JOB MATCHING & SCORING
+  # ========================================
+  match-and-score:
+    name: Job Matching Engine
+    runs-on: ubuntu-latest
+    needs: [initialize, discover-jobs]
+    if: |
+      always() &&
+      (needs.discover-jobs.result == 'success' || needs.discover-jobs.result == 'skipped') &&
+      (needs.initialize.outputs.mode == 'full' || 
+       needs.initialize.outputs.mode == 'matching')
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+          
+          # Add scripts directory to Python path
+          echo "PYTHONPATH=$GITHUB_WORKSPACE/${{ env.SCRIPTS_DIR }}:$PYTHONPATH" >> $GITHUB_ENV
+      
+      - name: Download Discovered Jobs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: discovered-jobs-*
+          merge-multiple: true
+      
+      - name: Merge Multi-Platform Jobs
+        run: |
+          python3 << 'EOF'
+          import json
+          from pathlib import Path
+          from datetime import datetime
+          
+          all_jobs = []
+          seen_ids = set()
+          platform_stats = {}
+          
+          # Merge all discovered job files
+          for job_file in Path('.').glob('*_jobs.json'):
+              try:
+                  with open(job_file, 'r') as f:
+                      jobs = json.load(f)
+                  
+                  platform = job_file.stem.replace('_jobs', '')
+                  platform_stats[platform] = len(jobs)
+                  
+                  for job in jobs:
+                      # Create unique ID
+                      job_id = (job.get('id') or 
+                               f"{job.get('company', 'unknown')}_{job.get('title', 'unknown')}")
+                      
+                      if job_id not in seen_ids:
+                          all_jobs.append(job)
+                          seen_ids.add(job_id)
+              except Exception as e:
+                  print(f"Error processing {job_file}: {e}")
+          
+          with open('discovered_jobs.json', 'w') as f:
+              json.dump(all_jobs, f, indent=2)
+          
+          print(f"✅ Merged {len(all_jobs)} unique jobs from {len(platform_stats)} platforms")
+          for platform, count in platform_stats.items():
+              print(f"   {platform}: {count} jobs")
+          EOF
+      
+      - name: Run Job Matcher
+        run: |
+          echo "🎯 Running multi-platform job matcher..."
+          python ${{ env.SCRIPTS_DIR }}/job_matcher.py \
+            --input discovered_jobs.json \
+            --threshold ${{ github.event.inputs.match_threshold || '75' }} \
+            --output matched_jobs.json
+      
+      - name: Categorize Matches by Platform
+        run: |
+          python3 << 'EOF'
+          import json
+          from collections import defaultdict
+          
+          with open('matched_jobs.json', 'r') as f:
+              matches = json.load(f)
+          
+          by_platform = defaultdict(list)
+          for job in matches:
+              platform = job.get('source') or job.get('platform', 'unknown')
+              by_platform[platform].append(job)
+          
+          print(f"\n📊 Matches by Platform:")
+          for platform, jobs in sorted(by_platform.items()):
+              print(f"   {platform}: {len(jobs)} jobs")
+              avg_score = sum(j.get('match_score', 0) for j in jobs) / len(jobs) if jobs else 0
+              print(f"      Average score: {avg_score:.1f}")
+          EOF
+      
+      - name: Optimize Resumes for Top Matches
+        run: |
+          echo "📝 Optimizing resumes..."
+          python ${{ env.SCRIPTS_DIR }}/Resume-Cover-Letter_Optimizer.py \
+            --jobs matched_jobs.json \
+            --resume-dir documents/resumes \
+            --output resume_versions.json
+      
+      - name: Update Job Search Tracker
+        run: |
+          python ${{ env.SCRIPTS_DIR }}/job_search_tracker.py --update --source matched_jobs.json
+      
+      - name: Upload Matched Jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: matched-jobs
+          path: |
+            matched_jobs.json
+            resume_versions.json
+            discovered_jobs.json
+          retention-days: 30

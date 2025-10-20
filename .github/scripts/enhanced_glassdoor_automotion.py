@@ -460,7 +460,7 @@ def demo_export_features():
 
 def demo_search_features():
     """Demonstrate search functionality"""
-    from qq import GlassdoorAutomation
+    from glassdoor_automation import GlassdoorAutomation
     
     gd = GlassdoorAutomation()
     enhanced = GlassdoorEnhanced(gd)

@@ -251,19 +251,41 @@ jobs:
           python ${{ env.SCRIPTS_DIR }}/indeed_scraper.py --search --output indeed_jobs.json
         env:
           INDEED_MAX_RESULTS: 100
-      
+
       - name: Run Reed Discovery
         if: steps.check_platform.outputs.enabled == 'true' && matrix.platform == 'reed'
         run: |
           echo "🔍 Discovering jobs on Reed..."
+          
+          # Load search keywords from config
+          KEYWORDS=$(python3 -c "
+          import yaml
+          try:
+              with open('job-manager-config.yml', 'r') as f:
+                  config = yaml.safe_load(f)
+              roles = config.get('search', {}).get('target_roles', [])
+              print(roles[0] if roles else 'Software Engineer')
+          except:
+              print('Software Engineer')
+          ")
+          
           if [ -n "${{ secrets.REED_API_KEY }}" ]; then
-            python ${{ env.SCRIPTS_DIR }}/reed_scraper.py --api --output reed_jobs.json
+            python ${{ env.SCRIPTS_DIR }}/reed_scraper.py \
+              --keywords "$KEYWORDS" \
+              --location "London" \
+              --max-results ${{ env.REED_MAX_RESULTS || '100' }} \
+              --api-key "${{ secrets.REED_API_KEY }}" \
+              --use-api \
+              --output reed_jobs.json
           else
-            python ${{ env.SCRIPTS_DIR }}/reed_scraper.py --scrape --output reed_jobs.json
+            python ${{ env.SCRIPTS_DIR }}/reed_scraper.py \
+              --keywords "$KEYWORDS" \
+              --location "London" \
+              --max-results ${{ env.REED_MAX_RESULTS || '100' }} \
+              --output reed_jobs.json
           fi
         env:
           REED_API_KEY: ${{ secrets.REED_API_KEY }}
-          REED_MAX_RESULTS: 100
       
       - name: Enhance Job Data
         if: steps.check_platform.outputs.enabled == 'true'
@@ -319,6 +341,7 @@ jobs:
               print(f"   Unique companies: {len(set(j.get('company', '') for j in jobs))}")
               print(f"   Locations: {len(set(j.get('location', '') for j in jobs))}")
           EOF
+
   # ========================================
   # STAGE 2.5: KEYWORD EXTRACTION (Optional)
   # ========================================
@@ -537,9 +560,9 @@ jobs:
             resume_versions.json
             discovered_jobs.json
           retention-days: 30
-
+          
   # ========================================
-  # STAGE 8: FINAL STATUS
+  # STAGE 4: FINAL STATUS
   # ========================================
   finalize:
     name: Pipeline Completion
