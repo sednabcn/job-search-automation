@@ -66,13 +66,26 @@ class LinkedInAutomation:
     
     def _reset_daily_limits(self):
         """Reset daily counters if it's a new day"""
-        today = datetime.now().date().isoformat()
+        today = datetime.now().strftime("%Y-%m-%d")
+
+        if not isinstance(self.activity, dict):
+        self.activity = {
+            "last_reset": today,
+            "daily_actions": 0,
+            "search_count": 0,
+            "apply_count": 0
+        }
+        return
+
         
         if self.activity["last_reset"] != today:
             self.activity["last_reset"] = today
             self.activity["daily_connections"] = 0
             self.activity["daily_messages"] = 0
             self.activity["daily_profile_views"] = 0
+            self.activity["daily_actions"] = 0
+            self.activity["search_count"] = 0
+            self.activity["apply_count"] = 0
             self._save_json(self.activity_file, self.activity)
         
         # Reset weekly counter

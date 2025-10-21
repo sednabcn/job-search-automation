@@ -125,7 +125,31 @@ jobs:
           echo "boards=$BOARDS" >> $GITHUB_OUTPUT
           echo "ℹ️ Positions: $POSITIONS"
           echo "ℹ️ Boards: $BOARDS"
+
+
+     # Add this step BEFORE "Discover Jobs - linkedin"
+      - name: Initialize LinkedIn Activity (Safety)
+        if: steps.check_board.outputs.enabled == 'true'
+        run: |
+          # Create default activity file if it doesn't exist or is invalid
+          ACTIVITY_FILE="${{ matrix.board }}_activity.json"
+          
+          if [ ! -f "$ACTIVITY_FILE" ] || ! python3 -c "import json; json.load(open('$ACTIVITY_FILE'))" 2>/dev/null; then
+            echo "🔧 Creating default activity file"
+            cat > "$ACTIVITY_FILE" << 'EOF'
+          {
+            "last_reset": "2000-01-01",
+            "daily_actions": 0,
+            "search_count": 0,
+            "apply_count": 0,
+            "profile_views": 0,
+            "connections": 0
+          }
+          EOF
+            echo "✅ Activity file initialized"
+          fi
       
+          
       - name: Initialize Run Context
         id: setup
         run: |
