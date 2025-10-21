@@ -477,26 +477,26 @@ jobs:
         run: |
           git config user.name "🤖 Job Search Bot"
           git config user.email "bot@jobsearch.local"
-          
+    
           git add job-manager-config.yml
           git add keyword_analysis_report.json 2>/dev/null || true
-          
+    
           if git diff-index --quiet HEAD --; then
-            echo "ℹ️ No changes to commit"
+             echo "ℹ️ No changes to commit"
           else
-            git commit -m "🤖 Auto-update: keyword extraction
+             git commit -m "🤖 Auto-update: keyword extraction
 
-- Run ID: ${{ needs.prepare.outputs.run_id }}
-- Timestamp: ${{ needs.prepare.outputs.timestamp }}
-- Matching Jobs: ${{ steps.extraction.outputs.total_matches }}
-- Positions: ${{ needs.prepare.outputs.job_positions }}"
-            
+          - Run ID: ${{ needs.prepare.outputs.run_id }}
+          - Timestamp: ${{ needs.prepare.outputs.timestamp }}
+          - Matching Jobs: ${{ steps.extraction.outputs.total_matches }}
+          - Positions: ${{ needs.prepare.outputs.job_positions }}"
+      
             git push origin HEAD
             echo "✅ Config committed and pushed"
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+ 
   # ========================================
   # STAGE 4: TRIGGER DISCOVERY WORKFLOW
   # ========================================
