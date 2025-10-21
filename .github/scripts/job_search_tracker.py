@@ -454,10 +454,12 @@ def main():
         notes="Referred by John Doe"
     )
 
-     # 🧹 Data Cleanup: Ensure all old applications have a 'status' field
+    # 🧹 Data Cleanup: Ensure all old applications have required fields
     for app in job_tracker.applications:
         if 'status' not in app:
             app['status'] = 'applied'
+        if 'follow_up_date' not in app:
+            app['follow_up_date'] = (datetime.now() + timedelta(days=7)).isoformat()
     job_tracker._save_applications()
     
     # Example: Get stats
