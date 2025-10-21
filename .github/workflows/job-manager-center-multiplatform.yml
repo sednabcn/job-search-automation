@@ -84,29 +84,36 @@ jobs:
         run: |
           # Parse job positions
           POSITIONS="${{ github.event.inputs.job_positions }}"
+
+          # 1️⃣ Get input or default
+          POSITIONS="${{ github.event.inputs.job_positions }}"
           if [ -z "$POSITIONS" ]; then
-            POSITIONS="Senior Software Engineer,Staff Engineer,Tech Lead,Engineering Manager"
+             POSITIONS="Senior Software Engineer,Staff Engineer,Tech Lead,Engineering Manager"
           fi
-          
-          # Convert to JSON array
-          POSITIONS_JSON=$(python3 << 'EOF'
-          import json
-          positions = "$POSITIONS".split(',')
+
+          # 2️⃣ Convert to JSON array for GitHub Actions outputs
+          POSITIONS_JSON=$(python3 << EOF
+          import os, json
+          positions = os.environ["POSITIONS"].split(",")
           positions = [p.strip() for p in positions if p.strip()]
           print(json.dumps(positions))
           EOF
           )
-          
-          # Convert to CLI args format
-          POSITIONS_ARGS=$(python3 << 'EOF'
-          positions = "$POSITIONS".split(',')
+
+          # 3️⃣ Convert to CLI args (each position quoted)
+          POSITIONS_ARGS=$(python3 << EOF
+          import os
+          positions = os.environ["POSITIONS"].split(",")
           positions = [p.strip() for p in positions if p.strip()]
           print(' '.join([f'"{p}"' for p in positions]))
           EOF
           )
-          
+
+          # 4️⃣ Export outputs for later workflow steps
           echo "job_positions=$POSITIONS_JSON" >> $GITHUB_OUTPUT
           echo "job_positions_args=$POSITIONS_ARGS" >> $GITHUB_OUTPUT
+
+          echo "ℹ️ Positions: $POSITIONS"
           
           # Determine boards to process
           SKIP_BOARDS="${{ github.event.inputs.skip_boards }}"
