@@ -368,19 +368,31 @@ jobs:
           echo "📁 Downloaded job files:"
           ls -lh *_jobs.json 2>/dev/null || echo "No job files found"
 
+
       - name: Extract Keywords with CLI
         id: extraction
         run: |
           echo "🔑 Starting keyword extraction..."
           
-          # Build CLI command with proper quoting
-          python3 ${{ env.CLI_TOOL }} extract-keywords \
-            --positions ${{ needs.prepare.outputs.job_positions_args }} \
+          # Convert positions to array
+          IFS=' ' read -ra POSITIONS <<< "${{ needs.prepare.outputs.job_positions_args }}"
+          
+          # Build position arguments
+          POSITION_ARGS=""
+          for pos in "${POSITIONS[@]}"; do
+            POSITION_ARGS="$POSITION_ARGS --positions \"$pos\""
+          done
+          
+          echo "Position arguments: $POSITION_ARGS"
+          
+          # Run the command
+          eval "python3 ${{ env.CLI_TOOL }} extract-keywords \
+            $POSITION_ARGS \
             --files job_search/linkedin_jobs.json job_search/glassdoor_jobs.json job_search/indeed_jobs.json \
             --output job-manager-config.yml \
             --output-report keyword_analysis_report.json \
             --github-output \
-            --report
+            --report"
           
           # Set workflow outputs
           if [ -f keyword_analysis_report.json ]; then
