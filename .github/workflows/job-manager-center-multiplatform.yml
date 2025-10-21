@@ -125,30 +125,7 @@ jobs:
           echo "boards=$BOARDS" >> $GITHUB_OUTPUT
           echo "ℹ️ Positions: $POSITIONS"
           echo "ℹ️ Boards: $BOARDS"
-
-
-     # Add this step BEFORE "Discover Jobs - linkedin"
-      - name: Initialize LinkedIn Activity (Safety)
-        if: steps.check_board.outputs.enabled == 'true'
-        run: |
-          # Create default activity file if it doesn't exist or is invalid
-          ACTIVITY_FILE="${{ matrix.board }}_activity.json"
-          
-          if [ ! -f "$ACTIVITY_FILE" ] || ! python3 -c "import json; json.load(open('$ACTIVITY_FILE'))" 2>/dev/null; then
-            echo "🔧 Creating default activity file"
-            cat > "$ACTIVITY_FILE" << 'EOF'
-          {
-            "last_reset": "2000-01-01",
-            "daily_actions": 0,
-            "search_count": 0,
-            "apply_count": 0,
-            "profile_views": 0,
-            "connections": 0
-          }
-          EOF
-            echo "✅ Activity file initialized"
-          fi
-      
+ 
           
       - name: Initialize Run Context
         id: setup
@@ -237,7 +214,30 @@ jobs:
           steps.check_board.outputs.enabled == 'true' && 
           matrix.board != 'reed'
         uses: browser-actions/setup-chrome@latest
-      
+
+     
+      - name: Initialize LinkedIn Activity (Safety)
+        if: steps.check_board.outputs.enabled == 'true'
+        run: |
+          # Create default activity file if it doesn't exist or is invalid
+          ACTIVITY_FILE="${{ matrix.board }}_activity.json"
+          
+          if [ ! -f "$ACTIVITY_FILE" ] || ! python3 -c "import json; json.load(open('$ACTIVITY_FILE'))" 2>/dev/null; then
+            echo "🔧 Creating default activity file"
+            cat > "$ACTIVITY_FILE" << 'EOF'
+          {
+            "last_reset": "2000-01-01",
+            "daily_actions": 0,
+            "search_count": 0,
+            "apply_count": 0,
+            "profile_views": 0,
+            "connections": 0
+          }
+          EOF
+            echo "✅ Activity file initialized"
+          fi  
+
+
       - name: Discover Jobs - ${{ matrix.board }}
         if: steps.check_board.outputs.enabled == 'true'
         run: |
@@ -247,11 +247,22 @@ jobs:
           
           case "${{ matrix.board }}" in
             linkedin)
-              python3 .github/scripts/linkedin_automation.py \
-                --mode discover \
-                --output "$OUTPUT_FILE" \
-                --headless \
-                --max-results 50
+              # Check if LinkedIn automation script exists
+              if [ -f ".github/scripts/linkedin_automation.py" ]; then
+                echo "Running LinkedIn automation..."
+                python3 .github/scripts/linkedin_automation.py \
+                  --mode discover \
+                  --output "$OUTPUT_FILE" \
+                  --headless \
+                  --max-results 50 || {
+                    echo "⚠️ LinkedIn automation failed, creating empty file"
+                    echo '[]' > "$OUTPUT_FILE"
+                  }
+              else
+                echo "⚠️ LinkedIn automation script not found"
+                echo "💡 Creating placeholder file"
+                echo '[]' > "$OUTPUT_FILE"
+              fi
               ;;
             
             glassdoor)
@@ -285,10 +296,10 @@ jobs:
           
           # Validate output
           if [ -f "$OUTPUT_FILE" ]; then
-            JOB_COUNT=$(python3 -c "import json; data=json.load(open('$OUTPUT_FILE')); print(len(data) if isinstance(data, list) else len(data.get('jobs', [])))")
+            JOB_COUNT=$(python3 -c "import json; data=json.load(open('$OUTPUT_FILE')); print(len(data) if isinstance(data, list) else len(data.get('jobs', [])))" 2>/dev/null || echo "0")
             echo "✅ Discovered $JOB_COUNT jobs from ${{ matrix.board }}"
           else
-            echo "⚠️ No jobs file created"
+            echo "⚠️ No jobs file created, using empty list"
             echo "[]" > "$OUTPUT_FILE"
           fi
         env:
@@ -298,6 +309,8 @@ jobs:
           GLASSDOOR_PASSWORD: ${{ secrets.GLASSDOOR_PASSWORD }}
           REED_API_KEY: ${{ secrets.REED_API_KEY }}
         timeout-minutes: 15
+        continue-on-error: true  # Don't fail the entire workflow if one board fails  
+      
       
       - name: Upload Discovered Jobs
         if: steps.check_board.outputs.enabled == 'true'
@@ -520,7 +533,7 @@ jobs:
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
- 
+
   # ========================================
   # STAGE 4: TRIGGER DISCOVERY WORKFLOW
   # ========================================

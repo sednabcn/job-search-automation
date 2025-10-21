@@ -134,29 +134,35 @@ class JobSearchTracker:
                 })
         
         return follow_ups
-    
+
     def get_stats(self) -> Dict:
         """Get application statistics"""
         status_counts = defaultdict(int)
         source_counts = defaultdict(int)
         resume_performance = defaultdict(lambda: {'sent': 0, 'interviews': 0})
-        
+
         for app in self.applications:
-            status_counts[app['status']] += 1
-            source_counts[app['source']] += 1
-            
-            resume_ver = app['resume_version']
+            status = app.get('status', 'unknown')
+            source = app.get('source', 'unknown')
+            resume_ver = app.get('resume_version', 'default')
+
+            status_counts[status] += 1
+            source_counts[source] += 1
+
             resume_performance[resume_ver]['sent'] += 1
-            if app['status'] in ['phone_screen', 'interview', 'offer']:
+            if status in ['phone_screen', 'interview', 'offer']:
                 resume_performance[resume_ver]['interviews'] += 1
-        
+
         return {
             'total_applications': len(self.applications),
             'by_status': dict(status_counts),
             'by_source': dict(source_counts),
             'resume_performance': dict(resume_performance),
-            'response_rate': (status_counts['phone_screen'] + status_counts['interview'] + 
-                            status_counts['offer']) / len(self.applications) * 100 if self.applications else 0
+            'response_rate': (
+                (status_counts['phone_screen'] + status_counts['interview'] + status_counts['offer'])
+                / len(self.applications) * 100
+                if self.applications else 0
+            )
         }
     
     def export_to_csv(self, filename: str = "applications_export.csv"):
@@ -447,6 +453,12 @@ def main():
         cover_letter=True,
         notes="Referred by John Doe"
     )
+
+     # 🧹 Data Cleanup: Ensure all old applications have a 'status' field
+    for app in job_tracker.applications:
+        if 'status' not in app:
+            app['status'] = 'applied'
+    job_tracker._save_applications()
     
     # Example: Get stats
     print("\n2. Application Statistics:")
