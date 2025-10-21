@@ -376,7 +376,11 @@ jobs:
           CMD="python3 ${{ env.CLI_TOOL }} extract-keywords"
     
           # Add positions
-          CMD="$CMD --positions \"$${{ needs.prepare.outputs.job_positions_args }}\""
+          POSITIONS=(${{ needs.prepare.outputs.job_positions_args }})
+          for pos in "${POSITIONS[@]}"; do
+              CMD="$CMD --positions \"$pos\""
+          done
+
     
           # Add job board files
           for board in linkedin glassdoor reed indeed; do
