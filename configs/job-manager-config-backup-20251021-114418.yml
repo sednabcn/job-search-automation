@@ -1,0 +1,416 @@
+# Job Search Manager Center - Configuration File
+# Place this in the root of your repository as job-manager-config.yml
+
+# ============================================
+# SEARCH PREFERENCES
+# ============================================
+search:
+  # Job titles to search for (supports regex patterns)
+  target_roles:
+    - "Senior Software Engineer"
+    - "Staff Engineer"
+    - "Tech Lead"
+    - "Engineering Manager"
+  
+  # Keywords that MUST appear in job description
+  required_keywords:
+    - "python"
+    - "distributed systems"
+    - "cloud"
+  
+  # Keywords that would be nice to have
+  preferred_keywords:
+    - "kubernetes"
+    - "terraform"
+    - "AWS"
+    - "microservices"
+  
+  # Keywords to avoid
+  exclude_keywords:
+    - "unpaid"
+    - "commission only"
+    - "entry level"
+  
+  # Location preferences
+  locations:
+    - "London, UK"
+    - "Remote"
+    - "Manchester, UK"
+  
+  # Salary expectations
+  salary:
+    minimum: 80000
+    currency: "GBP"
+    period: "yearly"
+  
+  # Job types
+  job_types:
+    - "Full-time"
+    - "Contract"
+  
+  # Experience level
+  experience_levels:
+    - "Mid-Senior level"
+    - "Senior level"
+    - "Executive"
+
+# ============================================
+# MATCHING ALGORITHM
+# ============================================
+matching:
+  # Minimum match score (0-100) to consider a job
+  threshold: 75
+  
+  # Weight factors for scoring
+  weights:
+    title_match: 25      # How well job title matches your preferences
+    skills_match: 30     # Percentage of required skills you have
+    location_match: 15   # Location preference match
+    salary_match: 20     # Salary meets your expectations
+    company_culture: 10  # Glassdoor rating, benefits, etc.
+  
+  # Skills matrix (your skills and proficiency 1-10)
+  your_skills:
+    Python: 9
+    JavaScript: 7
+    Kubernetes: 8
+    Docker: 9
+    AWS: 8
+    Terraform: 7
+    PostgreSQL: 8
+    Redis: 7
+    Microservices: 9
+    CI/CD: 8
+    Git: 10
+    Agile: 8
+
+# ============================================
+# APPLICATION SETTINGS
+# ============================================
+application:
+  # Maximum applications per day
+  daily_limit: 50
+  
+  # Auto-apply settings
+  auto_apply:
+    enabled: false  # Set to true to enable auto-apply
+    minimum_score: 85  # Only auto-apply to jobs scoring above this
+    require_manual_review: true  # Send email before applying
+  
+  # Follow-up schedule (days after application)
+  follow_up_schedule:
+    first: 7
+    second: 14
+    final: 21
+  
+  # Resume customization
+  resume:
+    use_custom_versions: true
+    tailor_keywords: true
+    max_versions: 10  # Keep this many tailored versions
+  
+  # Cover letter settings
+  cover_letter:
+    auto_generate: true
+    use_template: true
+    template_path: "templates/cover_letter_base.txt"
+    personalize: true  # Include company-specific details
+
+# ============================================
+# NETWORKING SETTINGS
+# ============================================
+networking:
+  linkedin:
+    # Connection request settings
+    connection_requests:
+      daily_limit: 10
+      message_template: "templates/connection_request.txt"
+      target_roles:
+        - "Recruiter"
+        - "Hiring Manager"
+        - "Software Engineer"
+    
+    # Referral request settings
+    referral_requests:
+      enabled: true
+      daily_limit: 5
+      wait_days_after_connection: 3
+      message_template: "templates/referral_request.txt"
+    
+    # Activity settings
+    engage_with_posts: true
+    daily_post_interactions: 10
+    comment_on_posts: false  # Safer to keep false for automation
+  
+  # Target companies (high priority)
+  target_companies:
+    - "Google"
+    - "Amazon"
+    - "Microsoft"
+    - "Meta"
+    - "Stripe"
+  
+  # Warm introduction strategy
+  warm_introductions:
+    enabled: true
+    search_2nd_degree: true
+    prioritize_mutual_connections: true
+
+# ============================================
+# NOTIFICATION SETTINGS
+# ============================================
+notifications:
+  email:
+    enabled: true
+    recipient: "your-email@example.com"
+    
+    # When to send notifications
+    triggers:
+      new_high_match_jobs: true      # Score >= 85
+      application_submitted: true
+      interview_scheduled: false     # Manual entry
+      referral_received: true
+      daily_summary: true            # End of day report
+      weekly_analytics: true         # Sunday evening
+    
+    # Email format
+    format: "html"
+    include_attachments: true
+  
+  slack:
+    enabled: false
+    webhook_url: ""
+    channel: "#job-search"
+    
+    triggers:
+      new_high_match_jobs: true
+      application_submitted: false
+      daily_summary: true
+  
+  telegram:
+    enabled: false
+    bot_token: ""
+    chat_id: ""
+
+# ============================================
+# PLATFORM CREDENTIALS (Use GitHub Secrets!)
+# ============================================
+# DO NOT commit actual credentials to git
+# Set these as GitHub Secrets instead:
+# - LINKEDIN_EMAIL
+# - LINKEDIN_PASSWORD
+# - GLASSDOOR_EMAIL
+# - GLASSDOOR_PASSWORD
+# - EMAIL_USERNAME
+# - EMAIL_PASSWORD
+
+platforms:
+  linkedin:
+    search_interval: 12  # hours between searches
+    max_results_per_search: 100
+    use_advanced_search: true
+    scrape_company_pages: true
+  
+  glassdoor:
+    search_interval: 12
+    max_results_per_search: 50
+    scrape_reviews: true
+    review_weight: 0.3  # How much company rating affects matching
+
+# ============================================
+# DATA MANAGEMENT
+# ============================================
+data:
+  # Retention policies
+  retention:
+    discovered_jobs: 90      # days
+    applications: 365        # days
+    network_contacts: 730    # days
+    logs: 30                 # days
+    reports: 180             # days
+  
+  # Backup settings
+  backup:
+    enabled: true
+    frequency: "daily"
+    retention_days: 90
+    location: "backups/"
+  
+  # Database optimization
+  optimization:
+    auto_deduplicate: true
+    compress_old_data: true
+    archive_rejected_jobs: true
+
+# ============================================
+# REPORTING & ANALYTICS
+# ============================================
+reporting:
+  # Dashboard metrics
+  metrics:
+    - applications_per_day
+    - response_rate
+    - interview_rate
+    - offer_rate
+    - average_time_to_response
+    - top_performing_job_boards
+    - best_application_times
+    - skill_demand_trends
+  
+  # Report generation
+  reports:
+    daily:
+      enabled: true
+      time: "20:00"
+      format: ["markdown", "html"]
+    
+    weekly:
+      enabled: true
+      day: "sunday"
+      time: "18:00"
+      format: ["pdf", "html"]
+      include_charts: true
+    
+    monthly:
+      enabled: true
+      day: 1
+      time: "09:00"
+      format: ["pdf"]
+      include_analytics: true
+  
+  # Visualization settings
+  charts:
+    theme: "seaborn"
+    dpi: 300
+    formats: ["png", "svg"]
+
+# ============================================
+# ADVANCED FEATURES
+# ============================================
+advanced:
+  # Machine learning for better matching
+  ml:
+    enabled: false
+    train_on_feedback: true
+    model_type: "gradient_boosting"
+  
+  # A/B testing
+  ab_testing:
+    enabled: false
+    test_resume_versions: true
+    test_application_times: true
+    test_cover_letter_styles: true
+  
+  # Sentiment analysis on job descriptions
+  sentiment_analysis:
+    enabled: false
+    flag_negative_keywords: true
+    analyze_company_culture: true
+  
+  # Job market intelligence
+  market_intelligence:
+    enabled: true
+    track_salary_trends: true
+    track_skill_demand: true
+    competitor_analysis: true
+
+# ============================================
+# SAFETY & COMPLIANCE
+# ============================================
+safety:
+  # Rate limiting to avoid being blocked
+  rate_limits:
+    linkedin_requests_per_hour: 50
+    glassdoor_requests_per_hour: 30
+    connection_requests_per_day: 10
+    applications_per_day: 50
+  
+  # Anti-detection measures
+  anti_detection:
+    randomize_delays: true
+    min_delay_seconds: 5
+    max_delay_seconds: 30
+    use_human_like_browsing: true
+    rotate_user_agents: true
+  
+  # Privacy settings
+  privacy:
+    anonymize_logs: false
+    encrypt_credentials: true
+    gdpr_compliant: true
+  
+  # Error handling
+  error_handling:
+    max_retries: 3
+    retry_delay_seconds: 60
+    fail_gracefully: true
+    alert_on_critical_errors: true
+
+# ============================================
+# SYSTEM CONFIGURATION
+# ============================================
+system:
+  # Execution settings
+  execution:
+    timezone: "Europe/London"
+    python_version: "3.10"
+    headless_browser: true
+    screenshot_on_error: true
+  
+  # Performance tuning
+  performance:
+    parallel_jobs: 2
+    max_concurrent_browsers: 2
+    cache_enabled: true
+    cache_ttl_hours: 24
+  
+  # Logging
+  logging:
+    level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+    format: "detailed"
+    include_timestamps: true
+    rotate_logs: true
+    max_log_size_mb: 100
+
+# ============================================
+# CUSTOM SCRIPTS & HOOKS
+# ============================================
+hooks:
+  # Run custom scripts at different stages
+  pre_discovery:
+    enabled: false
+    script: "hooks/pre_discovery.sh"
+  
+  post_discovery:
+    enabled: false
+    script: "hooks/post_discovery.sh"
+  
+  pre_application:
+    enabled: false
+    script: "hooks/pre_application.py"
+  
+  post_application:
+    enabled: true
+    script: "hooks/post_application.py"
+  
+  on_error:
+    enabled: true
+    script: "hooks/error_handler.sh"
+
+# ============================================
+# EMERGENCY CONTROLS
+# ============================================
+emergency:
+  # Kill switch - disable all automation
+  kill_switch: false
+  
+  # Pause specific features
+  pause:
+    auto_apply: false
+    networking: false
+    discovery: false
+  
+  # Recovery mode
+  recovery_mode:
+    enabled: false
+    safe_mode: true  # Only read operations, no writes
