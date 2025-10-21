@@ -390,7 +390,7 @@ jobs:
           # Build CLI command with proper argument handling
           python3 ${{ env.CLI_TOOL }} extract-keywords \
             --positions "${POS_ARRAY[@]}" \
-            --files *_jobs.json \
+            --files job_search/*_jobs.json \
             --output keyword_analysis_report.json \
             --update-config
           
