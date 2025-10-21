@@ -372,33 +372,23 @@ jobs:
         id: extraction
         run: |
           echo "🔑 Starting keyword extraction..."
-
-          # Build CLI command
-          CMD="python3 ${{ env.CLI_TOOL }} extract-keywords"
-
-          # Add positions (all in one flag)
-          CMD="$CMD --positions ${{ needs.prepare.outputs.job_positions_args }}"
-
-          # Add job files (all at once)
-          CMD="$CMD --files job_search/linkedin_jobs.json job_search/glassdoor_jobs.json job_search/indeed_jobs.json"
-
-          # Add output options
-          CMD="$CMD --output job-manager-config.yml"
-          CMD="$CMD --output-report keyword_analysis_report.json"
-          CMD="$CMD --github-output"
-          CMD="$CMD --report"
-
-          echo "Running: $CMD"
-          eval $CMD
-
+          
+          # Build CLI command with proper quoting
+          python3 ${{ env.CLI_TOOL }} extract-keywords \
+            --positions ${{ needs.prepare.outputs.job_positions_args }} \
+            --files job_search/linkedin_jobs.json job_search/glassdoor_jobs.json job_search/indeed_jobs.json \
+            --output job-manager-config.yml \
+            --output-report keyword_analysis_report.json \
+            --github-output \
+            --report
+          
           # Set workflow outputs
           if [ -f keyword_analysis_report.json ]; then
              TOTAL_MATCHES=$(python3 -c "import json; d=json.load(open('keyword_analysis_report.json')); print(d.get('matching_jobs', 0))")
              echo "total_matches=$TOTAL_MATCHES" >> $GITHUB_OUTPUT
-
+             
              TOP_KEYWORDS=$(python3 -c "import json; d=json.load(open('keyword_analysis_report.json')); k=[v.get('top_keywords', [])[:3] for v in d.get('keyword_analysis', {}).values()]; import itertools; print(','.join(list(itertools.chain(*k))[:8]))")
              echo "top_keywords=$TOP_KEYWORDS" >> $GITHUB_OUTPUT
-
              echo "config_generated=true" >> $GITHUB_OUTPUT
           else
              echo "total_matches=0" >> $GITHUB_OUTPUT
@@ -407,7 +397,7 @@ jobs:
           fi
         env:
           GITHUB_OUTPUT: ${{ github.output }}
-      
+          
       - name: Validate Generated Config
         run: |
           if [ ! -f job-manager-config.yml ]; then
