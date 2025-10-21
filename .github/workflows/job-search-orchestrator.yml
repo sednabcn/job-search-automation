@@ -149,9 +149,7 @@ jobs:
           
           gh workflow run job-discovery-worker.yml \
             -f mode=full \
-            -f job_boards="$BOARDS" \
-            -f data_directory="${{ env.DATA_DIR }}" \
-            -f match_threshold="${{ github.event.inputs.match_threshold || 75 }}"
+            -f job_boards="$BOARDS"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
@@ -218,7 +216,6 @@ jobs:
           
           gh workflow run cv_job_matcher.yml \
             -f threshold="${{ github.event.inputs.match_threshold || 75 }}" \
-            -f data_directory="${{ env.DATA_DIR }}" \
             -f generate_report=true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -249,8 +246,7 @@ jobs:
         run: |
           echo "📧 Triggering email notifications..."
           
-          gh workflow run send-cv-match-emails.yml \
-            -f data_directory="${{ env.DATA_DIR }}"
+          gh workflow run send-cv-match-emails.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
