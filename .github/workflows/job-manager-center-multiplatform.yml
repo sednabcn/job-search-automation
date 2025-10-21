@@ -89,14 +89,13 @@ jobs:
           fi
 
           # Convert comma-separated positions into JSON array for output
-          POSITIONS_JSON=$(python3 << 'EOF'
+          POSITIONS_JSON=$(python3 -c "
           import json
-          positions = "$POSITIONS".split(',')
+          positions = '''$POSITIONS'''.split(',')
           positions = [p.strip() for p in positions if p.strip()]
           print(json.dumps(positions))
-          EOF
-          )
-
+          ")
+  
           # Convert positions to space-separated list WITHOUT quotes for CLI
           # The CLI will handle the parsing correctly
           IFS=',' read -r -a pos_array <<< "$POSITIONS"
@@ -122,14 +121,13 @@ jobs:
           BOARDS="linkedin,glassdoor,reed,indeed"
 
           if [ -n "$SKIP_BOARDS" ]; then
-              BOARDS=$(python3 << 'EOF'
-              skip = "$SKIP_BOARDS".split(',')
-              skip = [b.strip().lower() for b in skip if b.strip()]
-              all_boards = ["linkedin", "glassdoor", "reed", "indeed"]
-              boards = [b for b in all_boards if b not in skip]
-              print(",".join(boards))
-              EOF
-              )
+              BOARDS=$(python3 -c "
+          skip = '''$SKIP_BOARDS'''.split(',')
+          skip = [b.strip().lower() for b in skip if b.strip()]
+          all_boards = ['linkedin', 'glassdoor', 'reed', 'indeed']
+          boards = [b for b in all_boards if b not in skip]
+          print(','.join(boards))
+          ")
           fi
 
           echo "boards=$BOARDS" >> $GITHUB_OUTPUT
