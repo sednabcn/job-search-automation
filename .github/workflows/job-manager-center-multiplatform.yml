@@ -391,8 +391,7 @@ jobs:
           python3 ${{ env.CLI_TOOL }} extract-keywords \
             --positions "${POS_ARRAY[@]}" \
             --files *_jobs.json \
-            --output job-manager-config.yml \
-            --output-report keyword_analysis_report.json \
+            --output keyword_analysis_report.json \
             --update-config
           
           # Set workflow outputs
