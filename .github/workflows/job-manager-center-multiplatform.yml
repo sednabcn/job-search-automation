@@ -97,17 +97,25 @@ jobs:
           EOF
           )
 
-          # Convert positions to properly quoted CLI args
+          # Convert positions to space-separated list WITHOUT quotes for CLI
+          # The CLI will handle the parsing correctly
           IFS=',' read -r -a pos_array <<< "$POSITIONS"
           POSITIONS_ARGS=""
           for p in "${pos_array[@]}"; do
              p_trimmed=$(echo "$p" | xargs)  # remove leading/trailing spaces
-             POSITIONS_ARGS+="\"$p_trimmed\" "
+             POSITIONS_ARGS+="$p_trimmed "
           done
+          
+          # Remove trailing space
+          POSITIONS_ARGS=$(echo "$POSITIONS_ARGS" | xargs)
 
           # Save outputs for later steps
           echo "job_positions=$POSITIONS_JSON" >> $GITHUB_OUTPUT
           echo "job_positions_args=$POSITIONS_ARGS" >> $GITHUB_OUTPUT
+
+          # Debug output
+          echo "ℹ️ Positions JSON: $POSITIONS_JSON"
+          echo "ℹ️ Positions Args: $POSITIONS_ARGS"
 
           # Determine boards to process
           SKIP_BOARDS="${{ github.event.inputs.skip_boards }}"
@@ -115,17 +123,16 @@ jobs:
 
           if [ -n "$SKIP_BOARDS" ]; then
               BOARDS=$(python3 << 'EOF'
-          skip = "$SKIP_BOARDS".split(',')
-          skip = [b.strip().lower() for b in skip if b.strip()]
-          all_boards = ["linkedin", "glassdoor", "reed", "indeed"]
-          boards = [b for b in all_boards if b not in skip]
-          print(",".join(boards))
-          EOF
-          )
+              skip = "$SKIP_BOARDS".split(',')
+              skip = [b.strip().lower() for b in skip if b.strip()]
+              all_boards = ["linkedin", "glassdoor", "reed", "indeed"]
+              boards = [b for b in all_boards if b not in skip]
+              print(",".join(boards))
+              EOF
+              )
           fi
 
           echo "boards=$BOARDS" >> $GITHUB_OUTPUT
-          echo "ℹ️ Positions: $POSITIONS"
           echo "ℹ️ Boards: $BOARDS"
 
           
@@ -369,30 +376,26 @@ jobs:
           ls -lh *_jobs.json 2>/dev/null || echo "No job files found"
 
 
+      
       - name: Extract Keywords with CLI
         id: extraction
         run: |
           echo "🔑 Starting keyword extraction..."
           
-          # Convert positions to array
-          IFS=' ' read -ra POSITIONS <<< "${{ needs.prepare.outputs.job_positions_args }}"
+          # Get positions as space-separated string
+          POSITIONS_INPUT="${{ needs.prepare.outputs.job_positions_args }}"
+          echo "Positions input: $POSITIONS_INPUT"
           
-          # Build position arguments
-          POSITION_ARGS=""
-          for pos in "${POSITIONS[@]}"; do
-            POSITION_ARGS="$POSITION_ARGS --positions \"$pos\""
-          done
+          # Convert space-separated string to array
+          read -ra POS_ARRAY <<< "$POSITIONS_INPUT"
           
-          echo "Position arguments: $POSITION_ARGS"
-          
-          # Run the command
-          eval "python3 ${{ env.CLI_TOOL }} extract-keywords \
-            $POSITION_ARGS \
-            --files job_search/linkedin_jobs.json job_search/glassdoor_jobs.json job_search/indeed_jobs.json \
+          # Build CLI command with proper argument handling
+          python3 ${{ env.CLI_TOOL }} extract-keywords \
+            --positions "${POS_ARRAY[@]}" \
+            --files *_jobs.json \
             --output job-manager-config.yml \
             --output-report keyword_analysis_report.json \
-            --github-output \
-            --report"
+            --update-config
           
           # Set workflow outputs
           if [ -f keyword_analysis_report.json ]; then
@@ -409,6 +412,7 @@ jobs:
           fi
         env:
           GITHUB_OUTPUT: ${{ github.output }}
+          
           
       - name: Validate Generated Config
         run: |
