@@ -91,7 +91,10 @@ jobs:
              POSITIONS="Senior Software Engineer,Staff Engineer,Tech Lead,Engineering Manager"
           fi
 
-          # 2️⃣ Convert to JSON array for GitHub Actions outputs
+          # 2️⃣ Export so Python can read it
+          export POSITIONS
+
+          # 3️⃣ Convert to JSON array for GitHub Actions outputs
           POSITIONS_JSON=$(python3 << EOF
           import os, json
           positions = os.environ["POSITIONS"].split(",")
@@ -100,7 +103,7 @@ jobs:
           EOF
           )
 
-          # 3️⃣ Convert to CLI args (each position quoted)
+          # 4️⃣ Convert to CLI args (each position quoted)
           POSITIONS_ARGS=$(python3 << EOF
           import os
           positions = os.environ["POSITIONS"].split(",")
@@ -109,11 +112,12 @@ jobs:
           EOF
           )
 
-          # 4️⃣ Export outputs for later workflow steps
+          # 5️⃣ Export outputs for later workflow steps
           echo "job_positions=$POSITIONS_JSON" >> $GITHUB_OUTPUT
           echo "job_positions_args=$POSITIONS_ARGS" >> $GITHUB_OUTPUT
 
           echo "ℹ️ Positions: $POSITIONS"
+
           
           # Determine boards to process
           SKIP_BOARDS="${{ github.event.inputs.skip_boards }}"
