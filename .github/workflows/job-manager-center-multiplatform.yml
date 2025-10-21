@@ -45,6 +45,7 @@ env:
   PYTHON_VERSION: '3.10'
   TIMEZONE: 'Europe/London'
   CLI_TOOL: '.github/scripts/professional_job_center_cli.py'
+  EXTRACT_COMMAND: 'extract-keywords'
 
 jobs:
   # ========================================
@@ -365,36 +366,37 @@ jobs:
         run: |
           echo "📁 Downloaded job files:"
           ls -lh *_jobs.json 2>/dev/null || echo "No job files found"
-      
+
+
       - name: Extract Keywords with CLI
         id: extraction
         run: |
           echo "🔑 Starting keyword extraction..."
-          
+    
           # Build CLI command
-          CMD="python3 ${{ env.CLI_TOOL }} extract"
-          
+          CMD="python3 ${{ env.CLI_TOOL }} extract-keywords"
+    
           # Add positions
           POSITIONS_STR="${{ needs.prepare.outputs.job_positions_args }}"
           CMD="$CMD --positions $POSITIONS_STR"
-          
+    
           # Add job board files
           for board in linkedin glassdoor reed indeed; do
-            if [ -f "${board}_jobs.json" ]; then
-              CMD="$CMD --${board} ${board}_jobs.json"
-              echo "  ✓ Found ${board}_jobs.json"
-            fi
+              if [ -f "${board}_jobs.json" ]; then
+                 CMD="$CMD --${board} ${board}_jobs.json"
+                 echo "  ✓ Found ${board}_jobs.json"
+              fi
           done
-          
+    
           # Add output options
           CMD="$CMD --output-config job-manager-config.yml"
           CMD="$CMD --output-report keyword_analysis_report.json"
           CMD="$CMD --github-output"
           CMD="$CMD --report"
-          
+    
           echo "Running: $CMD"
           eval $CMD
-          
+
           # Set outputs
           if [ -f keyword_analysis_report.json ]; then
             TOTAL_MATCHES=$(python3 -c "import json; d=json.load(open('keyword_analysis_report.json')); print(d.get('matching_jobs', 0))")
