@@ -1,0 +1,30 @@
+output:
+  report_format: json
+  update_frequency: weekly
+search:
+  glassdoor:
+    enabled: true
+    filters:
+    - title
+    - location
+    url: https://glassdoor.com/jobs
+  indeed:
+    enabled: true
+    filters:
+    - title
+    - company
+    url: https://indeed.com/jobs
+  linkedin:
+    enabled: true
+    filters:
+    - title
+    - location
+    - experience
+    url: https://linkedin.com/jobs/search
+  locations:
+  - N/A
+  preferred_keywords: []
+  required_keywords: []
+  target_roles:
+  - Senior Software Engineer
+  - Tech Lead
