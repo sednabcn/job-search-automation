@@ -78,66 +78,56 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install pyyaml requests beautifulsoup4 selenium
-      
+
       - name: Parse and Validate Inputs
         id: parse
         run: |
-          # Parse job positions
-          POSITIONS="${{ github.event.inputs.job_positions }}"
-
-          # 1️⃣ Get input or default
+          # Get job positions from input
           POSITIONS="${{ github.event.inputs.job_positions }}"
           if [ -z "$POSITIONS" ]; then
              POSITIONS="Senior Software Engineer,Staff Engineer,Tech Lead,Engineering Manager"
           fi
 
-          # 2️⃣ Export so Python can read it
-          export POSITIONS
-
-          # 3️⃣ Convert to JSON array for GitHub Actions outputs
-          POSITIONS_JSON=$(python3 << EOF
-          import os, json
-          positions = os.environ["POSITIONS"].split(",")
+          # Convert comma-separated positions into JSON array for output
+          POSITIONS_JSON=$(python3 << 'EOF'
+          import json
+          positions = "$POSITIONS".split(',')
           positions = [p.strip() for p in positions if p.strip()]
           print(json.dumps(positions))
           EOF
           )
 
-          # 4️⃣ Convert to CLI args (each position quoted)
-          POSITIONS_ARGS=$(python3 << EOF
-          import os
-          positions = os.environ["POSITIONS"].split(",")
-          positions = [p.strip() for p in positions if p.strip()]
-          print(' '.join([f'"{p}"' for p in positions]))
-          EOF
-          )
+          # Convert positions to properly quoted CLI args
+          IFS=',' read -r -a pos_array <<< "$POSITIONS"
+          POSITIONS_ARGS=""
+          for p in "${pos_array[@]}"; do
+             p_trimmed=$(echo "$p" | xargs)  # remove leading/trailing spaces
+             POSITIONS_ARGS+="\"$p_trimmed\" "
+          done
 
-          # 5️⃣ Export outputs for later workflow steps
+          # Save outputs for later steps
           echo "job_positions=$POSITIONS_JSON" >> $GITHUB_OUTPUT
           echo "job_positions_args=$POSITIONS_ARGS" >> $GITHUB_OUTPUT
 
-          echo "ℹ️ Positions: $POSITIONS"
-
-          
           # Determine boards to process
           SKIP_BOARDS="${{ github.event.inputs.skip_boards }}"
           BOARDS="linkedin,glassdoor,reed,indeed"
-          
+
           if [ -n "$SKIP_BOARDS" ]; then
-            BOARDS=$(python3 << 'EOF'
+              BOARDS=$(python3 << 'EOF'
           skip = "$SKIP_BOARDS".split(',')
           skip = [b.strip().lower() for b in skip if b.strip()]
           all_boards = ["linkedin", "glassdoor", "reed", "indeed"]
           boards = [b for b in all_boards if b not in skip]
           print(",".join(boards))
           EOF
-            )
+          )
           fi
-          
+
           echo "boards=$BOARDS" >> $GITHUB_OUTPUT
           echo "ℹ️ Positions: $POSITIONS"
           echo "ℹ️ Boards: $BOARDS"
- 
+
           
       - name: Initialize Run Context
         id: setup
@@ -382,21 +372,17 @@ jobs:
       - name: Extract Keywords with CLI
         id: extraction
         run: |
-          echo "🔑 Starting keyword extraction..."
-    
           # Build CLI command
           CMD="python3 ${{ env.CLI_TOOL }} extract-keywords"
     
           # Add positions
-          POSITIONS_STR="${{ needs.prepare.outputs.job_positions_args }}"
-          CMD="$CMD --positions $POSITIONS_STR"
+          CMD="$CMD --positions ${{ needs.prepare.outputs.job_positions_args }}"
     
           # Add job board files
           for board in linkedin glassdoor reed indeed; do
-              if [ -f "${board}_jobs.json" ]; then
-                 CMD="$CMD --${board} ${board}_jobs.json"
-                 echo "  ✓ Found ${board}_jobs.json"
-              fi
+             if [ -f "${board}_jobs.json" ]; then
+                CMD="$CMD --${board} ${board}_jobs.json"
+             fi
           done
     
           # Add output options
@@ -405,22 +391,21 @@ jobs:
           CMD="$CMD --github-output"
           CMD="$CMD --report"
     
-          echo "Running: $CMD"
           eval $CMD
 
-          # Set outputs
+          # Set workflow outputs
           if [ -f keyword_analysis_report.json ]; then
-            TOTAL_MATCHES=$(python3 -c "import json; d=json.load(open('keyword_analysis_report.json')); print(d.get('matching_jobs', 0))")
-            echo "total_matches=$TOTAL_MATCHES" >> $GITHUB_OUTPUT
-            
-            TOP_KEYWORDS=$(python3 -c "import json; d=json.load(open('keyword_analysis_report.json')); k=[v.get('top_keywords', [])[:3] for v in d.get('keyword_analysis', {}).values()]; import itertools; print(','.join(list(itertools.chain(*k))[:8]))")
-            echo "top_keywords=$TOP_KEYWORDS" >> $GITHUB_OUTPUT
-            
-            echo "config_generated=true" >> $GITHUB_OUTPUT
+                 TOTAL_MATCHES=$(python3 -c "import json; d=json.load(open('keyword_analysis_report.json')); print(d.get('matching_jobs', 0))")
+                 echo "total_matches=$TOTAL_MATCHES" >> $GITHUB_OUTPUT
+      
+                 TOP_KEYWORDS=$(python3 -c "import json; d=json.load(open('keyword_analysis_report.json')); k=[v.get('top_keywords', [])[:3] for v in d.get('keyword_analysis', {}).values()]; import itertools; print(','.join(list(itertools.chain(*k))[:8]))")
+                 echo "top_keywords=$TOP_KEYWORDS" >> $GITHUB_OUTPUT
+      
+                 echo "config_generated=true" >> $GITHUB_OUTPUT
           else
-            echo "total_matches=0" >> $GITHUB_OUTPUT
-            echo "top_keywords=" >> $GITHUB_OUTPUT
-            echo "config_generated=false" >> $GITHUB_OUTPUT
+                 echo "total_matches=0" >> $GITHUB_OUTPUT
+                 echo "top_keywords=" >> $GITHUB_OUTPUT
+                 echo "config_generated=false" >> $GITHUB_OUTPUT
           fi
         env:
           GITHUB_OUTPUT: ${{ github.output }}
