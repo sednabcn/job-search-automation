@@ -7,6 +7,7 @@ touch scripts/job_scorer.py
 # Add score threshold in campaign configs
 # Update dashboard to show scores
 Deliverable: Jobs automatically filtered by relevance score (70+)
+
 Week 2: Cover Letter Generator
 bash# Install OpenAI library
 pip install openai
@@ -17,6 +18,7 @@ touch scripts/cover_letter_generator.py
 # Add to workflow after job scoring
 # Test with 5 sample jobs
 Deliverable: AI-generated cover letters for top matches
+
 Week 3: Application Pre-filler
 bash# Create profile data file
 touch contacts/profile.json
@@ -27,6 +29,8 @@ touch scripts/application_prefiller.py
 # Generate application packages
 mkdir job_search/application_packages
 Deliverable: Ready-to-submit application packages
+
+
 Week 4: Enhanced Tracking
 bash# Upgrade applications.json schema
 # Add status update script
