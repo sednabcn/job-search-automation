@@ -1,0 +1,28 @@
+{
+  "cv_dir": "cv",
+  "cv_file": "my_cv.txt",
+  "cover_letter_dir": "cover_letter",
+  "cover_letter_file": "Cover-Data-Science-Profile.txt",
+  "target_jobs": [
+    "Data Scientist"
+  ],
+  "platform": [
+    "linkedin",
+    "glassdoor"
+  ],
+  "Location": [
+    "London"
+  ],
+  "Mode": [
+    "Remote",
+    "Hybrid"
+  ],
+  "company": [],
+  "target_contacts_dir": "contacts",
+  "target_contacts_file": "contacts.csv",
+  "send": "immediate",
+  "timestamp": "",
+  "notification_to_user": "yes",
+  "letter_dir": "cover_letter",
+  "letter_file": "Cover-Data-Science-Profile.txt"
+}

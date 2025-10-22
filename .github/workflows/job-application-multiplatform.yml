@@ -263,6 +263,18 @@ jobs:
     timeout-minutes: 60
     
     steps:
+
+      - name: Debug execution prerequisites
+        run: |
+          echo "================================"
+          echo "DEBUG: Execution Job Started"
+          echo "================================"
+          echo "Campaigns to run: ${{ needs.scan-campaigns.outputs.campaigns_to_run }}"
+          echo "Force run: ${{ github.event.inputs.force_run }}"
+          echo "Dry run: ${{ github.event.inputs.dry_run }}"
+          echo "Specific campaign: ${{ github.event.inputs.campaign_file }}"
+          echo "================================"
+      
       - name: Checkout repository
         uses: actions/checkout@v4
       
