@@ -19,11 +19,15 @@ on:
           - maintenance        # Cleanup old data
         default: 'full_pipeline'
       
-      job_boards:
-        description: 'Job boards (comma-separated: linkedin,glassdoor,reed,indeed)'
+      discovery_mode:
+        description: 'Discovery mode (match job-discovery-worker.yml input)'
         required: false
-        type: string
-        default: 'linkedin,glassdoor,reed,indeed'
+        type: choice
+        options:
+          - full
+          - incremental
+          - test
+        default: 'full'
       
       data_directory:
         description: 'Data directory path'
@@ -141,15 +145,19 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
       
-      - name: Trigger Multi-Platform Discovery
+      - name: Trigger Job Discovery Workflow
         run: |
-          echo "🔍 Triggering job discovery across platforms..."
+          echo "🔍 Triggering job discovery workflow..."
           
-          BOARDS="${{ github.event.inputs.job_boards || 'linkedin,glassdoor,reed,indeed' }}"
+          MODE="${{ github.event.inputs.discovery_mode || 'full' }}"
           
+          # Trigger the existing job-discovery-worker.yml with its expected inputs
+          # Remove the job_boards parameter since it's causing the issue
           gh workflow run job-discovery-worker.yml \
-            -f mode=full \
-            -f job_boards="$BOARDS"
+            -f mode="$MODE"
+          
+          echo "✅ Discovery workflow triggered with mode: $MODE"
+          echo "ℹ️  The job-discovery-worker.yml will use its own configuration for job boards"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
@@ -159,8 +167,9 @@ jobs:
           sleep 30
           
           # Check last workflow run status
-          LATEST_RUN=$(gh run list --workflow=job-discovery-worker.yml --limit=1 --json status,conclusion --jq '.[0]')
-          echo "Latest discovery run: $LATEST_RUN"
+          echo "📊 Recent discovery workflow runs:"
+          gh run list --workflow=job-discovery-worker.yml --limit=3 --json status,conclusion,createdAt,displayTitle \
+            --jq '.[] | "\(.createdAt) - \(.displayTitle) - \(.status) - \(.conclusion // "pending")"'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
