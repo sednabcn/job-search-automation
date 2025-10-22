@@ -58,5 +58,17 @@
       "keyword_extraction": "skipped",
       "matching": "success"
     }
+  },
+  {
+    "run_id": "job-search-20251022-201422",
+    "timestamp": "2025-10-22T20:14:22Z",
+    "mode": "full",
+    "platforms": "linkedin,glassdoor,indeed,reed",
+    "status": {
+      "initialize": "success",
+      "discovery": "success",
+      "keyword_extraction": "skipped",
+      "matching": "success"
+    }
   }
 ]
