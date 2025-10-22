@@ -327,8 +327,7 @@ jobs:
           name: discovered-jobs-${{ matrix.board }}
           path: ${{ matrix.board }}_jobs.json
           retention-days: 7
-
-   # ========================================
+# ========================================
   # STAGE 3: EXTRACT KEYWORDS & GENERATE CONFIG
   # ========================================
   extract-keywords:
@@ -371,50 +370,102 @@ jobs:
       
       - name: List Downloaded Files
         run: |
-          echo "📁 Downloaded job files:"
+          echo "📂 Downloaded job files:"
           ls -lh *_jobs.json 2>/dev/null || echo "No job files found"
-
-
+      
       - name: Extract Keywords with CLI
         id: extraction
         run: |
           echo "🔑 Starting keyword extraction..."
-    
-          # Check if any job files exist
-          if ! ls *_jobs.json 1> /dev/null 2>&1; then
-            echo "⚠️ No job files found, creating empty files"
+          
+          # Create job_search directory if it doesn't exist
+          mkdir -p job_search
+          
+          # Check if any job files exist in job_search directory
+          if ! ls job_search/*_jobs.json 1> /dev/null 2>&1; then
+            echo "⚠️ No job files found in job_search/, creating empty files"
             for board in linkedin glassdoor reed indeed; do
-               echo '[]' > "${board}_jobs.json"
+              echo '[]' > "job_search/${board}_jobs.json"
             done
           fi
-    
-          # Create positions file from JSON
-          POSITIONS_JSON='${{ needs.prepare.outputs.job_positions }}'
-          echo "$POSITIONS_JSON" | python3 -c "
-          import json, sys
-          positions = json.load(sys.stdin)
-          for p in positions:
-            print(p)
-          " > positions.txt
-    
-          # Read positions from file (one per line) and build args
-          POSITIONS_ARGS=""
-          while IFS= read -r position; do
-               POSITIONS_ARGS+="\"$position\" "
-          done < positions.txt
-    
-          echo "Positions: $POSITIONS_ARGS"
-    
-          # Run CLI with proper escaping
-          eval python3 '${{ env.CLI_TOOL }}' extract-keywords \
-          --positions $POSITIONS_ARGS \
-          --files 'job_search/*_jobs.json' \
-          --output keyword_analysis_report.json \
-          --update-config || {
-          echo "❌ Extraction failed, creating minimal config"
-          # ... rest of fallback config
-          }
           
+          # Also check current directory and move files if found
+          if ls *_jobs.json 1> /dev/null 2>&1; then
+            echo "📦 Moving job files to job_search/"
+            mv *_jobs.json job_search/ 2>/dev/null || true
+          fi
+          
+          # Get positions from JSON output (safer)
+          POSITIONS_JSON='${{ needs.prepare.outputs.job_positions }}'
+          echo "Positions JSON: $POSITIONS_JSON"
+          
+          # Build positions argument using Python to handle quoting properly
+          POSITIONS_ARGS=$(python3 -c "
+          import json
+          import sys
+          positions = json.loads('$POSITIONS_JSON')
+          # Output space-separated quoted positions
+          print(' '.join([repr(p) for p in positions]))
+          ")
+          
+          echo "Positions args: $POSITIONS_ARGS"
+          
+          # List files to be processed
+          echo "📂 Job files to process:"
+          ls -lh job_search/*_jobs.json
+          
+          # Build CLI command with proper file paths using eval for proper quoting
+          eval "python3 ${{ env.CLI_TOOL }} extract-keywords \
+            --positions $POSITIONS_ARGS \
+            --files job_search/*_jobs.json \
+            --output keyword_analysis_report.json \
+            --update-config" || {
+              echo "❌ Extraction failed, creating minimal config"
+              cat > job-manager-config.yml << 'EOF'
+          platforms:
+            linkedin:
+              max_results_per_search: 50
+            glassdoor:
+              max_results_per_search: 50
+            reed:
+              max_results_per_search: 50
+            indeed:
+              max_results_per_search: 50
+          
+          search:
+            target_roles:
+              - "Senior Software Engineer"
+              - "Staff Engineer"
+            default_location: "London"
+          
+          generated_at: "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          
+          metadata:
+            total_jobs_analyzed: 0
+            matching_jobs: 0
+          
+          matching:
+            required_keywords: []
+            preferred_keywords: []
+            excluded_keywords: []
+          EOF
+            }
+          
+          # Set workflow outputs
+          if [ -f keyword_analysis_report.json ]; then
+            TOTAL_MATCHES=$(python3 -c "import json; d=json.load(open('keyword_analysis_report.json')); print(d.get('matching_jobs', 0))" 2>/dev/null || echo "0")
+            echo "total_matches=$TOTAL_MATCHES" >> $GITHUB_OUTPUT
+            
+            TOP_KEYWORDS=$(python3 -c "import json; d=json.load(open('keyword_analysis_report.json')); k=[v.get('top_keywords', [])[:3] for v in d.get('keyword_analysis', {}).values()]; import itertools; print(','.join(list(itertools.chain(*k))[:8]))" 2>/dev/null || echo "")
+            echo "top_keywords=$TOP_KEYWORDS" >> $GITHUB_OUTPUT
+            echo "config_generated=true" >> $GITHUB_OUTPUT
+          else
+            echo "total_matches=0" >> $GITHUB_OUTPUT
+            echo "top_keywords=" >> $GITHUB_OUTPUT
+            echo "config_generated=true" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GITHUB_OUTPUT: ${{ github.output }}
       
       - name: Validate Generated Config
         run: |
@@ -724,3 +775,4 @@ jobs:
           echo "  3. Monitor discovery workflow for new opportunities"
           echo ""
           echo "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
+          
