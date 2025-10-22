@@ -1,0 +1,39 @@
+{
+  "required_skills": [
+    "python",
+    "sql",
+    "machine learning"
+  ],
+  "preferred_skills": [
+    "aws",
+    "docker",
+    "kubernetes",
+    "tensorflow",
+    "pytorch"
+  ],
+  "salary_min": 50000,
+  "salary_max": 120000,
+  "locations": [
+    "remote",
+    "london",
+    "uk",
+    "hybrid"
+  ],
+  "experience_level": "mid",
+  "company_preferences": [
+    "google",
+    "meta",
+    "amazon",
+    "microsoft",
+    "apple"
+  ],
+  "recency_days": 30,
+  "weights": {
+    "keywords": 40,
+    "salary": 20,
+    "location": 15,
+    "company": 10,
+    "experience": 10,
+    "recency": 5
+  }
+}

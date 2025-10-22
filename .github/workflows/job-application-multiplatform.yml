@@ -22,51 +22,9 @@ on:
         type: boolean
         default: false
 
-
-      - name: Debug execution environment
-        run: |
-          echo "================================"
-          echo "DEBUG: Execution Environment"
-          echo "================================"
-          
-          # Check campaign plan
-          echo "📋 Campaign Execution Plan:"
-          cat campaign_execution_plan.json | python3 -m json.tool
-          
-          echo ""
-          echo "📂 Directory Structure:"
-          ls -la .github/scripts/ 2>/dev/null || echo "⚠️ No .github/scripts/ directory"
-          
-          echo ""
-          echo "📄 Available Python modules:"
-          find .github/scripts/ -name "*.py" 2>/dev/null || echo "⚠️ No Python scripts found"
-          
-          echo ""
-          echo "📁 Campaign files:"
-          ls -la scheduled-campaigns/*.json 2>/dev/null || echo "⚠️ No campaign files"
-          
-          echo ""
-          echo "📝 Contacts directory:"
-          ls -la contacts/ 2>/dev/null || echo "⚠️ No contacts directory"
-          
-          echo ""
-          echo "📄 CV directory:"
-          ls -la cv/ 2>/dev/null || echo "⚠️ No CV directory"
-          
-          echo ""
-          echo "🔍 Python path check:"
-          python3 -c "import sys; print('\n'.join(sys.path))"
-          
-          echo "================================"
-          
-      - name: Execute campaigns
-        id: execute
-        env:
-          DRY_RUN: ${{ github.event.inputs.dry_run }}
-        run: |
-          python3 .github/scripts/campaign_executor.py
-        contents: write
-        issues: write
+permissions:
+  contents: write
+  issues: write
 
 env:
   PYTHON_VERSION: '3.11'
@@ -274,7 +232,6 @@ jobs:
           print(f"\n✅ Scan complete - execution plan saved")
           PYTHON_SCRIPT
 
-
       - name: Debug campaign scan results
         run: |
           echo "================================"
@@ -305,7 +262,6 @@ jobs:
     timeout-minutes: 60
     
     steps:
-
       - name: Debug execution prerequisites
         run: |
           echo "================================"
@@ -335,8 +291,46 @@ jobs:
         with:
           name: campaign-execution-plan
       
+      - name: Debug execution environment
+        run: |
+          echo "================================"
+          echo "DEBUG: Execution Environment"
+          echo "================================"
+          
+          # Check campaign plan
+          echo "📋 Campaign Execution Plan:"
+          cat campaign_execution_plan.json | python3 -m json.tool
+          
+          echo ""
+          echo "📂 Directory Structure:"
+          ls -la .github/scripts/ 2>/dev/null || echo "⚠️ No .github/scripts/ directory"
+          
+          echo ""
+          echo "📄 Available Python modules:"
+          find .github/scripts/ -name "*.py" 2>/dev/null || echo "⚠️ No Python scripts found"
+          
+          echo ""
+          echo "📁 Campaign files:"
+          ls -la scheduled-campaigns/*.json 2>/dev/null || echo "⚠️ No campaign files"
+          
+          echo ""
+          echo "📝 Contacts directory:"
+          ls -la contacts/ 2>/dev/null || echo "⚠️ No contacts directory"
+          
+          echo ""
+          echo "📄 CV directory:"
+          ls -la cv/ 2>/dev/null || echo "⚠️ No CV directory"
+          
+          echo ""
+          echo "🔍 Python path check:"
+          python3 -c "import sys; print('\n'.join(sys.path))"
+          
+          echo "================================"
+      
       - name: Execute campaigns
         id: execute
+        env:
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
         run: |
           python3 << 'PYTHON_SCRIPT'
           import sys
@@ -745,7 +739,7 @@ jobs:
             });
 
       - name: Send email notification
-        if: steps.execute.outputs.total_applications >= 0  # Send even if 0 to notify of execution
+        if: steps.execute.outputs.total_applications >= 0
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
@@ -902,18 +896,18 @@ jobs:
           # Generate markdown report
           report = f"""# Multi-Platform Job Application Report
           
-          ## Execution Summary
-          **Date:** {datetime.now().strftime('%Y-%m-%d %H:%M UTC')}  
-          **Total Applications:** {results.get('total_applications', 0)}  
-          **Successful:** {results.get('successful', 0)}  
-          **Failed:** {results.get('failed', 0)}  
-          **Mode:** {'🧪 DRY RUN' if results.get('dry_run') else '✅ LIVE'}
+## Execution Summary
+**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M UTC')}  
+**Total Applications:** {results.get('total_applications', 0)}  
+**Successful:** {results.get('successful', 0)}  
+**Failed:** {results.get('failed', 0)}  
+**Mode:** {'🧪 DRY RUN' if results.get('dry_run') else '✅ LIVE'}
 
-          ## Platform Breakdown
+## Platform Breakdown
 
-          | Platform | Total | Successful | Failed | Success Rate |
-          |----------|-------|------------|--------|--------------|
-          """
+| Platform | Total | Successful | Failed | Success Rate |
+|----------|-------|------------|--------|--------------|
+"""
           
           for platform, stats in sorted(stats_by_platform.items()):
               success_rate = (stats['successful'] / stats['total'] * 100) if stats['total'] > 0 else 0
@@ -941,64 +935,64 @@ jobs:
           
           # Historical context
           report += f"""
-          ## Historical Context
+## Historical Context
 
-          - **Total Applications to Date:** {len(all_applications)}
-          - **LinkedIn Network Targets:** {len(linkedin_targets)}
-          - **Last Execution:** {results.get('end_time', 'N/A')}
+- **Total Applications to Date:** {len(all_applications)}
+- **LinkedIn Network Targets:** {len(linkedin_targets)}
+- **Last Execution:** {results.get('end_time', 'N/A')}
 
-          ## Next Steps
+## Next Steps
 
-          1. **Monitor Applications:** Check platform dashboards for responses
-          2. **Follow-up Actions:** Review pending applications that need follow-up
-          3. **Network Engagement:** Continue LinkedIn networking activities
-          4. **Research Companies:** Use Glassdoor data to prepare for interviews
+1. **Monitor Applications:** Check platform dashboards for responses
+2. **Follow-up Actions:** Review pending applications that need follow-up
+3. **Network Engagement:** Continue LinkedIn networking activities
+4. **Research Companies:** Use Glassdoor data to prepare for interviews
 
-          ## Platform-Specific Actions
-          
-          """
+## Platform-Specific Actions
+
+"""
           
           if 'linkedin' in stats_by_platform:
               report += """### LinkedIn
-          - Check pending connection requests
-          - Review daily action plan
-          - Engage with accepted connections
-          - Monitor InMail responses
-          
-          """
+- Check pending connection requests
+- Review daily action plan
+- Engage with accepted connections
+- Monitor InMail responses
+
+"""
           
           if 'indeed' in stats_by_platform:
               report += """### Indeed
-          - Monitor application status in Indeed dashboard
-          - Check for employer messages
-          - Review saved jobs and alerts
-          - Update job preferences if needed
+- Monitor application status in Indeed dashboard
+- Check for employer messages
+- Review saved jobs and alerts
+- Update job preferences if needed
 
-          """
+"""
           
           if 'reed' in stats_by_platform:
               report += """### Reed
-          - Check Reed inbox for responses
-          - Review application history
-          - Update CV on Reed profile
-          - Set up job alerts
+- Check Reed inbox for responses
+- Review application history
+- Update CV on Reed profile
+- Set up job alerts
 
-          """
+"""
           
           if 'glassdoor' in stats_by_platform:
               report += """### Glassdoor
-          - Review company research queue
-          - Complete interview prep guides
-          - Monitor salary comparisons
-          - Read recent company reviews
+- Review company research queue
+- Complete interview prep guides
+- Monitor salary comparisons
+- Read recent company reviews
 
-          """
+"""
           
           report += """
-          ---
-          *Report generated by Multi-Platform Job Application System*  
-          *For issues or improvements, create a GitHub issue*
-          """
+---
+*Report generated by Multi-Platform Job Application System*  
+*For issues or improvements, create a GitHub issue*
+"""
           
           # Save report
           report_file = tracking_dir / 'reports' / f'campaign_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.md'

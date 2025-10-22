@@ -1,0 +1,52 @@
+{
+  "name": "scored-data-science-jobs",
+  "send": "daily",
+  "platform": ["linkedin", "indeed"],
+  "target_jobs": ["Data Scientist", "ML Engineer"],
+  "Location": ["London", "Remote"],
+  "Mode": ["remote", "hybrid"],
+  
+  "scoring_criteria": {
+    "required_skills": ["Python", "SQL", "Machine Learning"],
+    "preferred_skills": ["AWS", "Docker", "Spark"],
+    "min_score": 70,
+    "max_results": 20
+  },
+  
+  "notification_to_user": "your@email.com"
+}
+```
+
+This immediately improves quality over quantity!
+
+---
+
+## 🎓 CV Project Description Template
+
+**For your CV/Resume:**
+```
+Multi-Platform Job Search Automation System | Python, GitHub Actions, React
+───────────────────────────────────────────────────────────────────────────
+
+- Engineered a distributed job aggregation system processing 500+ job 
+  postings daily across LinkedIn, Indeed, Reed, and Glassdoor using Python 
+  web scraping (BeautifulSoup, Selenium) and REST APIs
+
+- Implemented CI/CD pipeline with GitHub Actions for scheduled execution 
+  every 6 hours, reducing manual search time by 95% and eliminating 
+  duplicate applications across platforms
+
+- Designed JSON-based data pipeline with ETL processes for job filtering, 
+  deduplication, and tracking, maintaining 18-month historical dataset 
+  with version control
+
+- Built interactive analytics dashboard (React, HTML/CSS) with real-time 
+  campaign metrics, platform performance comparison, and application 
+  tracking visualizations
+
+- Developed modular architecture supporting configurable campaign 
+  scheduling (immediate, daily, weekly, cron-based) with dry-run testing 
+  capability and automated archival system
+
+Technologies: Python 3.11, GitHub Actions, React, BeautifulSoup4, Pandas, 
+Git, YAML, JSON, SMTP, Web APIs
