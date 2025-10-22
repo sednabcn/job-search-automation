@@ -65,8 +65,8 @@ on:
           DRY_RUN: ${{ github.event.inputs.dry_run }}
         run: |
           python3 .github/scripts/campaign_executor.py
-  contents: write
-  issues: write
+        contents: write
+        issues: write
 
 env:
   PYTHON_VERSION: '3.11'
