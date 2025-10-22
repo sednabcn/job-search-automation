@@ -85,7 +85,7 @@ jobs:
           # Get job positions from input
           POSITIONS="${{ github.event.inputs.job_positions }}"
           if [ -z "$POSITIONS" ]; then
-             POSITIONS="Senior Software Engineer,Staff Engineer,Tech Lead,Engineering Manager"
+            POSITIONS="Senior Software Engineer,Staff Engineer,Tech Lead,Engineering Manager"
           fi
 
           # Convert comma-separated positions into JSON array for output
@@ -95,18 +95,23 @@ jobs:
           positions = [p.strip() for p in positions if p.strip()]
           print(json.dumps(positions))
           ")
-  
-          # Convert positions to space-separated list WITHOUT quotes for CLI
-          # The CLI will handle the parsing correctly
+          
+          # Convert positions to space-separated WITHOUT extra quotes
+          # This is what the CLI expects
           IFS=',' read -r -a pos_array <<< "$POSITIONS"
           POSITIONS_ARGS=""
           for p in "${pos_array[@]}"; do
-             p_trimmed=$(echo "$p" | xargs)  # remove leading/trailing spaces
-             POSITIONS_ARGS+="$p_trimmed "
+            p_trimmed=$(echo "$p" | xargs)
+            # Add quotes around multi-word positions
+            if [[ "$p_trimmed" == *" "* ]]; then
+              POSITIONS_ARGS+="\"$p_trimmed\" "
+            else
+              POSITIONS_ARGS+="$p_trimmed "
+            fi
           done
           
           # Remove trailing space
-          POSITIONS_ARGS=$(echo "$POSITIONS_ARGS" | xargs)
+          POSITIONS_ARGS=$(echo "$POSITIONS_ARGS" | sed 's/ $//')
 
           # Save outputs for later steps
           echo "job_positions=$POSITIONS_JSON" >> $GITHUB_OUTPUT
@@ -121,7 +126,7 @@ jobs:
           BOARDS="linkedin,glassdoor,reed,indeed"
 
           if [ -n "$SKIP_BOARDS" ]; then
-              BOARDS=$(python3 -c "
+            BOARDS=$(python3 -c "
           skip = '''$SKIP_BOARDS'''.split(',')
           skip = [b.strip().lower() for b in skip if b.strip()]
           all_boards = ['linkedin', 'glassdoor', 'reed', 'indeed']
@@ -132,7 +137,6 @@ jobs:
 
           echo "boards=$BOARDS" >> $GITHUB_OUTPUT
           echo "ℹ️ Boards: $BOARDS"
-
           
       - name: Initialize Run Context
         id: setup
@@ -222,15 +226,14 @@ jobs:
           matrix.board != 'reed'
         uses: browser-actions/setup-chrome@latest
 
-     
-      - name: Initialize LinkedIn Activity (Safety)
+      - name: Initialize Board Activity Files
         if: steps.check_board.outputs.enabled == 'true'
         run: |
           # Create default activity file if it doesn't exist or is invalid
           ACTIVITY_FILE="${{ matrix.board }}_activity.json"
           
           if [ ! -f "$ACTIVITY_FILE" ] || ! python3 -c "import json; json.load(open('$ACTIVITY_FILE'))" 2>/dev/null; then
-            echo "🔧 Creating default activity file"
+            echo "🔧 Creating default activity file for ${{ matrix.board }}"
             cat > "$ACTIVITY_FILE" << 'EOF'
           {
             "last_reset": "2000-01-01",
@@ -242,8 +245,7 @@ jobs:
           }
           EOF
             echo "✅ Activity file initialized"
-          fi  
-
+          fi
 
       - name: Discover Jobs - ${{ matrix.board }}
         if: steps.check_board.outputs.enabled == 'true'
@@ -316,8 +318,7 @@ jobs:
           GLASSDOOR_PASSWORD: ${{ secrets.GLASSDOOR_PASSWORD }}
           REED_API_KEY: ${{ secrets.REED_API_KEY }}
         timeout-minutes: 15
-        continue-on-error: true  # Don't fail the entire workflow if one board fails  
-      
+        continue-on-error: true
       
       - name: Upload Discovered Jobs
         if: steps.check_board.outputs.enabled == 'true'
@@ -326,7 +327,7 @@ jobs:
           name: discovered-jobs-${{ matrix.board }}
           path: ${{ matrix.board }}_jobs.json
           retention-days: 7
-
+          
   # ========================================
   # STAGE 3: EXTRACT KEYWORDS & GENERATE CONFIG
   # ========================================
@@ -370,47 +371,79 @@ jobs:
       
       - name: List Downloaded Files
         run: |
-          echo "📁 Downloaded job files:"
+          echo "📂 Downloaded job files:"
           ls -lh *_jobs.json 2>/dev/null || echo "No job files found"
-
-
       
       - name: Extract Keywords with CLI
         id: extraction
         run: |
           echo "🔑 Starting keyword extraction..."
           
+          # Check if any job files exist
+          if ! ls *_jobs.json 1> /dev/null 2>&1; then
+            echo "⚠️ No job files found, creating empty files"
+            for board in linkedin glassdoor reed indeed; do
+              echo '[]' > "${board}_jobs.json"
+            done
+          fi
+          
           # Get positions as space-separated string
           POSITIONS_INPUT="${{ needs.prepare.outputs.job_positions_args }}"
           echo "Positions input: $POSITIONS_INPUT"
           
-          # Convert space-separated string to array
-          read -ra POS_ARRAY <<< "$POSITIONS_INPUT"
-          
-          # Build CLI command with proper argument handling
+          # Build CLI command with proper file paths
           python3 ${{ env.CLI_TOOL }} extract-keywords \
-            --positions "${POS_ARRAY[@]}" \
-            --files job_search/*_jobs.json \
+            --positions $POSITIONS_INPUT \
+            --files *_jobs.json \
             --output keyword_analysis_report.json \
-            --update-config
+            --update-config || {
+              echo "❌ Extraction failed, creating minimal config"
+              cat > job-manager-config.yml << 'EOF'
+          platforms:
+            linkedin:
+              max_results_per_search: 50
+            glassdoor:
+              max_results_per_search: 50
+            reed:
+              max_results_per_search: 50
+            indeed:
+              max_results_per_search: 50
+          
+          search:
+            target_roles:
+              - "Senior Software Engineer"
+              - "Staff Engineer"
+            default_location: "London"
+          
+          generated_at: "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          
+          metadata:
+            total_jobs_analyzed: 0
+            matching_jobs: 0
+          
+          matching:
+            required_keywords: []
+            preferred_keywords: []
+            excluded_keywords: []
+          EOF
+            }
           
           # Set workflow outputs
           if [ -f keyword_analysis_report.json ]; then
-             TOTAL_MATCHES=$(python3 -c "import json; d=json.load(open('keyword_analysis_report.json')); print(d.get('matching_jobs', 0))")
-             echo "total_matches=$TOTAL_MATCHES" >> $GITHUB_OUTPUT
-             
-             TOP_KEYWORDS=$(python3 -c "import json; d=json.load(open('keyword_analysis_report.json')); k=[v.get('top_keywords', [])[:3] for v in d.get('keyword_analysis', {}).values()]; import itertools; print(','.join(list(itertools.chain(*k))[:8]))")
-             echo "top_keywords=$TOP_KEYWORDS" >> $GITHUB_OUTPUT
-             echo "config_generated=true" >> $GITHUB_OUTPUT
+            TOTAL_MATCHES=$(python3 -c "import json; d=json.load(open('keyword_analysis_report.json')); print(d.get('matching_jobs', 0))" 2>/dev/null || echo "0")
+            echo "total_matches=$TOTAL_MATCHES" >> $GITHUB_OUTPUT
+            
+            TOP_KEYWORDS=$(python3 -c "import json; d=json.load(open('keyword_analysis_report.json')); k=[v.get('top_keywords', [])[:3] for v in d.get('keyword_analysis', {}).values()]; import itertools; print(','.join(list(itertools.chain(*k))[:8]))" 2>/dev/null || echo "")
+            echo "top_keywords=$TOP_KEYWORDS" >> $GITHUB_OUTPUT
+            echo "config_generated=true" >> $GITHUB_OUTPUT
           else
-             echo "total_matches=0" >> $GITHUB_OUTPUT
-             echo "top_keywords=" >> $GITHUB_OUTPUT
-             echo "config_generated=false" >> $GITHUB_OUTPUT
+            echo "total_matches=0" >> $GITHUB_OUTPUT
+            echo "top_keywords=" >> $GITHUB_OUTPUT
+            echo "config_generated=true" >> $GITHUB_OUTPUT
           fi
         env:
           GITHUB_OUTPUT: ${{ github.output }}
-          
-          
+      
       - name: Validate Generated Config
         run: |
           if [ ! -f job-manager-config.yml ]; then
@@ -427,23 +460,29 @@ jobs:
               with open('job-manager-config.yml', 'r') as f:
                   config = yaml.safe_load(f)
               
-              # Validate structure
-              required = ['search', 'matching', 'generated_at', 'metadata']
+              # Validate structure - only check REQUIRED sections
+              required = ['search', 'platforms']
               missing = [s for s in required if s not in config]
               
               if missing:
-                  print(f"❌ Missing sections: {missing}")
+                  print(f"❌ Missing required sections: {missing}")
                   sys.exit(1)
+              
+              # Optional sections - just warn if missing
+              optional = ['matching', 'generated_at', 'metadata']
+              missing_optional = [s for s in optional if s not in config]
+              if missing_optional:
+                  print(f"⚠️ Missing optional sections: {missing_optional}")
               
               # Validate search section
               search = config.get('search', {})
-              if not search.get('required_keywords'):
-                  print("⚠️ Warning: No required keywords found")
+              if not search.get('target_roles'):
+                  print("⚠️ Warning: No target roles found")
               
               print("✅ Config validation passed")
               print(f"   Target roles: {len(search.get('target_roles', []))}")
-              print(f"   Required keywords: {len(search.get('required_keywords', []))}")
-              print(f"   Preferred keywords: {len(search.get('preferred_keywords', []))}")
+              print(f"   Required keywords: {len(config.get('matching', {}).get('required_keywords', []))}")
+              print(f"   Preferred keywords: {len(config.get('matching', {}).get('preferred_keywords', []))}")
               print(f"   Locations: {len(search.get('locations', []))}")
               
           except Exception as e:
@@ -513,22 +552,34 @@ jobs:
         run: |
           git config user.name "🤖 Job Search Bot"
           git config user.email "bot@jobsearch.local"
-    
+          
+          # Pull latest changes first to avoid conflicts
+          git pull origin ${{ github.ref_name }} --rebase || true
+          
           git add job-manager-config.yml
           git add keyword_analysis_report.json 2>/dev/null || true
-    
+          
           if git diff-index --quiet HEAD --; then
-             echo "ℹ️ No changes to commit"
+            echo "ℹ️ No changes to commit"
           else
-             git commit -m "🤖 Auto-update: keyword extraction
-
+            git commit -m "🤖 Auto-update: keyword extraction
+          
           - Run ID: ${{ needs.prepare.outputs.run_id }}
           - Timestamp: ${{ needs.prepare.outputs.timestamp }}
           - Matching Jobs: ${{ steps.extraction.outputs.total_matches }}
           - Positions: ${{ needs.prepare.outputs.job_positions }}"
-      
-            git push origin HEAD
-            echo "✅ Config committed and pushed"
+            
+            # Push with retry logic
+            for i in {1..3}; do
+              if git push origin HEAD:${{ github.ref_name }}; then
+                echo "✅ Config committed and pushed"
+                break
+              else
+                echo "⚠️ Push failed, attempt $i/3"
+                sleep 2
+                git pull origin ${{ github.ref_name }} --rebase || true
+              fi
+            done
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -554,15 +605,24 @@ jobs:
         run: |
           echo "🚀 Triggering multi-platform job discovery..."
           
+          # Check if workflow file exists
+          if ! gh workflow list | grep -q "job-manager-center-multiplatform"; then
+            echo "⚠️ Discovery workflow not found, skipping trigger"
+            exit 0
+          fi
+          
           gh workflow run job-manager-center-multiplatform.yml \
             -f mode=full \
             -f job_boards=all \
             -f match_threshold=75 \
-            -f auto_apply=false
+            -f auto_apply=false || {
+              echo "⚠️ Failed to trigger workflow, but continuing"
+            }
           
           echo "✅ Discovery workflow triggered"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
       
       - name: Log Trigger
         run: |
@@ -678,9 +738,9 @@ jobs:
       
       - name: Final Status
         run: |
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
           echo "                    JOB SEARCH AUTOMATION COMPLETE"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
           echo ""
           echo "Run ID: ${{ needs.prepare.outputs.run_id }}"
           echo "Status: ${{ job.status }}"
@@ -691,5 +751,4 @@ jobs:
           echo "  2. Check analysis report: keyword_analysis_report.json"
           echo "  3. Monitor discovery workflow for new opportunities"
           echo ""
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          
+          echo "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"

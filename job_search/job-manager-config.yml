@@ -1,1 +1,62 @@
-{}
+output:
+  report_format: json
+  update_frequency: weekly
+platforms:
+  linkedin:
+    max_results_per_search: 50
+  
+  glassdoor:
+    max_results_per_search: 50
+  
+  indeed:
+    max_results_per_search: 50
+  
+  reed:
+    max_results_per_search: 50
+  
+search:
+  glassdoor:
+    enabled: true
+    filters:
+    - title
+    - location
+    url: https://glassdoor.com/jobs
+  indeed:
+    enabled: true
+    filters:
+    - title
+    - company
+    url: https://indeed.com/jobs
+  linkedin:
+    enabled: true
+    filters:
+    - title
+    - location
+    - experience
+    url: https://linkedin.com/jobs/search
+  locations:
+  - London
+  - Greater London
+  preferred_keywords:
+  - aws
+  - typescript
+  - java
+  - react
+  - microservices
+  - scala
+  - rust
+  required_keywords:
+  - javascript
+  - java
+  - typescript
+  - php
+  - vue
+  target_roles: 
+ - "Senior Software Engineer"
+ - "Staff Engineer"
+ - "Principal Engineer"
+ default_location: "London"
+  
+  # Optional: salary expectations
+  min_salary: 80000
+  max_salary: 150000
