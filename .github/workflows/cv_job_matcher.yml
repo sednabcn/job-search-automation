@@ -234,6 +234,7 @@ jobs:
           python3 << 'PYTHON_SCRIPT'
           import sys, os
           from pathlib import Path
+          from datetime import datetime
     
           # Add script directory to path (matching analyze-single)
           script_dir = os.path.join(os.getcwd(), '.github', 'scripts')
@@ -249,7 +250,7 @@ jobs:
             print(f"Searched in: {sys.path}")
             sys.exit(1)
     
-            matcher = CVJobMatcher()
+          matcher = CVJobMatcher()
           
           # Load CV
           cv_files = list(Path('cv').glob('*.txt'))
