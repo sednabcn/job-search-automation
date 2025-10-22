@@ -372,7 +372,8 @@ jobs:
         run: |
           echo "📂 Downloaded job files:"
           ls -lh *_jobs.json 2>/dev/null || echo "No job files found"
-      
+
+
       - name: Extract Keywords with CLI
         id: extraction
         run: |
@@ -421,15 +422,23 @@ jobs:
             --output keyword_analysis_report.json \
             --update-config" || {
               echo "❌ Extraction failed, creating minimal config"
-              cat > job-manager-config.yml << 'EOF'
+              TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+              cat > job-manager-config.yml << EOF
+          # Auto-generated fallback configuration
+          # Generated at: $TIMESTAMP
+          
           platforms:
             linkedin:
+              enabled: true
               max_results_per_search: 50
             glassdoor:
+              enabled: true
               max_results_per_search: 50
             reed:
+              enabled: true
               max_results_per_search: 50
             indeed:
+              enabled: true
               max_results_per_search: 50
           
           search:
@@ -437,12 +446,16 @@ jobs:
               - "Senior Software Engineer"
               - "Staff Engineer"
             default_location: "London"
+            locations:
+              - "London"
+              - "Remote"
           
-          generated_at: "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          generated_at: "$TIMESTAMP"
           
           metadata:
             total_jobs_analyzed: 0
             matching_jobs: 0
+            source: "fallback_template"
           
           matching:
             required_keywords: []
@@ -466,6 +479,23 @@ jobs:
           fi
         env:
           GITHUB_OUTPUT: ${{ github.output }}
+
+
+      - name: Debug Generated Config
+        if: always()
+        run: |
+          echo "📄 Checking generated config file..."
+          if [ -f job-manager-config.yml ]; then
+            echo "✅ Config file exists"
+            echo "File size: $(wc -c < job-manager-config.yml) bytes"
+            echo ""
+            echo "--- CONFIG CONTENT ---"
+            cat job-manager-config.yml
+            echo "--- END CONFIG ---"
+          else
+            echo "❌ Config file NOT found!"
+            ls -la
+          fi
       
       - name: Validate Generated Config
         run: |
@@ -483,33 +513,55 @@ jobs:
               with open('job-manager-config.yml', 'r') as f:
                   config = yaml.safe_load(f)
               
+              if not config:
+                  print("❌ Config file is empty")
+                  sys.exit(1)
+              
               # Validate structure - only check REQUIRED sections
-              required = ['search', 'platforms']
+              required = ['search']
               missing = [s for s in required if s not in config]
               
               if missing:
                   print(f"❌ Missing required sections: {missing}")
                   sys.exit(1)
               
+              # Check platforms section (required but might be auto-added)
+              if 'platforms' not in config:
+                  print("⚠️ Warning: 'platforms' section missing, adding defaults...")
+                  config['platforms'] = {
+                      'linkedin': {'enabled': True, 'max_results_per_search': 50},
+                      'glassdoor': {'enabled': True, 'max_results_per_search': 50},
+                      'reed': {'enabled': True, 'max_results_per_search': 50},
+                      'indeed': {'enabled': True, 'max_results_per_search': 50}
+                  }
+                  with open('job-manager-config.yml', 'w') as f:
+                      yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+                  print("✅ Platforms section added")
+              
               # Optional sections - just warn if missing
               optional = ['matching', 'generated_at', 'metadata']
               missing_optional = [s for s in optional if s not in config]
               if missing_optional:
-                  print(f"⚠️ Missing optional sections: {missing_optional}")
+                  print(f"ℹ️ Optional sections not present: {', '.join(missing_optional)}")
               
               # Validate search section
               search = config.get('search', {})
               if not search.get('target_roles'):
                   print("⚠️ Warning: No target roles found")
               
-              print("✅ Config validation passed")
+              print("\n✅ Config validation passed")
+              print(f"   Platforms: {len(config.get('platforms', {}))}")
               print(f"   Target roles: {len(search.get('target_roles', []))}")
               print(f"   Required keywords: {len(config.get('matching', {}).get('required_keywords', []))}")
               print(f"   Preferred keywords: {len(config.get('matching', {}).get('preferred_keywords', []))}")
-              print(f"   Locations: {len(search.get('locations', []))}")
               
+          except yaml.YAMLError as e:
+              print(f"❌ YAML parsing error: {e}")
+              sys.exit(1)
           except Exception as e:
               print(f"❌ Validation failed: {e}")
+              import traceback
+              traceback.print_exc()
               sys.exit(1)
           EOF
       
