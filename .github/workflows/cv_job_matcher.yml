@@ -227,19 +227,29 @@ jobs:
           if [ -f requirements.txt ]; then
             pip install -r requirements.txt
           fi
-      
       - name: Run batch analysis
         run: |
           mkdir -p reports
-          
+    
           python3 << 'PYTHON_SCRIPT'
-          import sys
+          import sys, os
           from pathlib import Path
-          
+    
+          # Add script directory to path (matching analyze-single)
+          script_dir = os.path.join(os.getcwd(), '.github', 'scripts')
+          sys.path.insert(0, script_dir)
           sys.path.insert(0, '.')
-          from cv_job_matcher import CVJobMatcher
-          
-          matcher = CVJobMatcher()
+    
+          try:
+            from cv_job_matcher import CVJobMatcher
+            print("✅ Module loaded successfully")
+          except ImportError as e:
+            print(f"❌ cv_job_matcher.py not found")
+            print(f"Error: {e}")
+            print(f"Searched in: {sys.path}")
+            sys.exit(1)
+    
+            matcher = CVJobMatcher()
           
           # Load CV
           cv_files = list(Path('cv').glob('*.txt'))

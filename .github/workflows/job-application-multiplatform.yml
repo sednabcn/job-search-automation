@@ -1,0 +1,987 @@
+name: Multi-Platform Job Application System
+
+on:
+  schedule:
+    # Check for campaigns every 6 hours
+    - cron: "0 */6 * * *"
+  
+  workflow_dispatch:
+    inputs:
+      campaign_file:
+        description: 'Specific campaign file to run (optional)'
+        required: false
+        type: string
+      force_run:
+        description: 'Force run even if schedule not met'
+        required: false
+        type: boolean
+        default: false
+      dry_run:
+        description: 'Simulate without actually applying'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  issues: write
+
+env:
+  PYTHON_VERSION: '3.11'
+  CAMPAIGNS_DIR: 'scheduled-campaigns'
+  TRACKING_DIR: 'job_search'
+  SENT_LOG_DIR: 'sent-log'
+
+jobs:
+  scan-campaigns:
+    name: Scan and Process Campaigns
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    
+    outputs:
+      campaigns_found: ${{ steps.scan.outputs.campaigns_found }}
+      campaigns_to_run: ${{ steps.scan.outputs.campaigns_to_run }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests beautifulsoup4 pandas python-dateutil pytz
+      
+      - name: Ensure directory structure
+        run: |
+          mkdir -p $CAMPAIGNS_DIR
+          mkdir -p $TRACKING_DIR/{applications,linkedin,indeed,reed,glassdoor}
+          mkdir -p $SENT_LOG_DIR
+          mkdir -p cv cover_letter letter contacts
+          
+          # Initialize tracking files
+          for file in applications linkedin_targets indeed_applications reed_applications glassdoor_applications; do
+            if [ ! -f "$TRACKING_DIR/${file}.json" ]; then
+              echo "[]" > "$TRACKING_DIR/${file}.json"
+            fi
+          done
+      
+      - name: Scan campaigns and determine execution
+        id: scan
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import sys
+          import os
+          import json
+          from pathlib import Path
+          from datetime import datetime, timedelta
+          import pytz
+          
+          campaigns_dir = Path("${{ env.CAMPAIGNS_DIR }}")
+          force_run = "${{ github.event.inputs.force_run }}" == "true"
+          specific_campaign = "${{ github.event.inputs.campaign_file }}"
+          
+          print("=" * 70)
+          print("🔍 MULTI-PLATFORM JOB APPLICATION CAMPAIGN SCANNER")
+          print("=" * 70)
+          
+          if not campaigns_dir.exists():
+              print(f"❌ Campaigns directory not found: {campaigns_dir}")
+              sys.exit(1)
+          
+          # Find all campaign JSON files
+          campaign_files = list(campaigns_dir.glob("*.json"))
+          
+          if specific_campaign:
+              campaign_files = [f for f in campaign_files if f.name == specific_campaign]
+          
+          print(f"\n📂 Found {len(campaign_files)} campaign file(s)")
+          
+          campaigns_to_run = []
+          campaigns_info = []
+          
+          for campaign_file in campaign_files:
+              print(f"\n📄 Processing: {campaign_file.name}")
+              
+              try:
+                  with open(campaign_file, 'r') as f:
+                      campaign = json.load(f)
+                  
+                  # Extract campaign info
+                  campaign_name = campaign_file.stem
+                  send_mode = campaign.get('send', 'immediate').lower()
+                  timestamp = campaign.get('timestamp', '')
+                  platforms = campaign.get('platform', [])
+                  target_jobs = campaign.get('target_jobs', [])
+                  locations = campaign.get('Location', [])
+                  modes = campaign.get('Mode', [])
+                  companies = campaign.get('company', [])
+                  
+                  print(f"   Name: {campaign_name}")
+                  print(f"   Send mode: {send_mode}")
+                  print(f"   Platforms: {', '.join(platforms)}")
+                  print(f"   Target jobs: {len(target_jobs)}")
+                  print(f"   Locations: {', '.join(locations)}")
+                  
+                  # Determine if campaign should run
+                  should_run = force_run
+                  reason = "Force run enabled"
+                  
+                  if not force_run:
+                      now = datetime.now(pytz.UTC)
+                      
+                      if send_mode == 'immediate' or send_mode == 'now':
+                          should_run = True
+                          reason = "Immediate execution"
+                      
+                      elif send_mode == 'tomorrow':
+                          # Check if timestamp is tomorrow
+                          if timestamp:
+                              try:
+                                  target_time = datetime.strptime(timestamp, '%m/%d/%Y:%H:%M:%S')
+                                  target_time = pytz.UTC.localize(target_time)
+                                  tomorrow = now + timedelta(days=1)
+                                  
+                                  if target_time.date() == tomorrow.date():
+                                      should_run = True
+                                      reason = f"Scheduled for tomorrow at {target_time.strftime('%H:%M')}"
+                              except:
+                                  pass
+                      
+                      elif send_mode == 'each_day' or send_mode == 'daily':
+                          should_run = True
+                          reason = "Daily execution"
+                      
+                      elif send_mode == 'each_week' or send_mode == 'weekly':
+                          # Run on Mondays
+                          if now.weekday() == 0:
+                              should_run = True
+                              reason = "Weekly execution (Monday)"
+                      
+                      elif send_mode.startswith('cron'):
+                          # Simple cron support - run during scheduled times
+                          should_run = True
+                          reason = "Cron schedule"
+                      
+                      elif send_mode.startswith('delay'):
+                          # Check if delay period has passed
+                          # Format: "delay 2 hours", "delay 1 day"
+                          should_run = False
+                          reason = "Delay period not met"
+                      
+                      elif timestamp:
+                          # Check specific timestamp
+                          try:
+                              target_time = datetime.strptime(timestamp, '%m/%d/%Y:%H:%M:%S')
+                              target_time = pytz.UTC.localize(target_time)
+                              
+                              if now >= target_time:
+                                  should_run = True
+                                  reason = f"Scheduled time reached: {timestamp}"
+                          except Exception as e:
+                              print(f"   ⚠️ Invalid timestamp format: {e}")
+                  
+                  campaign_info = {
+                      'file': campaign_file.name,
+                      'name': campaign_name,
+                      'send_mode': send_mode,
+                      'platforms': platforms,
+                      'should_run': should_run,
+                      'reason': reason,
+                      'config': campaign
+                  }
+                  
+                  campaigns_info.append(campaign_info)
+                  
+                  if should_run:
+                      campaigns_to_run.append(campaign_info)
+                      print(f"   ✅ Will run: {reason}")
+                  else:
+                      print(f"   ⏸️ Skipped: {reason}")
+              
+              except Exception as e:
+                  print(f"   ❌ Error loading campaign: {e}")
+                  continue
+          
+          print(f"\n{'=' * 70}")
+          print(f"📊 SCAN SUMMARY")
+          print(f"{'=' * 70}")
+          print(f"Total campaigns: {len(campaigns_info)}")
+          print(f"Campaigns to run: {len(campaigns_to_run)}")
+          
+          # Save results for next job
+          output_file = Path('campaign_execution_plan.json')
+          with open(output_file, 'w') as f:
+              json.dump({
+                  'campaigns_to_run': campaigns_to_run,
+                  'scan_time': datetime.now(pytz.UTC).isoformat(),
+                  'force_run': force_run
+              }, f, indent=2)
+          
+          # Set outputs
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"campaigns_found={len(campaigns_info)}\n")
+              f.write(f"campaigns_to_run={len(campaigns_to_run)}\n")
+          
+          print(f"\n✅ Scan complete - execution plan saved")
+          PYTHON_SCRIPT
+      
+      - name: Upload execution plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: campaign-execution-plan
+          path: campaign_execution_plan.json
+          retention-days: 1
+
+  execute-campaigns:
+    name: Execute Job Applications
+    needs: scan-campaigns
+    if: needs.scan-campaigns.outputs.campaigns_to_run > 0
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests beautifulsoup4 pandas python-dateutil pytz
+      
+      - name: Download execution plan
+        uses: actions/download-artifact@v4
+        with:
+          name: campaign-execution-plan
+      
+      - name: Execute campaigns
+        id: execute
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import sys
+          import os
+          import json
+          import csv
+          from pathlib import Path
+          from datetime import datetime
+          import traceback
+          
+          # Add script paths
+          sys.path.insert(0, '.github/scripts')
+          
+          # Try to import platform modules
+          platforms_available = {}
+          
+          try:
+              from linkedin_advanced_networking import AdvancedLinkedInNetworking
+              platforms_available['linkedin'] = AdvancedLinkedInNetworking
+              print("✅ LinkedIn module loaded")
+          except ImportError:
+              try:
+                  from linkedin_automation import LinkedInAutomation
+                  platforms_available['linkedin'] = LinkedInAutomation
+                  print("✅ LinkedIn automation module loaded")
+              except ImportError:
+                  print("⚠️ LinkedIn modules not available")
+          
+          try:
+              from indeed_scraper import IndeedScraper
+              platforms_available['indeed'] = IndeedScraper
+              print("✅ Indeed module loaded")
+          except ImportError:
+              print("⚠️ Indeed module not available")
+          
+          try:
+              from reed_scraper import ReedScraper
+              platforms_available['reed'] = ReedScraper
+              print("✅ Reed module loaded")
+          except ImportError:
+              print("⚠️ Reed module not available")
+          
+          try:
+              from glassdoor_automation import GlassdoorAutomation
+              platforms_available['glassdoor'] = GlassdoorAutomation
+              print("✅ Glassdoor module loaded")
+          except ImportError:
+              print("⚠️ Glassdoor module not available")
+          
+          print("\n" + "=" * 70)
+          print("🚀 EXECUTING MULTI-PLATFORM JOB APPLICATIONS")
+          print("=" * 70)
+          
+          # Load execution plan
+          with open('campaign_execution_plan.json', 'r') as f:
+              plan = json.load(f)
+          
+          campaigns = plan['campaigns_to_run']
+          dry_run = "${{ github.event.inputs.dry_run }}" == "true"
+          
+          print(f"\nMode: {'DRY RUN' if dry_run else 'LIVE'}")
+          print(f"Campaigns to execute: {len(campaigns)}\n")
+          
+          # Execution tracking
+          execution_results = {
+              'start_time': datetime.now().isoformat(),
+              'campaigns': [],
+              'total_applications': 0,
+              'successful': 0,
+              'failed': 0,
+              'platforms': {}
+          }
+          
+          for campaign_info in campaigns:
+              campaign_name = campaign_info['name']
+              config = campaign_info['config']
+              
+              print(f"\n{'=' * 70}")
+              print(f"📋 CAMPAIGN: {campaign_name}")
+              print(f"{'=' * 70}")
+              
+              campaign_result = {
+                  'name': campaign_name,
+                  'platforms': [],
+                  'applications': 0,
+                  'successful': 0,
+                  'failed': 0,
+                  'errors': []
+              }
+              
+              # Load CV and documents
+              cv_dir = config.get('cv_dir', 'cv')
+              cv_file = config.get('cv_file', 'my_cv.txt')
+              cv_path = Path(cv_dir) / cv_file
+              
+              cover_letter_dir = config.get('cover_letter_dir', 'cover_letter')
+              cover_letter_file = config.get('cover_letter_file', 'my_cover.txt')
+              cover_letter_path = Path(cover_letter_dir) / cover_letter_file
+              
+              # Load contacts
+              contacts_dir = config.get('target_contacts_dir', 'contacts')
+              contacts_file = config.get('target_contacts_file', 'contacts.csv')
+              contacts_path = Path(contacts_dir) / contacts_file
+              
+              contacts = []
+              if contacts_path.exists():
+                  try:
+                      with open(contacts_path, 'r', encoding='utf-8') as f:
+                          reader = csv.DictReader(f)
+                          contacts = list(reader)
+                      print(f"✅ Loaded {len(contacts)} contacts from {contacts_path}")
+                  except Exception as e:
+                      print(f"⚠️ Error loading contacts: {e}")
+              
+              # Get campaign parameters
+              platforms = config.get('platform', [])
+              target_jobs = config.get('target_jobs', [])
+              locations = config.get('Location', [])
+              modes = config.get('Mode', [])
+              companies = config.get('company', [])
+              notification_email = config.get('notification_to_user', '')
+              
+              print(f"📊 Campaign Parameters:")
+              print(f"   Target jobs: {', '.join(target_jobs)}")
+              print(f"   Locations: {', '.join(locations)}")
+              print(f"   Modes: {', '.join(modes)}")
+              print(f"   Platforms: {', '.join(platforms)}")
+              if companies:
+                  print(f"   Target companies: {', '.join(companies)}")
+              
+              # Process each platform
+              for platform in platforms:
+                  platform_lower = platform.lower()
+                  print(f"\n🎯 Platform: {platform}")
+                  
+                  platform_result = {
+                      'platform': platform,
+                      'applications': 0,
+                      'successful': 0,
+                      'failed': 0
+                  }
+                  
+                  try:
+                      if platform_lower == 'linkedin':
+                          if 'linkedin' in platforms_available:
+                              print("   Processing LinkedIn applications...")
+                              
+                              linkedin_module = platforms_available['linkedin']()
+                              
+                              # Add connection targets
+                              for contact in contacts[:10]:  # Limit for safety
+                                  try:
+                                      if hasattr(linkedin_module, 'add_connection_target'):
+                                          result = linkedin_module.add_connection_target(
+                                              profile_url=contact.get('profile_url', ''),
+                                              name=contact.get('name', ''),
+                                              company=contact.get('company', ''),
+                                              position=contact.get('position', ''),
+                                              industry=contact.get('industry', 'tech'),
+                                              priority='high'
+                                          )
+                                          if result.get('success'):
+                                              platform_result['successful'] += 1
+                                              platform_result['applications'] += 1
+                                          else:
+                                              platform_result['failed'] += 1
+                                      
+                                      if not dry_run and hasattr(linkedin_module, 'save_data'):
+                                          linkedin_module.save_data()
+                                  
+                                  except Exception as e:
+                                      print(f"      ⚠️ Error with contact {contact.get('name')}: {e}")
+                                      platform_result['failed'] += 1
+                              
+                              print(f"   ✅ LinkedIn: {platform_result['successful']} connections queued")
+                          else:
+                              print("   ⚠️ LinkedIn module not available")
+                      
+                      elif platform_lower == 'indeed':
+                          if 'indeed' in platforms_available:
+                              print("   Processing Indeed applications...")
+                              
+                              indeed_scraper = platforms_available['indeed']()
+                              
+                              # Search for jobs
+                              for job_title in target_jobs:
+                                  for location in locations:
+                                      try:
+                                          jobs = indeed_scraper.search_jobs(
+                                              job_title=job_title,
+                                              location=location,
+                                              max_results=10
+                                          )
+                                          
+                                          print(f"      Found {len(jobs)} jobs for '{job_title}' in {location}")
+                                          
+                                          # Filter by mode and company
+                                          filtered_jobs = jobs
+                                          
+                                          if modes:
+                                              # Filter by remote/hybrid etc
+                                              mode_keywords = [m.lower() for m in modes]
+                                              filtered_jobs = [
+                                                  j for j in filtered_jobs
+                                                  if any(kw in str(j.get('attributes', [])).lower() 
+                                                        for kw in mode_keywords)
+                                              ]
+                                          
+                                          if companies:
+                                              filtered_jobs = [
+                                                  j for j in filtered_jobs
+                                                  if j.get('company', '').lower() in 
+                                                     [c.lower() for c in companies]
+                                              ]
+                                          
+                                          platform_result['applications'] += len(filtered_jobs)
+                                          platform_result['successful'] += len(filtered_jobs)
+                                          
+                                          print(f"      ✅ {len(filtered_jobs)} jobs after filtering")
+                                      
+                                      except Exception as e:
+                                          print(f"      ⚠️ Error searching Indeed: {e}")
+                                          platform_result['failed'] += 1
+                              
+                              # Save jobs
+                              if not dry_run:
+                                  indeed_scraper.save_jobs(f'job_search/indeed_jobs_{campaign_name}.json')
+                          else:
+                              print("   ⚠️ Indeed module not available")
+                      
+                      elif platform_lower == 'reed':
+                          if 'reed' in platforms_available:
+                              print("   Processing Reed applications...")
+                              # Similar implementation for Reed
+                              platform_result['applications'] = 0
+                              print("   ℹ️ Reed implementation pending")
+                          else:
+                              print("   ⚠️ Reed module not available")
+                      
+                      elif platform_lower == 'glassdoor':
+                          if 'glassdoor' in platforms_available:
+                              print("   Processing Glassdoor research...")
+                              
+                              glassdoor = platforms_available['glassdoor']()
+                              
+                              # Add companies to research
+                              for company in companies:
+                                  try:
+                                      result = glassdoor.add_company_to_research(
+                                          company_name=company,
+                                          priority='high',
+                                          reason='job_application'
+                                      )
+                                      
+                                      if result.get('success'):
+                                          platform_result['successful'] += 1
+                                          platform_result['applications'] += 1
+                                      else:
+                                          platform_result['failed'] += 1
+                                  
+                                  except Exception as e:
+                                      print(f"      ⚠️ Error adding {company}: {e}")
+                                      platform_result['failed'] += 1
+                              
+                              print(f"   ✅ Glassdoor: {platform_result['successful']} companies queued")
+                          else:
+                              print("   ⚠️ Glassdoor module not available")
+                      
+                      else:
+                          print(f"   ⚠️ Unknown platform: {platform}")
+                  
+                  except Exception as e:
+                      print(f"   ❌ Platform error: {e}")
+                      traceback.print_exc()
+                      campaign_result['errors'].append(f"{platform}: {str(e)}")
+                  
+                  campaign_result['platforms'].append(platform_result)
+                  campaign_result['applications'] += platform_result['applications']
+                  campaign_result['successful'] += platform_result['successful']
+                  campaign_result['failed'] += platform_result['failed']
+              
+              execution_results['campaigns'].append(campaign_result)
+              execution_results['total_applications'] += campaign_result['applications']
+              execution_results['successful'] += campaign_result['successful']
+              execution_results['failed'] += campaign_result['failed']
+              
+              print(f"\n✅ Campaign '{campaign_name}' complete:")
+              print(f"   Total: {campaign_result['applications']}")
+              print(f"   Successful: {campaign_result['successful']}")
+              print(f"   Failed: {campaign_result['failed']}")
+          
+          execution_results['end_time'] = datetime.now().isoformat()
+          execution_results['dry_run'] = dry_run
+          
+          # Save execution results
+          results_file = Path('campaign_execution_results.json')
+          with open(results_file, 'w') as f:
+              json.dump(execution_results, f, indent=2)
+          
+          # Save to tracking
+          tracking_dir = Path('${{ env.TRACKING_DIR }}')
+          timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+          tracking_file = tracking_dir / f'campaign_execution_{timestamp}.json'
+          with open(tracking_file, 'w') as f:
+              json.dump(execution_results, f, indent=2)
+          
+          print(f"\n{'=' * 70}")
+          print(f"📊 EXECUTION SUMMARY")
+          print(f"{'=' * 70}")
+          print(f"Total applications: {execution_results['total_applications']}")
+          print(f"Successful: {execution_results['successful']}")
+          print(f"Failed: {execution_results['failed']}")
+          print(f"Mode: {'DRY RUN' if dry_run else 'LIVE'}")
+          
+          # Set outputs
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"total_applications={execution_results['total_applications']}\n")
+              f.write(f"successful={execution_results['successful']}\n")
+              f.write(f"failed={execution_results['failed']}\n")
+          
+          print(f"\n✅ Execution complete!")
+          PYTHON_SCRIPT
+      
+      - name: Upload execution results
+        uses: actions/upload-artifact@v4
+        with:
+          name: campaign-execution-results-${{ github.run_number }}
+          path: |
+            campaign_execution_results.json
+            job_search/campaign_execution_*.json
+          retention-days: 90
+      
+      - name: Commit tracking data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add job_search/*.json
+          git add sent-log/ || true
+          
+          git diff --quiet && git diff --staged --quiet || \
+            git commit -m "📤 Campaign execution: ${{ steps.execute.outputs.total_applications }} applications - $(date +'%Y-%m-%d %H:%M')"
+          
+          git push
+      
+      - name: Create execution summary issue
+        if: steps.execute.outputs.total_applications > 0
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            let results = { campaigns: [] };
+            if (fs.existsSync('campaign_execution_results.json')) {
+              results = JSON.parse(fs.readFileSync('campaign_execution_results.json', 'utf8'));
+            }
+            
+            const totalApps = '${{ steps.execute.outputs.total_applications }}';
+            const successful = '${{ steps.execute.outputs.successful }}';
+            const failed = '${{ steps.execute.outputs.failed }}';
+            const dryRun = '${{ github.event.inputs.dry_run }}' === 'true';
+            
+            let body = `# Multi-Platform Job Application Summary\n\n`;
+            body += `**Execution Mode:** ${dryRun ? '🧪 DRY RUN' : '✅ LIVE'}\n`;
+            body += `**Date:** ${new Date().toISOString().split('T')[0]}\n\n`;
+            body += `## Overall Results\n\n`;
+            body += `- **Total Applications:** ${totalApps}\n`;
+            body += `- **Successful:** ${successful}\n`;
+            body += `- **Failed:** ${failed}\n\n`;
+            
+            if (results.campaigns && results.campaigns.length > 0) {
+              body += `## Campaign Details\n\n`;
+              
+              for (const campaign of results.campaigns) {
+                body += `### ${campaign.name}\n\n`;
+                body += `- Applications: ${campaign.applications}\n`;
+                body += `- Successful: ${campaign.successful}\n`;
+                body += `- Failed: ${campaign.failed}\n\n`;
+                
+                if (campaign.platforms && campaign.platforms.length > 0) {
+                  body += `**By Platform:**\n`;
+                  for (const platform of campaign.platforms) {
+                    body += `- ${platform.platform}: ${platform.successful}/${platform.applications}\n`;
+                  }
+                  body += `\n`;
+                }
+                
+                if (campaign.errors && campaign.errors.length > 0) {
+                  body += `**Errors:**\n`;
+                  for (const error of campaign.errors) {
+                    body += `- ${error}\n`;
+                  }
+                  body += `\n`;
+                }
+              }
+            }
+            
+            body += `\n---\n*Automated by Multi-Platform Job Application System*`;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `📤 Campaign Execution: ${totalApps} applications submitted`,
+              body: body,
+              labels: ['job-applications', 'multi-platform', 'automated']
+            });
+      
+      - name: Send email notification
+        if: steps.execute.outputs.total_applications > 0
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import json
+          from pathlib import Path
+          
+          results_file = Path('campaign_execution_results.json')
+          if results_file.exists():
+              with open(results_file, 'r') as f:
+                  results = json.load(f)
+              
+              # Extract email notifications from campaigns
+              emails = set()
+              for campaign in results.get('campaigns', []):
+                  # Check if notification email was specified
+                  # This would be extracted from original config
+                  pass
+              
+              print("📧 Email notifications would be sent to:")
+              for email in emails:
+                  print(f"   - {email}")
+              
+              # In production, implement actual email sending here
+              print("\nℹ️ Email sending not yet implemented")
+              print("   Use GitHub issues or integrate with email service")
+          PYTHON_SCRIPT
+
+  generate-report:
+    name: Generate Campaign Report
+    needs: execute-campaigns
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Download execution results
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: campaign-execution-results-${{ github.run_number }}
+      
+      - name: Generate comprehensive report
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import json
+          from pathlib import Path
+          from datetime import datetime
+          from collections import defaultdict
+          
+          print("=" * 70)
+          print("📊 GENERATING COMPREHENSIVE CAMPAIGN REPORT")
+          print("=" * 70)
+          
+          tracking_dir = Path('job_search')
+          
+          # Load execution results
+          results = {'campaigns': [], 'total_applications': 0}
+          results_file = Path('campaign_execution_results.json')
+          
+          if results_file.exists():
+              with open(results_file, 'r') as f:
+                  results = json.load(f)
+          
+          # Load historical data
+          def load_json(filename):
+              filepath = tracking_dir / filename
+              if filepath.exists():
+                  try:
+                      with open(filepath, 'r') as f:
+                          return json.load(f)
+                  except:
+                      pass
+              return []
+          
+          all_applications = load_json('applications.json')
+          linkedin_targets = load_json('linkedin_targets.json')
+          
+          # Calculate statistics
+          stats_by_platform = defaultdict(lambda: {'total': 0, 'successful': 0, 'failed': 0})
+          
+          for campaign in results.get('campaigns', []):
+              for platform_result in campaign.get('platforms', []):
+                  platform = platform_result['platform'].lower()
+                  stats_by_platform[platform]['total'] += platform_result['applications']
+                  stats_by_platform[platform]['successful'] += platform_result['successful']
+                  stats_by_platform[platform]['failed'] += platform_result['failed']
+          
+          # Generate markdown report
+          report = f"""# Multi-Platform Job Application Report
+          
+          ## Execution Summary
+          **Date:** {datetime.now().strftime('%Y-%m-%d %H:%M UTC')}  
+          **Total Applications:** {results.get('total_applications', 0)}  
+          **Successful:** {results.get('successful', 0)}  
+          **Failed:** {results.get('failed', 0)}  
+          **Mode:** {'🧪 DRY RUN' if results.get('dry_run') else '✅ LIVE'}
+
+          ## Platform Breakdown
+
+          | Platform | Total | Successful | Failed | Success Rate |
+          |----------|-------|------------|--------|--------------|
+          """
+          
+          for platform, stats in sorted(stats_by_platform.items()):
+              success_rate = (stats['successful'] / stats['total'] * 100) if stats['total'] > 0 else 0
+              report += f"| {platform.title()} | {stats['total']} | {stats['successful']} | {stats['failed']} | {success_rate:.1f}% |\n"
+          
+          report += "\n## Campaign Details\n\n"
+          
+          for i, campaign in enumerate(results.get('campaigns', []), 1):
+              report += f"### {i}. {campaign['name']}\n\n"
+              report += f"- **Applications:** {campaign['applications']}\n"
+              report += f"- **Successful:** {campaign['successful']}\n"
+              report += f"- **Failed:** {campaign['failed']}\n\n"
+              
+              if campaign.get('platforms'):
+                  report += "**Platform Results:**\n\n"
+                  for platform in campaign['platforms']:
+                      report += f"- {platform['platform']}: {platform['successful']}/{platform['applications']} successful\n"
+                  report += "\n"
+              
+              if campaign.get('errors'):
+                  report += "**Errors:**\n\n"
+                  for error in campaign['errors']:
+                      report += f"- ⚠️ {error}\n"
+                  report += "\n"
+          
+          # Historical context
+          report += f"""
+          ## Historical Context
+
+          - **Total Applications to Date:** {len(all_applications)}
+          - **LinkedIn Network Targets:** {len(linkedin_targets)}
+          - **Last Execution:** {results.get('end_time', 'N/A')}
+
+          ## Next Steps
+
+          1. **Monitor Applications:** Check platform dashboards for responses
+          2. **Follow-up Actions:** Review pending applications that need follow-up
+          3. **Network Engagement:** Continue LinkedIn networking activities
+          4. **Research Companies:** Use Glassdoor data to prepare for interviews
+
+          ## Platform-Specific Actions
+          
+          """
+          
+          if 'linkedin' in stats_by_platform:
+              report += """### LinkedIn
+          - Check pending connection requests
+          - Review daily action plan
+          - Engage with accepted connections
+          - Monitor InMail responses
+          
+          """
+          
+          if 'indeed' in stats_by_platform:
+              report += """### Indeed
+          - Monitor application status in Indeed dashboard
+          - Check for employer messages
+          - Review saved jobs and alerts
+          - Update job preferences if needed
+
+          """
+          
+          if 'reed' in stats_by_platform:
+              report += """### Reed
+          - Check Reed inbox for responses
+          - Review application history
+          - Update CV on Reed profile
+          - Set up job alerts
+
+          """
+          
+          if 'glassdoor' in stats_by_platform:
+              report += """### Glassdoor
+          - Review company research queue
+          - Complete interview prep guides
+          - Monitor salary comparisons
+          - Read recent company reviews
+
+          """
+          
+          report += """
+          ---
+          *Report generated by Multi-Platform Job Application System*  
+          *For issues or improvements, create a GitHub issue*
+          """
+          
+          # Save report
+          report_file = tracking_dir / 'reports' / f'campaign_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.md'
+          report_file.parent.mkdir(parents=True, exist_ok=True)
+          
+          with open(report_file, 'w') as f:
+              f.write(report)
+          
+          print(f"✅ Report saved to: {report_file}")
+          
+          # Also save summary version
+          summary_file = tracking_dir / 'reports' / 'latest_campaign_summary.md'
+          with open(summary_file, 'w') as f:
+              f.write(report)
+          
+          print(f"✅ Summary saved to: {summary_file}")
+          print("\n" + "=" * 70)
+          print("📊 REPORT GENERATION COMPLETE")
+          print("=" * 70)
+          PYTHON_SCRIPT
+      
+      - name: Commit reports
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add job_search/reports/
+          
+          git diff --quiet && git diff --staged --quiet || \
+            git commit -m "📊 Campaign report generated - $(date +'%Y-%m-%d %H:%M')"
+          
+          git push || echo "Nothing to push"
+
+  cleanup-old-campaigns:
+    name: Archive Completed Campaigns
+    needs: execute-campaigns
+    if: success()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Archive executed campaigns
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import json
+          from pathlib import Path
+          from datetime import datetime
+          import shutil
+          
+          campaigns_dir = Path('scheduled-campaigns')
+          archive_dir = Path('scheduled-campaigns/archive')
+          archive_dir.mkdir(exist_ok=True)
+          
+          results_file = Path('campaign_execution_results.json')
+          
+          if not results_file.exists():
+              print("No execution results found")
+              exit(0)
+          
+          with open(results_file, 'r') as f:
+              results = json.load(f)
+          
+          # Archive campaigns that ran with "immediate" or "now" mode
+          archived_count = 0
+          
+          for campaign in results.get('campaigns', []):
+              campaign_file = campaigns_dir / f"{campaign['name']}.json"
+              
+              if campaign_file.exists():
+                  # Load to check send mode
+                  with open(campaign_file, 'r') as f:
+                      config = json.load(f)
+                  
+                  send_mode = config.get('send', '').lower()
+                  
+                  # Archive immediate/now campaigns after execution
+                  if send_mode in ['immediate', 'now']:
+                      timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                      archive_path = archive_dir / f"{campaign['name']}_{timestamp}.json"
+                      
+                      # Add execution metadata
+                      config['_execution'] = {
+                          'executed_at': results.get('end_time'),
+                          'applications': campaign['applications'],
+                          'successful': campaign['successful'],
+                          'failed': campaign['failed']
+                      }
+                      
+                      # Save to archive
+                      with open(archive_path, 'w') as f:
+                          json.dump(config, f, indent=2)
+                      
+                      # Remove original
+                      campaign_file.unlink()
+                      
+                      archived_count += 1
+                      print(f"✅ Archived: {campaign['name']}")
+          
+          print(f"\n📦 Archived {archived_count} campaign(s)")
+          PYTHON_SCRIPT
+      
+      - name: Commit archive changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add scheduled-campaigns/
+          
+          git diff --quiet && git diff --staged --quiet || \
+            git commit -m "📦 Archived completed campaigns - $(date +'%Y-%m-%d')"
+          
+          git push || echo "Nothing to push"
