@@ -625,53 +625,90 @@ jobs:
           github.event.inputs.update_config == 'true' || 
           github.event_name == 'schedule'
         run: |
+          echo "🔧 Configuring git..."
           git config user.name "🤖 Job Search Bot"
           git config user.email "bot@jobsearch.local"
           
-          # Stash any unstaged changes first
-          git stash --include-untracked || true
+          echo "📥 Pulling latest changes..."
+          # Fetch and reset to ensure clean state
+          git fetch origin
+          git reset --hard origin/${{ github.ref_name }}
           
-          # Pull latest changes first to avoid conflicts
-          git pull origin ${{ github.ref_name }} --rebase || true
-          
-          # Pop stashed changes back
-          git stash pop || true
-          
-          # Add files to staging
+          echo "📝 Staging files..."
+          # Stage the config files
           git add job-manager-config.yml
           git add keyword_analysis_report.json 2>/dev/null || true
+          git add config_backups/ 2>/dev/null || true
           
-          # Check if there are changes to commit
-          if git diff-index --quiet HEAD --; then
-            echo "ℹ️ No changes to commit"
-          else
-            # Create commit message with proper escaping
-            POSITIONS_LIST='${{ needs.prepare.outputs.job_positions }}'
-            COMMIT_MSG="🤖 Auto-update: keyword extraction
+          # Stage any updated job files if they exist
+          git add job_search/*.json 2>/dev/null || true
+          
+          echo "🔍 Checking for changes..."
+          # Check if there are actually changes staged
+          if git diff --cached --quiet; then
+            echo "ℹ️  No changes to commit - all files are already up to date"
+            exit 0
+          fi
+          
+          echo "📋 Files to be committed:"
+          git diff --cached --name-only
+          
+          echo "💾 Creating commit..."
+          # Create commit message with proper escaping
+          POSITIONS_LIST='${{ needs.prepare.outputs.job_positions }}'
+          MATCHES='${{ steps.extraction.outputs.total_matches }}'
+          
+          cat > /tmp/commit_message.txt << 'COMMIT_MSG'
+          🤖 Auto-update: keyword extraction
 
           - Run ID: ${{ needs.prepare.outputs.run_id }}
           - Timestamp: ${{ needs.prepare.outputs.timestamp }}
-          - Matching Jobs: ${{ steps.extraction.outputs.total_matches }}
-          - Positions: ${POSITIONS_LIST}"
+          - Matching Jobs: ${MATCHES:-0}
+          - Positions: ${POSITIONS_LIST:-N/A}
+          COMMIT_MSG
+          
+          # Substitute variables
+          sed -i "s/\${MATCHES:-0}/${MATCHES:-0}/g" /tmp/commit_message.txt
+          sed -i "s|\${POSITIONS_LIST:-N/A}|${POSITIONS_LIST:-N/A}|g" /tmp/commit_message.txt
+          
+          # Commit with the message file
+          git commit -F /tmp/commit_message.txt
+          
+          echo "⬆️  Pushing changes..."
+          # Push with retry logic
+          MAX_RETRIES=3
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Attempt $i/$MAX_RETRIES..."
             
-            # Commit with the message
-            git commit -m "$COMMIT_MSG"
-            
-            # Push with retry logic
-            for i in {1..3}; do
-              if git push origin HEAD:${{ github.ref_name }}; then
-                echo "✅ Config committed and pushed"
-                break
+            if git push origin HEAD:${{ github.ref_name }}; then
+              echo "✅ Config committed and pushed successfully!"
+              exit 0
+            else
+              echo "⚠️  Push failed on attempt $i/$MAX_RETRIES"
+              
+              if [ $i -lt $MAX_RETRIES ]; then
+                echo "🔄 Pulling and rebasing..."
+                sleep 3
+                
+                # Pull with rebase and retry
+                git pull origin ${{ github.ref_name }} --rebase --strategy-option=theirs
+                
+                # Re-add files in case rebase removed them
+                git add job-manager-config.yml
+                git add keyword_analysis_report.json 2>/dev/null || true
+                git add config_backups/ 2>/dev/null || true
+                git add job_search/*.json 2>/dev/null || true
               else
-                echo "⚠️ Push failed, attempt $i/3"
-                sleep 2
-                git pull origin ${{ github.ref_name }} --rebase || true
+                echo "❌ Failed to push after $MAX_RETRIES attempts"
+                echo "This may be due to concurrent workflow runs"
+                echo "Changes were committed locally but not pushed"
+                exit 1
               fi
-            done
-          fi
+            fi
+          done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
+          
   # ========================================
   # STAGE 4: TRIGGER DISCOVERY WORKFLOW
   # ========================================
