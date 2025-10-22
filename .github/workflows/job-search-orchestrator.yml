@@ -20,7 +20,7 @@ on:
         default: 'full_pipeline'
       
       discovery_mode:
-        description: 'Discovery mode (match job-discovery-worker.yml input)'
+        description: 'Discovery mode (if supported by job-discovery-worker.yml)'
         required: false
         type: choice
         options:
@@ -34,12 +34,6 @@ on:
         required: false
         type: string
         default: 'job_search'
-      
-      match_threshold:
-        description: 'CV match threshold (0-100)'
-        required: false
-        type: number
-        default: 75
       
       send_emails:
         description: 'Send email notifications'
@@ -149,15 +143,15 @@ jobs:
         run: |
           echo "🔍 Triggering job discovery workflow..."
           
-          MODE="${{ github.event.inputs.discovery_mode || 'full' }}"
+          # Trigger without any inputs - let the workflow use its defaults
+          # If job-discovery-worker.yml requires specific inputs, uncomment and adjust:
+          # MODE="${{ github.event.inputs.discovery_mode || 'full' }}"
+          # gh workflow run job-discovery-worker.yml -f mode="$MODE"
           
-          # Trigger the existing job-discovery-worker.yml with its expected inputs
-          # Remove the job_boards parameter since it's causing the issue
-          gh workflow run job-discovery-worker.yml \
-            -f mode="$MODE"
+          gh workflow run job-discovery-worker.yml
           
-          echo "✅ Discovery workflow triggered with mode: $MODE"
-          echo "ℹ️  The job-discovery-worker.yml will use its own configuration for job boards"
+          echo "✅ Discovery workflow triggered"
+          echo "ℹ️  Using job-discovery-worker.yml default configuration"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
@@ -192,9 +186,15 @@ jobs:
         run: |
           echo "🔑 Triggering keyword extraction and config update..."
           
-          gh workflow run job-manager-center-multiplatform.yml \
-            -f update_config=true \
-            -f trigger_discovery=false
+          # Trigger without inputs if they're not supported
+          # Uncomment and adjust if specific inputs are needed:
+          # gh workflow run job-manager-center-multiplatform.yml \
+          #   -f update_config=true \
+          #   -f trigger_discovery=false
+          
+          gh workflow run job-manager-center-multiplatform.yml
+          
+          echo "✅ Keyword extraction workflow triggered"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
@@ -223,9 +223,14 @@ jobs:
         run: |
           echo "🎯 Triggering CV matching..."
           
-          gh workflow run cv_job_matcher.yml \
-            -f threshold="${{ github.event.inputs.match_threshold || 75 }}" \
-            -f generate_report=true
+          # Trigger without inputs - let cv_job_matcher.yml use its defaults
+          # If specific inputs are supported, uncomment and adjust:
+          # gh workflow run cv_job_matcher.yml -f threshold="75"
+          
+          gh workflow run cv_job_matcher.yml
+          
+          echo "✅ CV matching workflow triggered"
+          echo "ℹ️  Using cv_job_matcher.yml default configuration"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
@@ -233,6 +238,12 @@ jobs:
         run: |
           echo "⏳ Waiting for matching to complete..."
           sleep 30
+          
+          echo "📊 Recent CV matcher workflow runs:"
+          gh run list --workflow=cv_job_matcher.yml --limit=3 --json status,conclusion,createdAt \
+            --jq '.[] | "\(.createdAt) - \(.status) - \(.conclusion // "pending")"'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ========================================
   # STAGE 4: EMAIL NOTIFICATIONS
@@ -256,6 +267,19 @@ jobs:
           echo "📧 Triggering email notifications..."
           
           gh workflow run send-cv-match-emails.yml
+          
+          echo "✅ Email workflow triggered"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Wait for Email Completion
+        run: |
+          echo "⏳ Waiting for emails to send..."
+          sleep 20
+          
+          echo "📊 Recent email workflow runs:"
+          gh run list --workflow=send-cv-match-emails.yml --limit=3 --json status,conclusion,createdAt \
+            --jq '.[] | "\(.createdAt) - \(.status) - \(.conclusion // "pending")"'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -277,6 +301,8 @@ jobs:
           echo "🧹 Triggering maintenance cleanup..."
           
           gh workflow run cleanup-old-workflows.yml
+          
+          echo "✅ Cleanup workflow triggered"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -312,6 +338,7 @@ jobs:
           print(f"  Emails:       ${{ needs.trigger-emails.result || 'skipped' }}")
           
           print("\n💾 DATA DIRECTORY: ${{ env.DATA_DIR }}")
+          print("\nℹ️  NOTE: All workflows triggered with their default configurations")
           print("="*80)
           EOF
       
@@ -355,6 +382,11 @@ jobs:
             - [Job Discovery](${{ github.server_url }}/${{ github.repository }}/actions/workflows/job-discovery-worker.yml)
             - [CV Matcher](${{ github.server_url }}/${{ github.repository }}/actions/workflows/cv_job_matcher.yml)
             - [Email Sender](${{ github.server_url }}/${{ github.repository }}/actions/workflows/send-cv-match-emails.yml)
+            
+            ## Configuration Note
+            
+            All workflows were triggered with their default configurations.  
+            To customize behavior, configure each workflow directly.
             
             ---
             [View This Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
