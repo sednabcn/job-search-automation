@@ -1,0 +1,14 @@
+{
+  "send": "immediate",
+  "platform": ["linkedin", "indeed"],
+  "target_jobs": ["Software Engineer", "Python Developer"],
+  "Location": ["London", "Remote"],
+  "Mode": ["Remote", "Hybrid"],
+  "company": ["Google", "Amazon", "Meta"],
+  "target_contacts_dir": "contacts",
+  "target_contacts_file": "contacts.csv",
+  "cv_dir": "cv",
+  "cv_file": "my_cv.txt",
+  "cover_letter_dir": "cover_letter",
+  "cover_letter_file": "my_cover.txt"
+}

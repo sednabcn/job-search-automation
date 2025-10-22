@@ -22,7 +22,49 @@ on:
         type: boolean
         default: false
 
-permissions:
+
+      - name: Debug execution environment
+        run: |
+          echo "================================"
+          echo "DEBUG: Execution Environment"
+          echo "================================"
+          
+          # Check campaign plan
+          echo "📋 Campaign Execution Plan:"
+          cat campaign_execution_plan.json | python3 -m json.tool
+          
+          echo ""
+          echo "📂 Directory Structure:"
+          ls -la .github/scripts/ 2>/dev/null || echo "⚠️ No .github/scripts/ directory"
+          
+          echo ""
+          echo "📄 Available Python modules:"
+          find .github/scripts/ -name "*.py" 2>/dev/null || echo "⚠️ No Python scripts found"
+          
+          echo ""
+          echo "📁 Campaign files:"
+          ls -la scheduled-campaigns/*.json 2>/dev/null || echo "⚠️ No campaign files"
+          
+          echo ""
+          echo "📝 Contacts directory:"
+          ls -la contacts/ 2>/dev/null || echo "⚠️ No contacts directory"
+          
+          echo ""
+          echo "📄 CV directory:"
+          ls -la cv/ 2>/dev/null || echo "⚠️ No CV directory"
+          
+          echo ""
+          echo "🔍 Python path check:"
+          python3 -c "import sys; print('\n'.join(sys.path))"
+          
+          echo "================================"
+          
+      - name: Execute campaigns
+        id: execute
+        env:
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: |
+          python3 .github/scripts/campaign_executor.py
   contents: write
   issues: write
 
@@ -701,35 +743,94 @@ jobs:
               body: body,
               labels: ['job-applications', 'multi-platform', 'automated']
             });
-      
-      - name: Send email notification
-        if: steps.execute.outputs.total_applications > 0
-        run: |
-          python3 << 'PYTHON_SCRIPT'
-          import json
-          from pathlib import Path
-          
-          results_file = Path('campaign_execution_results.json')
-          if results_file.exists():
-              with open(results_file, 'r') as f:
-                  results = json.load(f)
-              
-              # Extract email notifications from campaigns
-              emails = set()
-              for campaign in results.get('campaigns', []):
-                  # Check if notification email was specified
-                  # This would be extracted from original config
-                  pass
-              
-              print("📧 Email notifications would be sent to:")
-              for email in emails:
-                  print(f"   - {email}")
-              
-              # In production, implement actual email sending here
-              print("\nℹ️ Email sending not yet implemented")
-              print("   Use GitHub issues or integrate with email service")
-          PYTHON_SCRIPT
 
+      - name: Send email notification
+        if: steps.execute.outputs.total_applications >= 0  # Send even if 0 to notify of execution
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.SMTP_USER }}
+          password: ${{ secrets.SMTP_PASS }}
+          subject: "📤 Job Application Campaign: ${{ steps.execute.outputs.total_applications }} applications"
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: Job Search Automation <${{ secrets.SMTP_USER}}>
+          html_body: |
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: #4CAF50; color: white; padding: 20px; text-align: center; border-radius: 5px; }
+                .stats { background: #f4f4f4; padding: 15px; margin: 20px 0; border-radius: 5px; }
+                .stat-item { padding: 10px; margin: 5px 0; background: white; border-left: 4px solid #4CAF50; }
+                .success { border-left-color: #4CAF50; }
+                .failed { border-left-color: #f44336; }
+                .platform { margin: 15px 0; padding: 10px; background: #e3f2fd; border-radius: 5px; }
+                .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; }
+                a { color: #2196F3; text-decoration: none; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="header">
+                  <h1>📤 Job Application Campaign Report</h1>
+                  <p>Execution completed on $(date +'%Y-%m-%d at %H:%M UTC')</p>
+                </div>
+                
+                <div class="stats">
+                  <h2>Overall Summary</h2>
+                  <div class="stat-item success">
+                    <strong>Total Applications:</strong> ${{ steps.execute.outputs.total_applications }}
+                  </div>
+                  <div class="stat-item success">
+                    <strong>Successful:</strong> ${{ steps.execute.outputs.successful }}
+                  </div>
+                  <div class="stat-item failed">
+                    <strong>Failed:</strong> ${{ steps.execute.outputs.failed }}
+                  </div>
+                  <div class="stat-item">
+                    <strong>Mode:</strong> ${{ github.event.inputs.dry_run == 'true' && '🧪 DRY RUN' || '✅ LIVE' }}
+                  </div>
+                </div>
+
+                <h2>Campaign Details</h2>
+                <p>Check the full report in your repository:</p>
+                <p>
+                  <a href="${{ github.server_url }}/${{ github.repository }}/blob/main/job_search/reports/latest_campaign_summary.md">
+                    View Detailed Report →
+                  </a>
+                </p>
+
+                <h2>Next Steps</h2>
+                <ul>
+                  <li>Monitor platform dashboards for responses</li>
+                  <li>Review pending applications in tracking files</li>
+                  <li>Check GitHub Issues for detailed execution logs</li>
+                  <li>Follow up on successful applications</li>
+                </ul>
+
+                <div class="footer">
+                  <p>
+                    <strong>Repository:</strong> 
+                    <a href="${{ github.server_url }}/${{ github.repository }}">${{ github.repository }}</a>
+                  </p>
+                  <p>
+                    <strong>Workflow Run:</strong> 
+                    <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">
+                      View Logs
+                    </a>
+                  </p>
+                  <p>
+                    <em>Automated by Multi-Platform Job Application System</em>
+                  </p>
+                </div>
+              </div>
+            </body>
+            </html>
+          attachments: job_search/reports/latest_campaign_summary.md
+      
   generate-report:
     name: Generate Campaign Report
     needs: execute-campaigns
