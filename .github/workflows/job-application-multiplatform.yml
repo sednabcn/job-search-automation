@@ -231,7 +231,23 @@ jobs:
           
           print(f"\n✅ Scan complete - execution plan saved")
           PYTHON_SCRIPT
-      
+
+
+      - name: Debug campaign scan results
+        run: |
+          echo "================================"
+          echo "DEBUG: Campaign Scan Results"
+          echo "================================"
+          echo "Campaigns found: ${{ steps.scan.outputs.campaigns_found }}"
+          echo "Campaigns to run: ${{ steps.scan.outputs.campaigns_to_run }}"
+          echo ""
+          echo "Execution plan contents:"
+          cat campaign_execution_plan.json || echo "❌ No execution plan found"
+          echo ""
+          echo "Campaign files in directory:"
+          ls -la ${{ env.CAMPAIGNS_DIR }}/ || echo "❌ No campaigns directory"
+          echo "================================"
+          
       - name: Upload execution plan
         uses: actions/upload-artifact@v4
         with:
