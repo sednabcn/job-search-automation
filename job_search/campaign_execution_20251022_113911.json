@@ -1,0 +1,32 @@
+{
+  "start_time": "2025-10-22T11:39:11.156811",
+  "campaigns": [
+    {
+      "name": "data_science",
+      "platforms": [
+        {
+          "platform": "linkedin",
+          "applications": 0,
+          "successful": 0,
+          "failed": 0
+        },
+        {
+          "platform": "glassdoor",
+          "applications": 0,
+          "successful": 0,
+          "failed": 0
+        }
+      ],
+      "applications": 0,
+      "successful": 0,
+      "failed": 0,
+      "errors": []
+    }
+  ],
+  "total_applications": 0,
+  "successful": 0,
+  "failed": 0,
+  "platforms": {},
+  "end_time": "2025-10-22T11:39:11.157198",
+  "dry_run": true
+}
