@@ -619,7 +619,7 @@ jobs:
             job-manager-config.yml
             keyword_analysis_report.json
           retention-days: 30
-      
+
       - name: Commit Updated Config
         if: |
           github.event.inputs.update_config == 'true' || 
@@ -628,21 +628,34 @@ jobs:
           git config user.name "🤖 Job Search Bot"
           git config user.email "bot@jobsearch.local"
           
+          # Stash any unstaged changes first
+          git stash --include-untracked || true
+          
           # Pull latest changes first to avoid conflicts
           git pull origin ${{ github.ref_name }} --rebase || true
           
+          # Pop stashed changes back
+          git stash pop || true
+          
+          # Add files to staging
           git add job-manager-config.yml
           git add keyword_analysis_report.json 2>/dev/null || true
           
+          # Check if there are changes to commit
           if git diff-index --quiet HEAD --; then
             echo "ℹ️ No changes to commit"
           else
-            git commit -m "🤖 Auto-update: keyword extraction
-          
+            # Create commit message with proper escaping
+            POSITIONS_LIST='${{ needs.prepare.outputs.job_positions }}'
+            COMMIT_MSG="🤖 Auto-update: keyword extraction
+
           - Run ID: ${{ needs.prepare.outputs.run_id }}
           - Timestamp: ${{ needs.prepare.outputs.timestamp }}
           - Matching Jobs: ${{ steps.extraction.outputs.total_matches }}
-          - Positions: ${{ needs.prepare.outputs.job_positions }}"
+          - Positions: ${POSITIONS_LIST}"
+            
+            # Commit with the message
+            git commit -m "$COMMIT_MSG"
             
             # Push with retry logic
             for i in {1..3}; do
@@ -658,7 +671,7 @@ jobs:
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+      
   # ========================================
   # STAGE 4: TRIGGER DISCOVERY WORKFLOW
   # ========================================
