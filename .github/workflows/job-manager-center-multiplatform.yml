@@ -327,8 +327,8 @@ jobs:
           name: discovered-jobs-${{ matrix.board }}
           path: ${{ matrix.board }}_jobs.json
           retention-days: 7
-          
-  # ========================================
+
+   # ========================================
   # STAGE 3: EXTRACT KEYWORDS & GENERATE CONFIG
   # ========================================
   extract-keywords:
@@ -371,78 +371,46 @@ jobs:
       
       - name: List Downloaded Files
         run: |
-          echo "📂 Downloaded job files:"
+          echo "📁 Downloaded job files:"
           ls -lh *_jobs.json 2>/dev/null || echo "No job files found"
+
+
       
       - name: Extract Keywords with CLI
         id: extraction
         run: |
           echo "🔑 Starting keyword extraction..."
           
-          # Check if any job files exist
-          if ! ls *_jobs.json 1> /dev/null 2>&1; then
-            echo "⚠️ No job files found, creating empty files"
-            for board in linkedin glassdoor reed indeed; do
-              echo '[]' > "${board}_jobs.json"
-            done
-          fi
-          
           # Get positions as space-separated string
           POSITIONS_INPUT="${{ needs.prepare.outputs.job_positions_args }}"
           echo "Positions input: $POSITIONS_INPUT"
           
-          # Build CLI command with proper file paths
+          # Convert space-separated string to array
+          read -ra POS_ARRAY <<< "$POSITIONS_INPUT"
+          
+          # Build CLI command with proper argument handling
           python3 ${{ env.CLI_TOOL }} extract-keywords \
-            --positions $POSITIONS_INPUT \
-            --files *_jobs.json \
+            --positions "${POS_ARRAY[@]}" \
+            --files job_search/*_jobs.json \
             --output keyword_analysis_report.json \
-            --update-config || {
-              echo "❌ Extraction failed, creating minimal config"
-              cat > job-manager-config.yml << 'EOF'
-          platforms:
-            linkedin:
-              max_results_per_search: 50
-            glassdoor:
-              max_results_per_search: 50
-            reed:
-              max_results_per_search: 50
-            indeed:
-              max_results_per_search: 50
-          
-          search:
-            target_roles:
-              - "Senior Software Engineer"
-              - "Staff Engineer"
-            default_location: "London"
-          
-          generated_at: "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-          
-          metadata:
-            total_jobs_analyzed: 0
-            matching_jobs: 0
-          
-          matching:
-            required_keywords: []
-            preferred_keywords: []
-            excluded_keywords: []
-          EOF
-            }
+            --update-config
           
           # Set workflow outputs
           if [ -f keyword_analysis_report.json ]; then
-            TOTAL_MATCHES=$(python3 -c "import json; d=json.load(open('keyword_analysis_report.json')); print(d.get('matching_jobs', 0))" 2>/dev/null || echo "0")
-            echo "total_matches=$TOTAL_MATCHES" >> $GITHUB_OUTPUT
-            
-            TOP_KEYWORDS=$(python3 -c "import json; d=json.load(open('keyword_analysis_report.json')); k=[v.get('top_keywords', [])[:3] for v in d.get('keyword_analysis', {}).values()]; import itertools; print(','.join(list(itertools.chain(*k))[:8]))" 2>/dev/null || echo "")
-            echo "top_keywords=$TOP_KEYWORDS" >> $GITHUB_OUTPUT
-            echo "config_generated=true" >> $GITHUB_OUTPUT
+             TOTAL_MATCHES=$(python3 -c "import json; d=json.load(open('keyword_analysis_report.json')); print(d.get('matching_jobs', 0))")
+             echo "total_matches=$TOTAL_MATCHES" >> $GITHUB_OUTPUT
+             
+             TOP_KEYWORDS=$(python3 -c "import json; d=json.load(open('keyword_analysis_report.json')); k=[v.get('top_keywords', [])[:3] for v in d.get('keyword_analysis', {}).values()]; import itertools; print(','.join(list(itertools.chain(*k))[:8]))")
+             echo "top_keywords=$TOP_KEYWORDS" >> $GITHUB_OUTPUT
+             echo "config_generated=true" >> $GITHUB_OUTPUT
           else
-            echo "total_matches=0" >> $GITHUB_OUTPUT
-            echo "top_keywords=" >> $GITHUB_OUTPUT
-            echo "config_generated=true" >> $GITHUB_OUTPUT
+             echo "total_matches=0" >> $GITHUB_OUTPUT
+             echo "top_keywords=" >> $GITHUB_OUTPUT
+             echo "config_generated=false" >> $GITHUB_OUTPUT
           fi
         env:
           GITHUB_OUTPUT: ${{ github.output }}
+          
       
       - name: Validate Generated Config
         run: |
