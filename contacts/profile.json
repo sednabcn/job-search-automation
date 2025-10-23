@@ -1,0 +1,13 @@
+{
+  "name": "John Doe",
+  "email": "john.doe@example.com",
+  "phone": "+44 7700 900000",
+  "location": "London, UK",
+  "work_authorization": "Authorized to work in UK",
+  "needs_sponsorship": false,
+  "salary_range": "£50,000 - £80,000",
+  "notice_period": "2 weeks",
+  "linkedin_url": "https://linkedin.com/in/johndoe",
+  "portfolio_url": "https://johndoe.dev",
+  "github_url": "https://github.com/johndoe"
+}
