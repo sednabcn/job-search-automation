@@ -22,6 +22,31 @@ on:
         type: boolean
         default: false
 
+      enable_scoring:
+        description: 'Enable job scoring'
+        required: false
+        type: boolean
+        default: true
+      
+      min_score_threshold:
+        description: 'Minimum job score (0-100)'
+        required: false
+        type: number
+        default: 70
+      
+      generate_cover_letters:
+        description: 'Generate AI cover letters'
+        required: false
+        type: boolean
+        default: false
+      
+      max_cover_letters:
+        description: 'Max cover letters to generate'
+        required: false
+        type: number
+        default: 10
+
+
 permissions:
   contents: write
   issues: write
@@ -31,6 +56,11 @@ env:
   CAMPAIGNS_DIR: 'scheduled-campaigns'
   TRACKING_DIR: 'job_search'
   SENT_LOG_DIR: 'sent-log'
+  ENABLE_SCORING: ${{ github.event.inputs.enable_scoring || 'true' }}
+  MIN_SCORE: ${{ github.event.inputs.min_score_threshold || 70 }}
+  ENABLE_AI: ${{ github.event.inputs.generate_cover_letters || 'false' }}
+  MAX_AI_LETTERS: ${{ github.event.inputs.max_cover_letters || 10 }}
+
 
 jobs:
   scan-campaigns:
@@ -737,16 +767,455 @@ jobs:
               body: body,
               labels: ['job-applications', 'multi-platform', 'automated']
             });
+            
+              
+  score-discovered-jobs:
+    name: Score Discovered Jobs
+    needs: execute-campaigns
+    if: success()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Download execution results
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: campaign-execution-results-${{ github.run_number }}
 
+      
+      - name: Score discovered jobs
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import sys
+          sys.path.insert(0, 'scripts')
+          
+          try:
+              from job_scorer import JobScorer
+              
+              scorer = JobScorer('contacts/profile.json')
+              
+              # Load jobs from tracking
+              import json
+              from pathlib import Path
+              
+              jobs_file = Path('job_search/applications.json')
+              if jobs_file.exists():
+                  with open(jobs_file) as f:
+                      jobs = json.load(f)
+                  
+                  print(f"🎯 Scoring {len(jobs)} jobs...")
+                  
+                  scored_jobs = []
+                  high_quality = 0
+                  
+                  for job in jobs:
+                      score_result = scorer.score_job(job)
+                      job['score'] = score_result['score']
+                      job['score_reasons'] = score_result['reasons']
+                      job['verdict'] = score_result['verdict']
+                      
+                      scored_jobs.append(job)
+                      
+                      if score_result['score'] >= 70:
+                          high_quality += 1
+                  
+                  # Save scored jobs
+                  with open('job_search/scored_jobs.json', 'w') as f:
+                      json.dump(scored_jobs, f, indent=2)
+                  
+                  print(f"✅ Scored {len(scored_jobs)} jobs")
+                  print(f"🎯 {high_quality} high-quality matches (score ≥70)")
+              
+          except ImportError:
+              print("⚠️ Job scorer not available - skipping scoring")
+          PYTHON_SCRIPT
+
+      
+      - name: Score jobs from all platforms
+        id: scoring
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import json
+          import subprocess
+          from pathlib import Path
+          from datetime import datetime
+          
+          print("=" * 70)
+          print("🎯 SCORING DISCOVERED JOBS")
+          print("=" * 70)
+          
+          tracking_dir = Path('job_search')
+          cv_path = 'cv/my_cv.txt'
+          prefs_path = 'configs/scoring_preferences.json'
+          min_score = 70
+          
+          platforms = ['linkedin', 'indeed', 'reed', 'glassdoor']
+          all_scored_jobs = []
+          
+          for platform in platforms:
+              jobs_file = tracking_dir / f'{platform}_jobs.json'
+              
+              if not jobs_file.exists():
+                  print(f"⏭️  No {platform} jobs found")
+                  continue
+              
+              print(f"\n📊 Scoring {platform} jobs...")
+              
+              # Score jobs
+              output_file = tracking_dir / f'{platform}_jobs_scored.json'
+              
+              cmd = [
+                  'python3', 'scripts/job_scorer.py',
+                  '--cv', cv_path,
+                  '--jobs', str(jobs_file),
+                  '--output', str(output_file),
+                  '--preferences', prefs_path,
+                  '--min-score', str(min_score)
+              ]
+              
+              try:
+                  result = subprocess.run(cmd, capture_output=True, text=True)
+                  print(result.stdout)
+                  
+                  # Load scored results
+                  if output_file.exists():
+                      with open(output_file, 'r') as f:
+                          scored_data = json.load(f)
+                          all_scored_jobs.extend(scored_data['jobs'])
+                      print(f"✅ {platform}: {scored_data['filtered_jobs']} high-quality jobs")
+                  
+              except Exception as e:
+                  print(f"⚠️  Error scoring {platform} jobs: {e}")
+          
+          # Combine and rank all jobs
+          all_scored_jobs.sort(key=lambda x: x['total_score'], reverse=True)
+          
+          # Save combined results
+          combined_file = tracking_dir / 'matched_jobs_scored.json'
+          with open(combined_file, 'w') as f:
+              json.dump({
+                  'scored_at': datetime.now().isoformat(),
+                  'total_jobs': len(all_scored_jobs),
+                  'min_score_threshold': min_score,
+                  'top_matches': all_scored_jobs[:50],  # Top 50
+                  'all_jobs': all_scored_jobs
+              }, f, indent=2)
+          
+          print(f"\n💾 Combined scored jobs saved: {combined_file}")
+          print(f"📊 Total high-quality jobs across all platforms: {len(all_scored_jobs)}")
+          
+          # Set outputs
+          import os
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"total_scored={len(all_scored_jobs)}\n")
+              f.write(f"top_score={all_scored_jobs[0]['total_score'] if all_scored_jobs else 0}\n")
+          
+          print("=" * 70)
+          PYTHON_SCRIPT
+      
+      - name: Upload scored jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: scored-jobs-${{ github.run_number }}
+          path: |
+            job_search/*_scored.json
+            job_search/matched_jobs_scored.json
+          retention-days: 90
+      
+      - name: Commit scored jobs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add job_search/*_scored.json
+          
+          git diff --quiet && git diff --staged --quiet || \
+            git commit -m "🎯 Scored jobs: ${{ steps.scoring.outputs.total_scored }} matches - $(date +'%Y-%m-%d %H:%M')"
+          
+          git push
+  
+      - name: Create application packages
+        id: create_packages
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import sys
+          import json
+          from pathlib import Path
+          sys.path.insert(0, '.github/scripts')
+          
+          try:
+              from application_prefiller import ApplicationPrefiller
+              from application_tracker import ApplicationTracker
+              
+              print("📦 Creating application packages...")
+              
+              # Load execution results
+              with open('campaign_execution_results.json', 'r') as f:
+                  results = json.load(f)
+              
+              prefiller = ApplicationPrefiller()
+              tracker = ApplicationTracker()
+              
+              packages_created = 0
+              
+              # Load platform-specific job data
+              for campaign in results['campaigns']:
+                  campaign_config = campaign.get('config', {})
+                  platforms = campaign_config.get('platform', [])
+                  
+                  for platform in platforms:
+                      platform_lower = platform.lower()
+                      
+                      # Load jobs from platform-specific files
+                      jobs_file = Path(f'job_search/{platform_lower}_jobs_{campaign["name"]}.json')
+                      
+                      if jobs_file.exists():
+                          with open(jobs_file, 'r') as f:
+                              jobs = json.load(f)
+                          
+                          print(f"\n🎯 Processing {len(jobs)} jobs from {platform}")
+                          
+                          for job in jobs[:5]:  # Limit for safety
+                              try:
+                                  # Create application package
+                                  package_dir = prefiller.create_application_package(
+                                      job_posting=job,
+                                      cv_path=campaign_config.get('cv_dir', 'cv') + '/' + 
+                                             campaign_config.get('cv_file', 'my_cv.txt'),
+                                      cover_letter_path=campaign_config.get('cover_letter_dir', 'cover_letter') + '/' +
+                                                       campaign_config.get('cover_letter_file', 'my_cover.txt'),
+                                      platform=platform_lower
+                                  )
+                                  
+                                  # Add to tracker
+                                  tracker.add_application(
+                                      job_id=job.get('id', f"{platform_lower}_{packages_created}"),
+                                      job_data=job,
+                                      platform=platform_lower,
+                                      package_path=str(package_dir)
+                                  )
+                                  
+                                  # Update status to package_created
+                                  tracker.update_status(
+                                      job_id=job.get('id'),
+                                      new_status='package_created',
+                                      notes=f'Application package created at {package_dir}'
+                                  )
+                                  
+                                  packages_created += 1
+                                  
+                              except Exception as e:
+                                  print(f"⚠️ Error creating package for job: {e}")
+                                  continue
+              
+              print(f"\n✅ Created {packages_created} application packages")
+              
+              # Set output
+              import os
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                  f.write(f"packages_created={packages_created}\n")
+              
+          except Exception as e:
+              print(f"❌ Error in package creation: {e}")
+              import traceback
+              traceback.print_exc()
+          PYTHON_SCRIPT
+# ========================================
+  # NEW: APPLICATION STATUS TRACKING
+  # ========================================
+  track-application-status:
+    name: Track Application Status
+    runs-on: ubuntu-latest
+    needs: execute-campaigns
+    if: success()
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Update application statuses
+        run: |
+           python3 .github/scripts/github_actions_status_updater.py \
+            --campaign-results campaign_execution_results.json \
+            --data-dir ${{ env.TRACKING_DIR }} \
+            --output status_update_results.json
+          
+      - name: Commit status updates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add ${{ env.TRACKING_DIR }}/applications.json
+          git add ${{ env.TRACKING_DIR }}/analytics.json
+          
+          git diff --quiet && git diff --staged --quiet || \
+            git commit -m "ðŸ"Š Updated application statuses from campaign"
+          
+          git push
+
+  # ========================================
+  # NEW: FOLLOW-UP REMINDER CREATION
+  # ========================================
+  create-followup-reminders:
+    name: Create Follow-up Reminders
+    runs-on: ubuntu-latest
+    needs: [execute-campaigns, track-application-status]
+    if: success()
+    
+    outputs:
+      reminders_created: ${{ steps.reminders.outputs.count }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Create follow-up reminders
+        id: reminders
+        run: |
+          python3 .github/scripts/github_actions_followup_manager.py \
+            --mode create \
+            --campaign-results campaign_execution_results.json \
+            --data-dir ${{ env.TRACKING_DIR }} \
+            --output reminder_creation_results.json
+          
+          COUNT=$(jq '.reminders_created' reminder_creation_results.json)
+          echo "count=$COUNT" >> $GITHUB_OUTPUT
+          
+      - name: Commit reminders
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add ${{ env.TRACKING_DIR }}/applications.json
+          git add ${{ env.TRACKING_DIR }}/reports/
+          git add ${{ env.TRACKING_DIR }}/campaign_reminders.ics
+          
+          git diff --quiet && git diff --staged --quiet || \
+          git commit -m "â° Created ${{ steps.reminders.outputs.count }} follow-up
+          git push
+
+
+      - name: Upload reminder calendar
+        uses: actions/upload-artifact@v4
+        with:
+          name: campaign-reminders-calendar-${{ github.run_number }}
+          path: ${{ env.TRACKING_DIR }}/campaign_reminders.ics
+          retention-days: 90
+
+
+          
+      - name: Generate tracker report
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import sys
+          sys.path.insert(0, '.github/scripts')
+          
+          from application_tracker import ApplicationTracker
+          from pathlib import Path
+          
+          tracker = ApplicationTracker()
+          
+          # Generate markdown report
+          report = tracker.generate_report(output_format='markdown')
+          
+          # Save report
+          reports_dir = Path('job_search/reports')
+          reports_dir.mkdir(parents=True, exist_ok=True)
+          
+          report_file = reports_dir / 'application_tracker_report.md'
+          with open(report_file, 'w') as f:
+              f.write(report)
+          
+          print(f"✅ Tracker report generated: {report_file}")
+          
+          # Export to CSV
+          tracker.export_to_csv('applications_export.csv')
+          PYTHON_SCRIPT
+      
+      - name: Generate AI cover letters for top matches
+        if: steps.execute.outputs.successful >= 5
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import sys
+          sys.path.insert(0, 'scripts')
+          
+          try:
+              from cover_letter_generator import CoverLetterGenerator
+              import json
+              from pathlib import Path
+              
+              # Check for API key
+              api_key = "${{ secrets.OPENAI_API_KEY }}"
+              if not api_key:
+                  print("⚠️ No OpenAI API key - skipping cover letter generation")
+                  sys.exit(0)
+              
+              generator = CoverLetterGenerator(api_key)
+              
+              # Load scored jobs
+              scored_file = Path('job_search/scored_jobs.json')
+              if scored_file.exists():
+                  with open(scored_file) as f:
+                      jobs = json.load(f)
+                  
+                  # Filter high-score jobs
+                  high_score_jobs = [j for j in jobs if j.get('score', 0) >= 75][:10]
+                  
+                  print(f"📝 Generating cover letters for {len(high_score_jobs)} top jobs...")
+                  
+                  # Load CV
+                  cv_path = Path('cv/my_cv.txt')
+                  cv_content = cv_path.read_text() if cv_path.exists() else ""
+                  
+                  letters_generated = 0
+                  for job in high_score_jobs:
+                      try:
+                          letter = generator.generate(job, cv_content, job)
+                          saved_path = generator.save_cover_letter(letter, job['id'])
+                          letters_generated += 1
+                          print(f"   ✅ {job['company']} - {job['title']}")
+                      except Exception as e:
+                          print(f"   ⚠️ Error for {job.get('company')}: {e}")
+                  
+                  print(f"\n✅ Generated {letters_generated} cover letters")
+              
+          except ImportError:
+              print("⚠️ Cover letter generator not available")
+          except Exception as e:
+              print(f"⚠️ Cover letter generation failed: {e}")
+          PYTHON_SCRIPT
+
+            
       - name: Send email notification
-        if: steps.execute.outputs.total_applications >= 0
+        if: steps.execute.outputs.total_applications >= 0 && needs.score-jobs.result == 'success'
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
           server_port: 587
           username: ${{ secrets.SMTP_USER }}
           password: ${{ secrets.SMTP_PASS }}
-          subject: "📤 Job Application Campaign: ${{ steps.execute.outputs.total_applications }} applications"
+          subject: "📤 Job Application Campaign: ${{ steps.execute.outputs.total_applications }} applications | 🎯 ${{ needs.score-discovered-jobs.outputs.total_scored }} high-quality matches"
           to: ${{ secrets.NOTIFICATION_EMAIL }}
           from: Job Search Automation <${{ secrets.SMTP_USER}}>
           html_body: |
@@ -759,9 +1228,8 @@ jobs:
                 .header { background: #4CAF50; color: white; padding: 20px; text-align: center; border-radius: 5px; }
                 .stats { background: #f4f4f4; padding: 15px; margin: 20px 0; border-radius: 5px; }
                 .stat-item { padding: 10px; margin: 5px 0; background: white; border-left: 4px solid #4CAF50; }
-                .success { border-left-color: #4CAF50; }
-                .failed { border-left-color: #f44336; }
-                .platform { margin: 15px 0; padding: 10px; background: #e3f2fd; border-radius: 5px; }
+                .score-item { padding: 10px; margin: 5px 0; background: white; border-left: 4px solid #FF9800; }
+                .top-match { background: #FFF9C4; padding: 15px; margin: 10px 0; border-radius: 5px; }
                 .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; }
                 a { color: #2196F3; text-decoration: none; }
               </style>
@@ -774,57 +1242,241 @@ jobs:
                 </div>
                 
                 <div class="stats">
-                  <h2>Overall Summary</h2>
-                  <div class="stat-item success">
+                     <div class="stat-item">
+                        <strong>Application Packages Created:</strong> ${{ steps.create_packages.outputs.packages_created }}
+                     </div>
+                  <h2>Discovery Summary</h2>
+                  <div class="stat-item">
                     <strong>Total Applications:</strong> ${{ steps.execute.outputs.total_applications }}
                   </div>
-                  <div class="stat-item success">
+                  <div class="stat-item">
                     <strong>Successful:</strong> ${{ steps.execute.outputs.successful }}
                   </div>
-                  <div class="stat-item failed">
-                    <strong>Failed:</strong> ${{ steps.execute.outputs.failed }}
+                  <div class="score-item">
+                    <strong>🎯 High-Quality Matches (70+ score):</strong> ${{ needs.score-discovered-jobs.outputs.total_scored }}
                   </div>
-                  <div class="stat-item">
-                    <strong>Mode:</strong> ${{ github.event.inputs.dry_run == 'true' && '🧪 DRY RUN' || '✅ LIVE' }}
+                  <div class="score-item">
+                    <strong>🏆 Top Match Score:</strong> ${{ needs.score-discovered-jobs.outputs.top_score }}%
                   </div>
                 </div>
 
-                <h2>Campaign Details</h2>
-                <p>Check the full report in your repository:</p>
+                <h2>📊 Scored Jobs Available</h2>
+                <p>We've analyzed all discovered jobs and scored them based on your CV and preferences.</p>
+                <p><strong>${{ needs.score-discovered-jobs.outputs.total_scored }} jobs</strong> meet your quality threshold.</p>
+                
                 <p>
-                  <a href="${{ github.server_url }}/${{ github.repository }}/blob/main/job_search/reports/latest_campaign_summary.md">
-                    View Detailed Report →
+                  <a href="${{ github.server_url }}/${{ github.repository }}/blob/main/job_search/matched_jobs_scored.json">
+                    View All Scored Jobs →
                   </a>
                 </p>
 
                 <h2>Next Steps</h2>
                 <ul>
-                  <li>Monitor platform dashboards for responses</li>
-                  <li>Review pending applications in tracking files</li>
-                  <li>Check GitHub Issues for detailed execution logs</li>
-                  <li>Follow up on successful applications</li>
+                  <li>Review application packages in job_search/application_packages/</li>
+                  <li>Check APPLICATION_CHECKLIST.md in each package</li>
+                  <li>Use QUICK_COPY.txt to fill application forms</li>
+                  <li>Monitor application tracker for follow-ups</li>
+                  <li>📋 Review high-scoring jobs (70+) first</li>
+                  <li>🔍 Check detailed scores in matched_jobs_scored.json</li>
+                  <li>📧 Apply to top 10-20 matches this week</li>
+                  <li>🤝 Focus on jobs with "HIGH PRIORITY" recommendation</li>
                 </ul>
 
                 <div class="footer">
+                  <p><strong>Scoring Criteria:</strong> Keywords (40%), Salary (20%), Location (15%), Company (10%), Experience (10%), Recency (5%)</p>
                   <p>
-                    <strong>Repository:</strong> 
-                    <a href="${{ github.server_url }}/${{ github.repository }}">${{ github.repository }}</a>
-                  </p>
-                  <p>
-                    <strong>Workflow Run:</strong> 
                     <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">
-                      View Logs
+                      View Full Workflow Logs
                     </a>
-                  </p>
-                  <p>
-                    <em>Automated by Multi-Platform Job Application System</em>
                   </p>
                 </div>
               </div>
             </body>
             </html>
-          attachments: job_search/reports/latest_campaign_summary.md
-      
+          attachments: job_search/matched_jobs_scored.json
+
+#========================================
+# MODIFIED: ENHANCED EMAIL NOTIFICATION
+# ========================================
+  send-enhanced-notification:
+    name: Send Enhanced Email Notification
+    runs-on: ubuntu-latest
+    needs: [execute-campaigns, track-application-status, create-followup-reminders, score-discovered-jobs]
+    if: success()
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+  
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: campaign-reminders-calendar-${{ github.run_number }}
+  
+      - name: Send comprehensive campaign email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.SMTP_USER }}
+          password: ${{ secrets.SMTP_PASS }}
+          subject: "ðŸš€ Campaign Complete: ${{ steps.execute.outputs.total_applications }} applications | â° ${{ needs.create-followup-reminders.outputs.reminders_created }} reminders created"
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: Job Search Automation <${{ secrets.SMTP_USER }}>
+          html_body: |
+          <!DOCTYPE html>
+            <html>
+             <head>
+               <style>
+                  body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                  .container { max-width: 700px; margin: 0 auto; padding: 20px; }
+                  .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px; }
+                  .section { background: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #667eea; }
+                  .alert { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                  .success { background: #d4edda; border-left: 4px solid #28a745; }
+                  .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin: 20px 0; }
+                  .stat-card { background: white; padding: 15px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+                  .stat-number { font-size: 32px; font-weight: bold; color: #667eea; }
+                  .stat-label { color: #666; font-size: 14px; }
+                  .reminder-timeline { background: white; padding: 15px; margin: 15px 0; border-radius: 5px; border-left: 3px solid #17a2b8; }
+                  .timeline-item { padding: 10px 0; border-bottom: 1px solid #eee; }
+                  .timeline-item:last-child { border-bottom: none; }
+                  table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+                  th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+                  th { background: #667eea; color: white; }
+                  .btn { display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 10px 5px; }
+                  .footer { margin-top: 30px; padding-top: 20px; border-top: 2px solid #ddd; font-size: 12px; color: #666; text-align: center; }
+               </style>
+             </head>
+            <body>
+              <div class="container">
+              <div class="header">
+                <h1>ðŸš€ Multi-Platform Campaign Complete</h1>
+                <p>Execution completed on $(date +'%Y-%m-%d at %H:%M UTC')</p>
+              </div>
+
+              <div class="stats-grid">
+               <div class="stat-card">
+                <div class="stat-number">${{ steps.execute.outputs.total_applications }}</div>
+                <div class="stat-label">Applications Submitted</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-number">${{ steps.execute.outputs.successful }}</div>
+                <div class="stat-label">Successful</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-number">${{ needs.score-discovered-jobs.outputs.total_scored }}</div>
+                <div class="stat-label">High-Quality Matches</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-number">${{ needs.create-followup-reminders.outputs.reminders_created }}</div>
+                <div class="stat-label">Reminders Created</div>
+              </div>
+              </div>
+
+              <div class="section success">
+                 <h2>âœ… Campaign Execution Summary</h2>
+                <table>
+                 <tr>
+                  <th>Metric</th>
+                  <th>Count</th>
+                </tr>
+                <tr>
+                  <td>Total Applications</td>
+                  <td>${{ steps.execute.outputs.total_applications }}</td>
+                </tr>
+                <tr>
+                  <td>Successful</td>
+                  <td>${{ steps.execute.outputs.successful }}</td>
+                </tr>
+                <tr>
+                  <td>Failed</td>
+                  <td>${{ steps.execute.outputs.failed }}</td>
+                </tr>
+                <tr>
+                  <td>Application Packages</td>
+                  <td>${{ steps.create_packages.outputs.packages_created }}</td>
+                </tr>
+               </table>
+             </div>
+
+             <div class="section">
+               <h2>â° Follow-up Reminder Timeline</h2>
+               <p><strong>${{ needs.create-followup-reminders.outputs.reminders_created }}</strong> reminders have been automatically scheduled</p>
+              
+               <div class="reminder-timeline">
+                <div class="timeline-item">
+                  <strong>ðŸ"… Day 3:</strong> Check application status
+                </div>
+                <div class="timeline-item">
+                  <strong>ðŸ"§ Day 7:</strong> Send first follow-up email
+                </div>
+                <div class="timeline-item">
+                  <strong>ðŸ"ž Day 14:</strong> Send second follow-up if no response
+                </div>
+               </div>
+              
+              <div class="alert">
+                <strong>ðŸ"… Import Calendar:</strong> The attached .ics file contains all reminder dates. Import it into Google Calendar, Outlook, or Apple Calendar to stay on track.
+              </div>
+             </div>
+
+             <div class="section">
+               <h2>ðŸŽ¯ Scored Job Matches</h2>
+               <p>Found <strong>${{ needs.score-discovered-jobs.outputs.total_scored }}</strong> high-quality job matches (70+ score)</p>
+               <p>Top match score: <strong>${{ needs.score-discovered-jobs.outputs.top_score }}%</strong></p>
+              
+              <a href="${{ github.server_url }}/${{ github.repository }}/blob/main/job_search/matched_jobs_scored.json" class="btn">
+                View Scored Jobs
+              </a>
+             </div>
+
+             <div class="section">
+              <h2>ðŸ"‹ Next Actions</h2>
+              <ol>
+                <li><strong>Import Calendar:</strong> Add campaign_reminders.ics to your calendar</li>
+                <li><strong>Monitor Applications:</strong> Check platform dashboards for responses</li>
+                <li><strong>Prepare Follow-ups:</strong> Draft follow-up email templates</li>
+                <li><strong>Track Progress:</strong> Update statuses as you hear back</li>
+                <li><strong>Set Alerts:</strong> Enable notifications for Day 3 reminders</li>
+              </ol>
+             </div>
+
+             <div class="section">
+              <h2>ðŸ"Š Application Status Tracking</h2>
+              <p>All applications have been tracked and assigned follow-up reminders automatically.</p>
+              
+              <h3>How to Use Follow-up System:</h3>
+              <ul>
+                <li><strong>View Reminders:</strong> Check the follow-up report attachment</li>
+                <li><strong>Update Status:</strong> Use update_application_status.py script</li>
+                <li><strong>Generate Emails:</strong> Use follow_up_remainders.py for templates</li>
+                <li><strong>Track Progress:</strong> Monitor applications.json file</li>
+              </ul>
+              
+              <a href="${{ github.server_url }}/${{ github.repository }}/blob/main/job_search/reports/initial_followup_report.txt" class="btn">
+                View Follow-up Report
+              </a>
+             </div>
+
+             <div class="footer">
+              <p><strong>ðŸ"„ Attachments:</strong></p>
+              <ul style="list-style: none; padding: 0;">
+                <li>â€¢ matched_jobs_scored.json - High-quality job matches</li>
+                <li>â€¢ campaign_reminders.ics - Calendar with all follow-up dates</li>
+                <li>â€¢ initial_followup_report.txt - Detailed reminder report</li>
+              </ul>
+              <p><a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Workflow Logs</a></p>
+              <p>Automated by Multi-Platform Job Application System</p>
+             </div>
+            </div>
+            </body>
+          </html>
+          attachments: |
+              job_search/matched_jobs_scored.json
+              ${{ env.TRACKING_DIR }}/campaign_reminders.ics
+              ${{ env.TRACKING_DIR }}/reports/initial_followup_report.txt      
+
   generate-report:
     name: Generate Campaign Report
     needs: execute-campaigns
@@ -846,7 +1498,49 @@ jobs:
         continue-on-error: true
         with:
           name: campaign-execution-results-${{ github.run_number }}
+
       
+      - name: Generate Pipeline Report
+        run: |
+          python3 << 'EOF'
+          import json
+          from pathlib import Path
+          
+          print("\n" + "="*80)
+          print("🎯 PHASE 2-ENABLED PIPELINE SUMMARY")
+          print("="*80)
+          
+          # Load scored jobs if available
+          scored_file = Path('job_search/scored_jobs.json')
+          if scored_file.exists():
+              with open(scored_file) as f:
+                  scored_jobs = json.load(f)
+              
+              high_quality = len([j for j in scored_jobs if j.get('score', 0) >= 70])
+              avg_score = sum(j.get('score', 0) for j in scored_jobs) / len(scored_jobs)
+              
+              print(f"\n🎯 JOB SCORING:")
+              print(f"   Total scored: {len(scored_jobs)}")
+              print(f"   High quality (≥70): {high_quality}")
+              print(f"   Average score: {avg_score:.1f}")
+          
+          # Load cover letters if available
+          cover_letters_dir = Path('job_search/cover_letters')
+          if cover_letters_dir.exists():
+              letter_count = len(list(cover_letters_dir.glob('*.txt')))
+              print(f"\n📝 AI COVER LETTERS:")
+              print(f"   Generated: {letter_count}")
+          
+          # Load packages if available
+          packages_dir = Path('job_search/application_packages')
+          if packages_dir.exists():
+              package_count = len(list(packages_dir.glob('app_*')))
+              print(f"\n📦 APPLICATION PACKAGES:")
+              print(f"   Created: {package_count}")
+          
+          print("="*80)
+          EOF
+
       - name: Generate comprehensive report
         run: |
           python3 << 'PYTHON_SCRIPT'
@@ -1019,10 +1713,14 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
+          git add job_search/application_packages/
+          git add job_search/applications.json
+          git add job_search/analytics.json
           git add job_search/reports/
+         
           
           git diff --quiet && git diff --staged --quiet || \
-            git commit -m "📊 Campaign report generated - $(date +'%Y-%m-%d %H:%M')"
+          git commit -m "📊 Campaign report generated - $(date +'%Y-%m-%d %H:%M')"
           
           git push || echo "Nothing to push"
 
