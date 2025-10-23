@@ -568,6 +568,372 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+# ========================================
+# STAGE 5: APPLICATION PACKAGE GENERATION
+# ========================================
+  generate-packages:
+    name: Generate Application Packages
+    runs-on: ubuntu-latest
+    needs: [coordinator, trigger-matching]
+    if: |
+      always() &&
+      needs.coordinator.outputs.run_matching == 'true' &&
+      needs.trigger-matching.result == 'success'
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Validate required files
+        run: |
+          echo "🔍 Validating required files..."
+          
+          # Check for CV
+          if [ ! -f "cv/my_cv.pdf" ]; then
+            echo "❌ CV file not found at cv/my_cv.pdf"
+            exit 1
+          fi
+          
+          # Check for cover letter
+          if [ ! -f "cover_letter/my_cover.txt" ]; then
+            echo "❌ Cover letter not found at cover_letter/my_cover.txt"
+            exit 1
+          fi
+          
+          # Check for matched jobs
+          if [ ! -f "${{ env.DATA_DIR }}/matched_jobs.json" ]; then
+            echo "⚠️ No matched jobs found - skipping package generation"
+            echo "skip_generation=true" >> $GITHUB_ENV
+            exit 0
+          fi
+          
+          echo "✅ All required files present"
+      
+      - name: Create packages for matched jobs
+        if: env.skip_generation != 'true'
+        run: |
+          python3 << 'EOF'
+          import sys
+          import json
+          import hashlib
+          from pathlib import Path
+          from datetime import datetime
+          
+          # Add scripts directory to path (standardized location)
+          sys.path.insert(0, '.github/scripts')
+          
+          print("="*70)
+          print("📦 GENERATING APPLICATION PACKAGES")
+          print("="*70)
+          
+          # Import required modules
+          try:
+              from application_prefiller import ApplicationPrefiller
+              from application_tracker import ApplicationTracker
+              print("✅ Modules imported successfully")
+          except ImportError as e:
+              print(f"❌ Failed to import required modules: {e}")
+              print("📍 Looking in: .github/scripts/")
+              sys.exit(1)
+          
+          def generate_job_id(job):
+              """Generate consistent job ID from job data"""
+              # Use existing ID if available
+              if job.get('id'):
+                  return str(job['id'])
+              
+              # Generate hash-based ID from job details
+              job_string = f"{job.get('company', '')}_{job.get('title', '')}_{job.get('location', '')}"
+              job_hash = hashlib.md5(job_string.encode()).hexdigest()[:12]
+              return f"job_{job_hash}"
+          
+          # Validate required files
+          cv_path = Path('cv/my_cv.pdf')
+          cover_letter_path = Path('cover_letter/my_cover.txt')
+          
+          if not cv_path.exists():
+              print(f"❌ CV not found at: {cv_path}")
+              sys.exit(1)
+          
+          if not cover_letter_path.exists():
+              print(f"❌ Cover letter not found at: {cover_letter_path}")
+              sys.exit(1)
+          
+          print(f"✅ CV found: {cv_path}")
+          print(f"✅ Cover letter found: {cover_letter_path}")
+          
+          # Load matched jobs
+          matched_file = Path('${{ env.DATA_DIR }}/matched_jobs.json')
+          
+          with open(matched_file, 'r') as f:
+              matched_jobs = json.load(f)
+          
+          print(f"\n📊 Processing {len(matched_jobs)} matched jobs")
+          
+          # Initialize prefiller and tracker
+          try:
+              prefiller = ApplicationPrefiller()
+              tracker = ApplicationTracker('${{ env.DATA_DIR }}')
+              print("✅ ApplicationPrefiller and Tracker initialized")
+          except Exception as e:
+              print(f"❌ Failed to initialize components: {e}")
+              import traceback
+              traceback.print_exc()
+              sys.exit(1)
+          
+          packages_created = 0
+          packages_failed = 0
+          results = []
+          
+          for idx, job in enumerate(matched_jobs, 1):
+              job_id = generate_job_id(job)
+              company = job.get('company', 'Unknown Company')
+              title = job.get('title', 'Unknown Position')
+              
+              print(f"\n[{idx}/{len(matched_jobs)}] 📦 Processing: {company} - {title}")
+              print(f"   Job ID: {job_id}")
+              
+              try:
+                  # Determine platform
+                  platform = job.get('source', 'generic').lower()
+                  valid_platforms = ['linkedin', 'indeed', 'reed', 'glassdoor']
+                  if platform not in valid_platforms:
+                      platform = 'generic'
+                  
+                  print(f"   Platform: {platform}")
+                  
+                  # Create package
+                  package_dir = prefiller.create_application_package(
+                      job_posting=job,
+                      cv_path=str(cv_path),
+                      cover_letter_path=str(cover_letter_path),
+                      platform=platform
+                  )
+                  
+                  if not package_dir:
+                      raise ValueError("Package creation returned None")
+                  
+                  print(f"   ✅ Package created at: {package_dir}")
+                  
+                  # Add to tracker
+                  tracker.add_application(
+                      job_id=job_id,
+                      job_data=job,
+                      platform=platform,
+                      package_path=str(package_dir)
+                  )
+                  
+                  # Update status with score information
+                  score_info = f"CV: {job.get('cv_score', 'N/A')}, Match: {job.get('match_score', 'N/A')}"
+                  tracker.update_status(
+                      job_id=job_id,
+                      status='package_created',
+                      notes=f"Package generated successfully. Scores - {score_info}"
+                  )
+                  
+                  packages_created += 1
+                  results.append({
+                      'job_id': job_id,
+                      'company': company,
+                      'title': title,
+                      'status': 'success',
+                      'package_path': str(package_dir)
+                  })
+                  
+                  print(f"   ✅ Tracking updated")
+                  
+              except Exception as e:
+                  packages_failed += 1
+                  error_msg = str(e)
+                  print(f"   ❌ Error: {error_msg}")
+                  
+                  # Track failed attempt
+                  try:
+                      tracker.add_application(
+                          job_id=job_id,
+                          job_data=job,
+                          platform=platform,
+                          package_path=''
+                      )
+                      tracker.update_status(
+                          job_id=job_id,
+                          status='package_failed',
+                          notes=f"Package generation failed: {error_msg}"
+                      )
+                  except:
+                      pass
+                  
+                  results.append({
+                      'job_id': job_id,
+                      'company': company,
+                      'title': title,
+                      'status': 'failed',
+                      'error': error_msg
+                  })
+                  
+                  continue
+          
+          # Summary
+          print("\n" + "="*70)
+          print("📊 PACKAGE GENERATION SUMMARY")
+          print("="*70)
+          print(f"✅ Successfully created: {packages_created}")
+          print(f"❌ Failed: {packages_failed}")
+          print(f"📦 Total processed: {len(matched_jobs)}")
+          
+          # Save tracker data
+          try:
+              tracker.save_applications()
+              print("✅ Application tracking data saved")
+          except Exception as e:
+              print(f"⚠️ Failed to save tracking data: {e}")
+          
+          # Generate and save report
+          try:
+              report = tracker.generate_report()
+              report_file = Path('${{ env.DATA_DIR }}/reports/tracker_report.md')
+              report_file.parent.mkdir(parents=True, exist_ok=True)
+              
+              with open(report_file, 'w') as f:
+                  f.write(report)
+              
+              print(f"✅ Report saved to: {report_file}")
+          except Exception as e:
+              print(f"⚠️ Failed to generate report: {e}")
+          
+          # Save detailed results
+          results_file = Path('${{ env.DATA_DIR }}/package_generation_results.json')
+          with open(results_file, 'w') as f:
+              json.dump({
+                  'timestamp': datetime.now().isoformat(),
+                  'total_jobs': len(matched_jobs),
+                  'packages_created': packages_created,
+                  'packages_failed': packages_failed,
+                  'results': results
+              }, f, indent=2)
+          
+          print(f"✅ Detailed results saved to: {results_file}")
+          print("="*70)
+          
+          # Exit with error if all packages failed
+          if packages_created == 0 and len(matched_jobs) > 0:
+              print("\n❌ All package generation attempts failed!")
+              sys.exit(1)
+          
+          EOF
+      
+      - name: Commit packages and tracking data
+        if: env.skip_generation != 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Check if there are changes
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          
+          # Add all generated files
+          git add ${{ env.DATA_DIR }}/application_packages/ 2>/dev/null || true
+          git add ${{ env.DATA_DIR }}/applications.json 2>/dev/null || true
+          git add ${{ env.DATA_DIR }}/analytics.json 2>/dev/null || true
+          git add ${{ env.DATA_DIR }}/reports/ 2>/dev/null || true
+          git add ${{ env.DATA_DIR }}/package_generation_results.json 2>/dev/null || true
+          
+          # Commit with timestamp
+          TIMESTAMP=$(date +'%Y-%m-%d %H:%M:%S')
+          git commit -m "📦 Application packages generated - $TIMESTAMP" || {
+            echo "Nothing to commit"
+            exit 0
+          }
+          
+          # Push with retry logic
+          MAX_RETRIES=3
+          RETRY_COUNT=0
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            if git push; then
+              echo "✅ Changes pushed successfully"
+              exit 0
+            else
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                echo "⚠️ Push failed, retrying ($RETRY_COUNT/$MAX_RETRIES)..."
+                sleep 2
+                git pull --rebase
+              else
+                echo "❌ Failed to push after $MAX_RETRIES attempts"
+                exit 1
+              fi
+            fi
+          done
+      
+      - name: Upload packages as artifacts
+        if: env.skip_generation != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: application-packages-${{ github.run_number }}
+          path: ${{ env.DATA_DIR }}/application_packages/
+          retention-days: 90
+          if-no-files-found: warn
+      
+      - name: Upload tracking data
+        if: env.skip_generation != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracking-data-${{ github.run_number }}
+          path: |
+            ${{ env.DATA_DIR }}/applications.json
+            ${{ env.DATA_DIR }}/analytics.json
+            ${{ env.DATA_DIR }}/package_generation_results.json
+          retention-days: 90
+          if-no-files-found: warn
+      
+      - name: Create job summary
+        if: always() && env.skip_generation != 'true'
+        run: |
+          echo "## 📦 Package Generation Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "${{ env.DATA_DIR }}/package_generation_results.json" ]; then
+            python3 << 'EOF'
+          import json
+          from pathlib import Path
+          
+          results_file = Path('${{ env.DATA_DIR }}/package_generation_results.json')
+          with open(results_file) as f:
+              data = json.load(f)
+          
+          print(f"**Total Jobs Processed:** {data['total_jobs']}")
+          print(f"**Packages Created:** ✅ {data['packages_created']}")
+          print(f"**Packages Failed:** ❌ {data['packages_failed']}")
+          print(f"**Success Rate:** {(data['packages_created']/data['total_jobs']*100):.1f}%")
+          print("")
+          print("### Successful Packages")
+          print("")
+          for result in data['results']:
+              if result['status'] == 'success':
+                  print(f"- ✅ **{result['company']}** - {result['title']}")
+          
+          if data['packages_failed'] > 0:
+              print("")
+              print("### Failed Packages")
+              print("")
+              for result in data['results']:
+                  if result['status'] == 'failed':
+                      print(f"- ❌ **{result['company']}** - {result['title']}")
+                      print(f"  - Error: {result.get('error', 'Unknown error')}")
+          EOF
+          else
+            echo "⚠️ No results file found"
+          fi >> $GITHUB_STEP_SUMMARY
+          
   # ========================================
   # STAGE 5: MAINTENANCE
   # ========================================
@@ -740,129 +1106,7 @@ jobs:
           if webhook_url:
               response = requests.post(webhook_url, json=message)
               print(f"Notification sent: {response.status_code}")
-          EOF
-
-
-  # ========================================
-  # STAGE 5: APPLICATION PACKAGE GENERATION
-  # ========================================
-  generate-packages:
-    name: Generate Application Packages
-    runs-on: ubuntu-latest
-    needs: [coordinator, trigger-matching]
-    if: |
-      always() &&
-      needs.coordinator.outputs.run_matching == 'true' &&
-      needs.trigger-matching.result == 'success'
-    
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-      
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      
-      - name: Create packages for matched jobs
-        run: |
-          python3 << 'EOF'
-          import sys
-          import json
-          from pathlib import Path
-          sys.path.insert(0, '.github/scripts')
-          
-          from application_prefiller_plus import ApplicationPrefiller
-          from application_tracker_plus import ApplicationTracker
-          
-          print("="*70)
-          print("📦 GENERATING APPLICATION PACKAGES")
-          print("="*70)
-          
-          # Load matched jobs
-          matched_file = Path('${{ env.DATA_DIR }}/matched_jobs.json')
-          if not matched_file.exists():
-              print("⚠️ No matched jobs found")
-              exit(0)
-          
-          with open(matched_file, 'r') as f:
-              matched_jobs = json.load(f)
-          
-          print(f"\n📊 Found {len(matched_jobs)} matched jobs")
-          
-          prefiller = ApplicationPrefiller()
-          tracker = ApplicationTracker()
-          
-          packages_created = 0
-          
-          for job in matched_jobs:
-              try:
-                  # Determine platform
-                  platform = job.get('source', 'generic').lower()
-                  
-                  # Create package
-                  package_dir = prefiller.create_application_package(
-                      job_posting=job,
-                      cv_path='cv/my_cv.pdf',
-                      cover_letter_path='cover_letter/my_cover.txt',
-                      platform=platform
-                  )
-                  
-                  # Add to tracker
-                  tracker.add_application(
-                      job_id=job.get('id', f"job_{packages_created}"),
-                      job_data=job,
-                      platform=platform,
-                      package_path=str(package_dir)
-                  )
-                  
-                  # Update to matched status
-                  tracker.update_status(
-                      job_id=job.get('id'),
-                      new_status='matched',
-                      notes=f"CV score: {job.get('cv_score', 'N/A')}"
-                  )
-                  
-                  packages_created += 1
-                  
-              except Exception as e:
-                  print(f"⚠️ Error processing job: {e}")
-                  continue
-          
-          print(f"\n✅ Created {packages_created} packages")
-          
-          # Generate report
-          report = tracker.generate_report()
-          report_file = Path('${{ env.DATA_DIR }}/reports/tracker_report.md')
-          report_file.parent.mkdir(parents=True, exist_ok=True)
-          with open(report_file, 'w') as f:
-              f.write(report)
-          
-          print("✅ Tracker report generated")
-          EOF
-      
-      - name: Commit packages and tracking data
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          git add ${{ env.DATA_DIR }}/application_packages/
-          git add ${{ env.DATA_DIR }}/applications.json
-          git add ${{ env.DATA_DIR }}/analytics.json
-          git add ${{ env.DATA_DIR }}/reports/
-          
-          git diff --quiet && git diff --staged --quiet || \
-            git commit -m "📦 Application packages generated - $(date +'%Y-%m-%d %H:%M')"
-          
-          git push
-      
-      - name: Upload packages
-        uses: actions/upload-artifact@v4
-        with:
-          name: application-packages-${{ github.run_number }}
-          path: ${{ env.DATA_DIR }}/application_packages/
-          retention-days: 90
-      
+          EOF      
 
   # ========================================
   # STAGE 6: FOLLOW-UP MANAGEMENT
