@@ -472,21 +472,14 @@ jobs:
             echo "⚠️ No scored jobs file created"
             echo "high_score_count=0" >> $GITHUB_OUTPUT
           fi
-      
-      - name: Commit scored results
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          if [ -f "job_search/scored_jobs.json" ]; then
-            git add job_search/scored_jobs.json
-            git add configs/scoring_preferences.json
-            git commit -m "🎯 Scored jobs: ${{ steps.score.outputs.high_score_count }} high-quality matches" || true
-            git push || true
-          else
-            echo "⚠️ No changes to commit"
-          fi
 
+
+      - name: Commit scored results
+        uses: ./.github/actions/safe-git-push
+        with:
+          commit-message: "🎯 Scored jobs: ${{ steps.score.outputs.high_score_count }} high-quality matches"
+          files: "job_search/scored_jobs.json configs/scoring_preferences.json"    
+      
   # ========================================
   # NEW: AI COVER LETTER GENERATION
   # ========================================
@@ -522,14 +515,13 @@ jobs:
           
           COUNT=$(ls job_search/cover_letters/*.txt 2>/dev/null | wc -l)
           echo "count=$COUNT" >> $GITHUB_OUTPUT
-      
+
       - name: Commit cover letters
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add cover_letter/
-          git commit -m "📝 Generated ${{ steps.generate.outputs.count }} AI cover letters" || true
-          git push || true
+        uses: ./.github/actions/safe-git-push
+        with:
+          commit-message: "📝 Generated ${{ steps.generate.outputs.count }} AI cover letters"
+          files: "cover_letter/"
+      
   # ========================================
   # STAGE 3.5: JOB SCORING
   # ========================================
@@ -999,55 +991,15 @@ jobs:
               sys.exit(1)
           
           EOF
-      
+
       - name: Commit packages and tracking data
         if: env.skip_generation != 'true'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # Check if there are changes
-          if [ -z "$(git status --porcelain)" ]; then
-            echo "No changes to commit"
-            exit 0
-          fi
-          
-          # Add all generated files
-          git add ${{ env.DATA_DIR }}/application_packages/ 2>/dev/null || true
-          git add ${{ env.DATA_DIR }}/applications.json 2>/dev/null || true
-          git add ${{ env.DATA_DIR }}/analytics.json 2>/dev/null || true
-          git add ${{ env.DATA_DIR }}/reports/ 2>/dev/null || true
-          git add ${{ env.DATA_DIR }}/package_generation_results.json 2>/dev/null || true
-          
-          # Commit with timestamp
-          TIMESTAMP=$(date +'%Y-%m-%d %H:%M:%S')
-          git commit -m "📦 Application packages generated - $TIMESTAMP" || {
-            echo "Nothing to commit"
-            exit 0
-          }
-          
-          # Push with retry logic
-          MAX_RETRIES=3
-          RETRY_COUNT=0
-          
-          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-            if git push; then
-              echo "✅ Changes pushed successfully"
-              exit 0
-            else
-              RETRY_COUNT=$((RETRY_COUNT + 1))
-              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-                echo "⚠️ Push failed, retrying ($RETRY_COUNT/$MAX_RETRIES)..."
-                sleep 2
-                git pull --rebase
-              else
-                echo "❌ Failed to push after $MAX_RETRIES attempts"
-                exit 1
-              fi
-            fi
-
-          done
-
+        uses: ./.github/actions/safe-git-push
+        with:
+          commit-message: "📦 Application packages generated - $(date +'%Y-%m-%d %H:%M:%S')"
+          files: "${{ env.DATA_DIR }}/application_packages/ ${{ env.DATA_DIR }}/applications.json ${{ env.DATA_DIR }}/analytics.json ${{ env.DATA_DIR }}/reports/ ${{ env.DATA_DIR }}/package_generation_results.json"
+          max-retries: 5
+      
       
   # ========================================
   # STAGE 5: MAINTENANCE
@@ -1500,19 +1452,13 @@ jobs:
           
           print("="*70)
           EOF
-      
+
       - name: Commit status updates
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          git add ${{ env.DATA_DIR }}/applications.json
-          git add ${{ env.DATA_DIR }}/analytics.json
-          
-          git diff --quiet && git diff --staged --quiet || \
-            git commit -m "ðŸ"„ Auto-updated ${{ steps.status_update.outputs.updates_count }} application statuses"
-          
-          git push
+        uses: ./.github/actions/safe-git-push
+        with:
+          commit-message: "📄 Auto-updated ${{ steps.status_update.outputs.updates_count }} application statuses"
+          files: "${{ env.DATA_DIR }}/applications.json ${{ env.DATA_DIR }}/analytics.json"
+      
 
   # ========================================
   # STAGE 8: FOLLOW-UP REMINDER MANAGEMENT
@@ -1557,19 +1503,12 @@ jobs:
             --data-dir ${{ env.DATA_DIR }} \
             --days-ahead 7 \
             --output followup_summary.json
-          
+
       - name: Commit follow-up data
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          git add ${{ env.DATA_DIR }}/reports/followup_report.txt
-          git add ${{ env.DATA_DIR }}/reminders_calendar.ics
-          
-          git diff --quiet && git diff --staged --quiet || \
-            git commit -m "â° Follow-up report: ${{ steps.reminders.outputs.due_count }} reminders due"
-          
-          git push
+        uses: ./.github/actions/safe-git-push
+        with:
+          commit-message: "⏰ Follow-up report: ${{ steps.reminders.outputs.due_count }} reminders due"
+          files: "${{ env.DATA_DIR }}/reports/followup_report.txt ${{ env.DATA_DIR }}/reminders_calendar.ics"      
       
       - name: Upload follow-up summary
         uses: actions/upload-artifact@v4
