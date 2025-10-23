@@ -1,17 +1,19 @@
 name: 'Safe Git Push'
-description: 'Commit and push changes with conflict resolution'
+description: 'Commit and push changes with automatic conflict resolution'
 
 inputs:
   commit-message:
-    description: 'The commit message to use'
+    description: 'Commit message'
     required: true
   files:
-    description: 'The files to add (space-separated)'
+    description: 'Files to add (space-separated or glob pattern)'
     required: true
   max-retries:
-    description: 'Maximum number of push retry attempts'
-    required: false
+    description: 'Maximum retry attempts'
     default: '5'
+  allow-empty:
+    description: 'Allow empty commits'
+    default: 'false'
 
 runs:
   using: 'composite'
@@ -19,54 +21,98 @@ runs:
     - name: Commit and push with retry
       shell: bash
       run: |
+        set +e  # Don't exit on error
+        
         # Set up git config
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
         
-        # Add files to the staging area
-        git add ${{ inputs.files }}
+        echo "📦 Adding files..."
+        FILES_ADDED=0
         
-        # Check if there are any changes to commit
-        if git diff --cached --quiet; then
-          echo "ℹ️  No changes to commit"
-          exit 0
+        # Process each file pattern
+        for pattern in ${{ inputs.files }}; do
+          echo "  Checking: $pattern"
+          
+          # Check if pattern matches any files
+          if compgen -G "$pattern" > /dev/null 2>&1; then
+            # Pattern matches - add files
+            git add "$pattern" 2>/dev/null && {
+              FILES_ADDED=1
+              echo "    ✅ Added: $pattern"
+            } || echo "    ⚠️  Failed to add: $pattern"
+          else
+            # No match - check if it's a single file
+            if [ -e "$pattern" ]; then
+              git add "$pattern" 2>/dev/null && {
+                FILES_ADDED=1
+                echo "    ✅ Added: $pattern"
+              } || echo "    ⚠️  Failed to add: $pattern"
+            else
+              echo "    ⏭️  Not found: $pattern (skipping)"
+            fi
+          fi
+        done
+        
+        # Check if there are any staged changes
+        if git diff --staged --quiet; then
+          if [ "${{ inputs.allow-empty }}" = "true" ]; then
+            echo "⚠️  No changes to commit (allow-empty is true)"
+            git commit --allow-empty -m "${{ inputs.commit-message }}"
+          else
+            echo "⚠️  No changes to commit"
+            exit 0
+          fi
+        else
+          echo "✅ Changes staged, creating commit..."
+          git commit -m "${{ inputs.commit-message }}" || {
+            echo "⚠️  Commit failed"
+            exit 0
+          }
         fi
         
-        # Commit the changes
-        git commit -m "${{ inputs.commit-message }}"
-        
-        # Determine the current branch
-        BRANCH=$(git rev-parse --abbrev-ref HEAD)
-        echo "📍 Current branch: $BRANCH"
-        
-        # Retry push logic
+        # Push with retry and automatic conflict resolution
+        echo "🚀 Pushing changes..."
         MAX_RETRIES=${{ inputs.max-retries }}
         RETRY_COUNT=0
         
         while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-          # Pull latest changes
-          echo "🔄 Attempt $((RETRY_COUNT+1)): Pulling latest changes..."
-          if git pull --rebase origin $BRANCH; then
-            echo "✅ Rebase successful"
-          else
-            echo "⚠️  Rebase failed, using merge strategy"
-            git rebase --abort || true
-            git pull --no-rebase origin $BRANCH
-          fi
-          
-          # Try to push
-          echo "⬆️  Attempt $((RETRY_COUNT+1)): Pushing changes..."
-          if git push origin $BRANCH; then
-            echo "✅ Changes pushed successfully on attempt $((RETRY_COUNT + 1))"
+          if git push; then
+            echo "✅ Changes pushed successfully"
             exit 0
           else
             RETRY_COUNT=$((RETRY_COUNT + 1))
             if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-              DELAY=$((RETRY_COUNT * 5))  # Delay before retrying
-              echo "⚠️  Push failed, retrying in ${DELAY}s... (Attempt $RETRY_COUNT/$MAX_RETRIES)"
-              sleep $DELAY
+              echo "⚠️  Push failed, retrying ($RETRY_COUNT/$MAX_RETRIES)..."
+              
+              # Exponential backoff
+              SLEEP_TIME=$((RETRY_COUNT * 2))
+              echo "   Waiting ${SLEEP_TIME}s before retry..."
+              sleep $SLEEP_TIME
+              
+              # Get current branch name
+              BRANCH_NAME="${GITHUB_REF##*/}"
+              echo "   Pulling latest changes from $BRANCH_NAME..."
+              
+              # Try rebase first (cleaner history)
+              if git pull --rebase origin "$BRANCH_NAME" 2>&1; then
+                echo "   ✅ Rebased successfully"
+              else
+                echo "   ⚠️  Rebase failed, trying merge..."
+                git rebase --abort 2>/dev/null || true
+                
+                if git pull --no-rebase origin "$BRANCH_NAME" 2>&1; then
+                  echo "   ✅ Merged successfully"
+                else
+                  echo "   ❌ Both rebase and merge failed"
+                  # Show what went wrong
+                  git status
+                  exit 1
+                fi
+              fi
             else
               echo "❌ Failed to push after $MAX_RETRIES attempts"
+              git status
               exit 1
             fi
           fi

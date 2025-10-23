@@ -997,9 +997,8 @@ jobs:
         uses: ./.github/actions/safe-git-push
         with:
           commit-message: "📦 Application packages generated - $(date +'%Y-%m-%d %H:%M:%S')"
-          files: "${{ env.DATA_DIR }}/application_packages/ ${{ env.DATA_DIR }}/applications.json ${{ env.DATA_DIR }}/analytics.json ${{ env.DATA_DIR }}/reports/ ${{ env.DATA_DIR }}/package_generation_results.json"
-          max-retries: 5
-      
+          files: "${{ env.DATA_DIR }}/"
+
       
   # ========================================
   # STAGE 5: MAINTENANCE
@@ -1349,6 +1348,23 @@ jobs:
           path: followup_data.json
           retention-days: 14
 
+
+      - name: Ensure analytics file exists
+        run: |
+          ANALYTICS_FILE="${{ env.DATA_DIR }}/analytics.json"
+    
+          if [ ! -f "$ANALYTICS_FILE" ]; then
+              echo "Creating analytics.json..."
+              mkdir -p "${{ env.DATA_DIR }}"
+             cat > "$ANALYTICS_FILE" << 'EOF'
+          { 
+          "total_applications": 0,
+          "status_distribution": {},
+          "last_updated": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          }
+          EOF
+          echo "✅ Created analytics.json"
+          fi
   # ========================================
   # STAGE 7: STATUS MANAGEMENT & TRACKING
   # ========================================
@@ -1457,8 +1473,7 @@ jobs:
         uses: ./.github/actions/safe-git-push
         with:
           commit-message: "📄 Auto-updated ${{ steps.status_update.outputs.updates_count }} application statuses"
-          files: "${{ env.DATA_DIR }}/applications.json ${{ env.DATA_DIR }}/analytics.json"
-      
+          files: "${{ env.DATA_DIR }}/*.json"
 
   # ========================================
   # STAGE 8: FOLLOW-UP REMINDER MANAGEMENT
