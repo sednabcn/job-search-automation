@@ -1,0 +1,73 @@
+name: 'Safe Git Push'
+description: 'Commit and push changes with conflict resolution'
+
+inputs:
+  commit-message:
+    description: 'The commit message to use'
+    required: true
+  files:
+    description: 'The files to add (space-separated)'
+    required: true
+  max-retries:
+    description: 'Maximum number of push retry attempts'
+    required: false
+    default: '5'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Commit and push with retry
+      shell: bash
+      run: |
+        # Set up git config
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        
+        # Add files to the staging area
+        git add ${{ inputs.files }}
+        
+        # Check if there are any changes to commit
+        if git diff --cached --quiet; then
+          echo "ℹ️  No changes to commit"
+          exit 0
+        fi
+        
+        # Commit the changes
+        git commit -m "${{ inputs.commit-message }}"
+        
+        # Determine the current branch
+        BRANCH=$(git rev-parse --abbrev-ref HEAD)
+        echo "📍 Current branch: $BRANCH"
+        
+        # Retry push logic
+        MAX_RETRIES=${{ inputs.max-retries }}
+        RETRY_COUNT=0
+        
+        while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+          # Pull latest changes
+          echo "🔄 Attempt $((RETRY_COUNT+1)): Pulling latest changes..."
+          if git pull --rebase origin $BRANCH; then
+            echo "✅ Rebase successful"
+          else
+            echo "⚠️  Rebase failed, using merge strategy"
+            git rebase --abort || true
+            git pull --no-rebase origin $BRANCH
+          fi
+          
+          # Try to push
+          echo "⬆️  Attempt $((RETRY_COUNT+1)): Pushing changes..."
+          if git push origin $BRANCH; then
+            echo "✅ Changes pushed successfully on attempt $((RETRY_COUNT + 1))"
+            exit 0
+          else
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+              DELAY=$((RETRY_COUNT * 5))  # Delay before retrying
+              echo "⚠️  Push failed, retrying in ${DELAY}s... (Attempt $RETRY_COUNT/$MAX_RETRIES)"
+              sleep $DELAY
+            else
+              echo "❌ Failed to push after $MAX_RETRIES attempts"
+              exit 1
+            fi
+          fi
+        done

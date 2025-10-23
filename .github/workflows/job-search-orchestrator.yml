@@ -523,16 +523,13 @@ jobs:
           echo "top_score=$TOP" >> $GITHUB_OUTPUT
           
           echo "✅ Scored $TOTAL jobs, top score: $TOP"
-      
+
       - name: Commit scored jobs
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          git add job_search/*_scored.json
-          git commit -m "🎯 Job scoring complete: ${{ steps.score.outputs.total_scored }} matches"
-          git push
-       
+        uses: ./.github/actions/safe-git-push
+        with:
+          commit-message: "🎯 Job scoring complete: ${{ steps.score.outputs.total_scored }} matches"
+          files: "job_search/*_scored.json"    
+             
   # ========================================
   # STAGE 4: EMAIL NOTIFICATIONS
   # ========================================
