@@ -302,7 +302,7 @@ jobs:
       - name: Run job scorer
         id: score
         run: |
-          python3 scripts/job_scorer.py \
+          python3 .github/scripts/job_scorer.py \
             --input job_search/applications.json \
             --profile contacts/profile.json \
             --min-score 70 \
@@ -705,7 +705,7 @@ jobs:
           sys.path.insert(0, '.github/scripts')
           
           from application_prefiller import ApplicationPrefiller
-          from application_tracker import ApplicationTracker
+          from application_tracker_plus import ApplicationTracker
           
           print("="*70)
           print("📦 GENERATING APPLICATION PACKAGES")
@@ -821,7 +821,7 @@ jobs:
           import sys
           sys.path.insert(0, '.github/scripts')
           
-          from application_tracker import ApplicationTracker
+          from application_tracker_plus import ApplicationTracker
           import json
           
           print("="*70)
@@ -950,7 +950,7 @@ jobs:
           sys.path.insert(0, '.github/scripts')
           
           from update_application_status import ApplicationStatusUpdater
-          from application_tracker import ApplicationTracker
+          from application_tracker_plus import ApplicationTracker
           
           print("="*70)
           print("ðŸ"„ AUTO-UPDATING APPLICATION STATUSES")

@@ -47,8 +47,8 @@ def main():
     
     # Print summary
     print(summary)
-    print(f"\nðŸ"Š Updates: {results['status_updates']}")
-    print(f"â° Reminders: {results['reminders_created']}")
+    print(f"Status Updates: {results['status_updates']}")
+    print(f"Foolw_up Reminders: {results['reminders_created']}")
     
     if results['errors']:
         print(f"\nâš ï¸  Errors: {len(results['errors'])}")

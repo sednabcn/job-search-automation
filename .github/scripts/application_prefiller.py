@@ -60,14 +60,15 @@ class ApplicationPrefiller:
             'sponsorship_needed': self.profile['needs_sponsorship'],
             'salary_expectation': self.profile['salary_range']
         }
-```
 
-**Package structure:**
-```
-job_search/application_packages/
-└── app_12345_20241022/
-    ├── CV.pdf
-    ├── Cover_Letter.txt
-    ├── application_data.json
-    ├── APPLICATION_CHECKLIST.md
-    └── job_details.json
+#=======================================
+#**Package structure:**
+
+#job_search/application_packages/
+#└── app_12345_20241022/
+#    ├── CV.pdf
+#    ├── Cover_Letter.txt
+#    ├── application_data.json
+#    ├── APPLICATION_CHECKLIST.md
+#    └── job_details.json
+#=====================================
