@@ -310,8 +310,71 @@ jobs:
           python-version: '3.11'
       
       - name: Install scoring dependencies
-        run: pip install pandas scikit-learn nltk
+        run: |
+           pip install pandas scikit-learn nltk PyPDF2 python-docx
+    
+           # Download NLTK data
+           python3 << 'EOF'
+           import nltk
+           try:
+             nltk.download('stopwords', quiet=True)
+             nltk.download('punkt', quiet=True)
+             print("✅ NLTK data downloaded")
+           except Exception as e:
+             print(f"⚠️  NLTK download failed: {e}")
+           EOF
+
+      - name: Convert CV to text if needed
+        run: |
+          CV_PATH="${{ env.CV_FILE }}"
+          CV_EXT="${CV_PATH##*.}"
+    
+          if [ "$CV_EXT" = "pdf" ] || [ "$CV_EXT" = "PDF" ]; then
+             echo "📄 Converting PDF to text..."
       
+             # Install pdftotext
+             sudo apt-get update
+             sudo apt-get install -y poppler-utils
+      
+             # Convert PDF to text
+             CV_TXT="${CV_PATH%.pdf}.txt"
+             pdftotext "$CV_PATH" "$CV_TXT"
+      
+             if [ -f "$CV_TXT" ]; then
+                echo "✅ Converted to: $CV_TXT"
+                echo "CV_FILE=$CV_TXT" >> $GITHUB_ENV
+             else
+                echo "❌ Conversion failed"
+                exit 1
+             fi
+          else
+             echo "ℹ️  CV is already in text format: $CV_PATH"
+          fi
+
+      - name: Test CV reading
+        run: |
+          python3 << 'EOF'
+          from pathlib import Path
+    
+          cv_path = Path('${{ env.CV_FILE }}')
+          print(f"CV Path: {cv_path}")
+          print(f"Exists: {cv_path.exists()}")
+          print(f"Size: {cv_path.stat().st_size if cv_path.exists() else 'N/A'}")
+          print(f"Extension: {cv_path.suffix}")
+    
+          # Try to determine if it's readable
+          if cv_path.suffix == '.txt':
+                   print("✅ Text file - should work")
+          elif cv_path.suffix == '.pdf':
+                   print("⚠️  PDF file - needs PyPDF2")
+                   try:
+                     import PyPDF2
+                     print("✅ PyPDF2 is installed")
+                   except ImportError:
+                     print("❌ PyPDF2 not installed - install with: pip install PyPDF2")
+          EOF
+
+          
       - name: Run job scorer
         id: score
         run: |
