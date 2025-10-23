@@ -1206,95 +1206,35 @@ jobs:
               print(f"⚠️ Cover letter generation failed: {e}")
           PYTHON_SCRIPT
 
+      - name: Generate email report
+        run: |
+          python3 .github/scripts/generate_email_report.py \
+          --template .github/templates/email-campaign-report.html \
+          --output email-body.html \
+          --total-applications ${{ steps.execute.outputs.total_applications }} \
+          --successful ${{ steps.execute.outputs.successful }} \
+          --failed ${{ steps.execute.outputs.failed }} \
+          --high-quality-matches ${{ needs.score-discovered-jobs.outputs.total_scored }} \
+          --top-score ${{ needs.score-discovered-jobs.outputs.top_score }} \
+          --packages-created ${{ steps.create_packages.outputs.packages_created }} \
+          --reminders-created ${{ needs.create-followup-reminders.outputs.reminders_created }} \
+          --github-server ${{ github.server_url }} \
+          --repository ${{ github.repository }} \
+          --run-id ${{ github.run_id }}
 
-      - name: Send email notification
-        if: steps.execute.outputs.total_applications >= 0 && needs.score-jobs.result == 'success'
+      - name: Send email with generated report
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
           server_port: 587
           username: ${{ secrets.SMTP_USER }}
           password: ${{ secrets.SMTP_PASS }}
-          subject: "📤 Job Application Campaign: ${{ steps.execute.outputs.total_applications }} applications | 🎯 ${{ needs.score-discovered-jobs.outputs.total_scored }} high-quality matches"
+          subject: "📤 Campaign Report: ${{ steps.execute.outputs.total_applications }} applications"
           to: ${{ secrets.NOTIFICATION_EMAIL }}
           from: Job Search Automation <${{ secrets.SMTP_USER }}>
-          html_body: |
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { background: #4CAF50; color: white; padding: 20px; text-align: center; border-radius: 5px; }
-              .stats { background: #f4f4f4; padding: 15px; margin: 20px 0; border-radius: 5px; }
-              .stat-item { padding: 10px; margin: 5px 0; background: white; border-left: 4px solid #4CAF50; }
-              .score-item { padding: 10px; margin: 5px 0; background: white; border-left: 4px solid #FF9800; }
-              .top-match { background: #FFF9C4; padding: 15px; margin: 10px 0; border-radius: 5px; }
-              .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; }
-              a { color: #2196F3; text-decoration: none; }
-              </style>
-            </head>
-            <body>
-               <div class="container">
-                    <div class="header">
-                       <h1>📤 Job Application Campaign Report</h1>
-                       <p>Execution completed on $(date +'%Y-%m-%d at %H:%M UTC')</p>
-                    </div>
-          
-                    <div class="stats">
-                         <div class="stat-item">
-                               <strong>Application Packages Created:</strong> ${{ steps.create_packages.outputs.packages_created }}
-                         </div>
-                         <h2>Discovery Summary</h2>
-                         <div class="stat-item">
-                            <strong>Total Applications:</strong> ${{ steps.execute.outputs.total_applications }}
-                         </div>
-                         <div class="stat-item">
-                             <strong>Successful:</strong> ${{ steps.execute.outputs.successful }}
-                         </div>
-                          <div class="score-item">
-                                  <strong>🎯 High-Quality Matches (70+ score):</strong> ${{ needs.score-discovered-jobs.outputs.total_scored }}
-                          </div>
-                          <div class="score-item">
-                                <strong>🏆 Top Match Score:</strong> ${{ needs.score-discovered-jobs.outputs.top_score }}%
-                          </div>
-                     </div>
-
-                     <h2>📊 Scored Jobs Available</h2>
-                     <p>We've analyzed all discovered jobs and scored them based on your CV and preferences.</p>
-                     <p><strong>${{ needs.score-discovered-jobs.outputs.total_scored }} jobs</strong> meet your quality threshold.</p>
-          
-                      <p>
-                        <a href="${{ github.server_url }}/${{ github.repository }}/blob/main/job_search/matched_jobs_scored.json">
-                         View All Scored Jobs →
-                        </a>
-                      </p>
-
-                      <h2>Next Steps</h2>
-                      <ul>
-                      <li>Review application packages in job_search/application_packages/</li>
-                      <li>Check APPLICATION_CHECKLIST.md in each package</li>
-                      <li>Use QUICK_COPY.txt to fill application forms</li>
-                      <li>Monitor application tracker for follow-ups</li>
-                      <li>📋 Review high-scoring jobs (70+) first</li>
-                      <li>🔍 Check detailed scores in matched_jobs_scored.json</li>
-                      <li>📧 Apply to top 10-20 matches this week</li>
-                      <li>🤝 Focus on jobs with "HIGH PRIORITY" recommendation</li>
-                      </ul>
-
-                      <div class="footer">
-                         <p><strong>Scoring Criteria:</strong> Keywords (40%), Salary (20%), Location (15%), Company (10%), Experience (10%), Recency (5%)</p>
-                         <p>
-                            <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">
-                            View Full Workflow Logs
-                            </a>
-                          </p>
-                       </div>
-               </div>
-            </body>
-            </html>
-            attachments: job_search/matched_jobs_scored.json
-  
+          html_body: file://email-body.html
+          attachments: job_search/matched_jobs_scored.json
+    
 #========================================
 # MODIFIED: ENHANCED EMAIL NOTIFICATION
 # ========================================
