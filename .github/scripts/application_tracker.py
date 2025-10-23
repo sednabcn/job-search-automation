@@ -56,11 +56,74 @@ class ApplicationTracker:
         if self.applications_file.exists():
             try:
                 with open(self.applications_file) as f:
-                    return json.load(f)
+                    apps = json.load(f)
+                
+                # Validate and fix data structure
+                return self._validate_applications(apps)
             except json.JSONDecodeError:
                 print(f"Warning: Could not parse {self.applications_file}")
                 return []
         return []
+    
+    def _validate_applications(self, apps: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Validate and fix application data structure.
+        Ensures all required fields exist with sensible defaults.
+        """
+        validated = []
+        
+        for app in apps:
+            # Ensure required fields exist
+            if 'id' not in app:
+                print(f"Warning: Application missing 'id', skipping")
+                continue
+            
+            # Set defaults for missing fields
+            validated_app = {
+                'id': app.get('id'),
+                'company': app.get('company', 'Unknown Company'),
+                'position': app.get('position', 'Unknown Position'),
+                'location': app.get('location', 'Unknown'),
+                'salary': app.get('salary', 'Not specified'),
+                'url': app.get('url', ''),
+                'platform': app.get('platform', 'generic'),
+                'score': app.get('score', 0),
+                'status': app.get('status', 'discovered'),  # Default status
+                'package_path': app.get('package_path'),
+                'created_at': app.get('created_at', datetime.now().isoformat()),
+                'last_updated': app.get('last_updated', datetime.now().isoformat()),
+                'submitted_at': app.get('submitted_at'),
+                'followed_up': app.get('followed_up', False),
+                'status_history': app.get('status_history', []),
+                'reminders': app.get('reminders', []),
+                'notes': app.get('notes', [])
+            }
+            
+            # Ensure status is valid
+            if validated_app['status'] not in self.statuses:
+                print(f"Warning: Invalid status '{validated_app['status']}' for {validated_app['id']}, defaulting to 'discovered'")
+                validated_app['status'] = 'discovered'
+            
+            # Ensure status_history exists
+            if not validated_app['status_history']:
+                validated_app['status_history'] = [{
+                    'status': validated_app['status'],
+                    'timestamp': validated_app['created_at'],
+                    'notes': 'Initial status'
+                }]
+            
+            validated.append(validated_app)
+        
+        # Auto-save fixed data if changes were made
+        if len(validated) != len(apps) or any(
+            orig.get('status') != val['status'] 
+            for orig, val in zip(apps, validated)
+        ):
+            print(f"Data validation fixed {len(apps) - len(validated)} issues")
+            self.applications = validated
+            self.save_applications()
+        
+        return validated
     
     def save_applications(self, applications: Optional[List[Dict]] = None) -> None:
         """Save applications to JSON file."""
@@ -275,7 +338,7 @@ class ApplicationTracker:
     
     def get_applications_by_status(self, status: str) -> List[Dict[str, Any]]:
         """Get all applications with a specific status."""
-        return [app for app in self.applications if app['status'] == status]
+        return [app for app in self.applications if app.get('status') == status]
     
     def get_follow_up_needed(self, days_threshold: int = 7) -> List[Dict[str, Any]]:
         """
@@ -290,16 +353,17 @@ class ApplicationTracker:
         needs_follow_up = []
         
         for app in self.applications:
-            if app['status'] == 'submitted' and app.get('submitted_at'):
+            # Use .get() to safely access keys
+            if app.get('status') == 'submitted' and app.get('submitted_at'):
                 try:
                     submitted_date = datetime.fromisoformat(app['submitted_at'])
                     days_since = (datetime.now() - submitted_date).days
                     
                     if days_since >= days_threshold and not app.get('followed_up'):
                         needs_follow_up.append({
-                            'id': app['id'],
-                            'company': app['company'],
-                            'position': app['position'],
+                            'id': app.get('id', 'unknown'),
+                            'company': app.get('company', 'Unknown'),
+                            'position': app.get('position', 'Unknown'),
                             'days_since_submission': days_since,
                             'action': 'Send follow-up email',
                             'priority': 'high' if days_since >= 14 else 'medium'
@@ -338,17 +402,17 @@ class ApplicationTracker:
         
         # Count by status
         for status in self.statuses:
-            count = len([app for app in self.applications if app['status'] == status])
+            count = len([app for app in self.applications if app.get('status') == status])
             self.analytics['status_counts'][status] = count
         
         # Calculate rates
-        submitted_count = self.analytics['status_counts']['submitted']
+        submitted_count = self.analytics['status_counts'].get('submitted', 0)
         interviewed_count = sum([
-            self.analytics['status_counts']['interview_requested'],
-            self.analytics['status_counts']['interview_scheduled'],
-            self.analytics['status_counts']['interviewed']
+            self.analytics['status_counts'].get('interview_requested', 0),
+            self.analytics['status_counts'].get('interview_scheduled', 0),
+            self.analytics['status_counts'].get('interviewed', 0)
         ])
-        offer_count = self.analytics['status_counts']['offer']
+        offer_count = self.analytics['status_counts'].get('offer', 0)
         
         if submitted_count > 0:
             self.analytics['response_rate'] = round(
@@ -415,9 +479,9 @@ class ApplicationTracker:
         if recent:
             lines.append("## Recent Activity (Last 5)\n")
             for app in recent:
-                lines.append(f"### {app['company']} - {app['position']}")
-                lines.append(f"- **Status:** {app['status']}")
-                lines.append(f"- **Last Updated:** {app['last_updated']}")
+                lines.append(f"### {app.get('company', 'Unknown')} - {app.get('position', 'Unknown')}")
+                lines.append(f"- **Status:** {app.get('status', 'unknown')}")
+                lines.append(f"- **Last Updated:** {app.get('last_updated', 'N/A')}")
                 lines.append(f"- **Score:** {app.get('score', 'N/A')}\n")
         
         # Follow-ups needed
@@ -438,6 +502,56 @@ class ApplicationTracker:
                 lines.append(f"  - {r['reminder']['message']}\n")
         
         return '\n'.join(lines)
+    
+    def repair_data(self) -> Dict[str, int]:
+        """
+        Manually repair and clean application data.
+        Returns statistics about repairs made.
+        """
+        stats = {
+            'total_apps': len(self.applications),
+            'fixed_status': 0,
+            'fixed_history': 0,
+            'removed_duplicates': 0
+        }
+        
+        seen_ids = set()
+        cleaned_apps = []
+        
+        for app in self.applications:
+            # Remove duplicates
+            app_id = app.get('id')
+            if app_id in seen_ids:
+                stats['removed_duplicates'] += 1
+                continue
+            seen_ids.add(app_id)
+            
+            # Fix missing status
+            if 'status' not in app or app['status'] not in self.statuses:
+                app['status'] = 'discovered'
+                stats['fixed_status'] += 1
+            
+            # Fix missing status_history
+            if not app.get('status_history'):
+                app['status_history'] = [{
+                    'status': app['status'],
+                    'timestamp': app.get('created_at', datetime.now().isoformat()),
+                    'notes': 'Status repaired'
+                }]
+                stats['fixed_history'] += 1
+            
+            cleaned_apps.append(app)
+        
+        self.applications = cleaned_apps
+        self.save_applications()
+        
+        print(f"Data repair complete:")
+        print(f"  - Total apps: {stats['total_apps']}")
+        print(f"  - Fixed status: {stats['fixed_status']}")
+        print(f"  - Fixed history: {stats['fixed_history']}")
+        print(f"  - Removed duplicates: {stats['removed_duplicates']}")
+        
+        return stats
 
 
 # Example usage

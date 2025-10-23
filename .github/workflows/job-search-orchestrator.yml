@@ -797,6 +797,90 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Repair corrupted tracking data
+        run: |
+          python3 << 'EOF'
+          import json
+          from pathlib import Path
+          from datetime import datetime
+    
+          print("="*70)
+          print("🔧 REPAIRING TRACKING DATA")
+          print("="*70)
+    
+          data_dir = Path('${{ env.DATA_DIR }}')
+          applications_file = data_dir / 'applications.json'
+          analytics_file = data_dir / 'analytics.json'
+    
+          # Repair applications.json
+          if applications_file.exists():
+            try:
+              with open(applications_file, 'r') as f:
+                content = f.read()
+                if content.strip():
+                    data = json.loads(content)
+                    print("✅ applications.json is valid")
+                else:
+                    raise ValueError("Empty file")
+            except (json.JSONDecodeError, ValueError) as e:
+              print(f"⚠️ Corrupted applications.json: {e}")
+              print("   Creating fresh tracking data...")
+              data = {
+              "applications": [],
+              "metadata": {
+                "version": "1.0",
+                "created_at": datetime.now().isoformat(),
+                "last_updated": datetime.now().isoformat()
+                }
+                }
+            with open(applications_file, 'w') as f:
+                json.dump(data, f, indent=2)
+            print("✅ Created fresh applications.json")
+          else:
+            print("ℹ️ applications.json doesn't exist, will be created by tracker")
+    
+          # Repair analytics.json
+          if analytics_file.exists():
+            try:
+              with open(analytics_file, 'r') as f:
+                content = f.read()
+                if content.strip():
+                    data = json.loads(content)
+                    print("✅ analytics.json is valid")
+                else:
+                    raise ValueError("Empty file")
+            except (json.JSONDecodeError, ValueError) as e:
+              print(f"⚠️ Corrupted analytics.json: {e}")
+              print("   Creating fresh analytics data...")
+            data = {
+                "daily_stats": {},
+                "summary": {
+                    "total_applications": 0,
+                    "by_status": {},
+                    "by_platform": {}
+                },
+                "last_updated": datetime.now().isoformat()
+            }
+            with open(analytics_file, 'w') as f:
+                json.dump(data, f, indent=2)
+            print("✅ Created fresh analytics.json")
+          else:
+            print("ℹ️ analytics.json doesn't exist, will be created by tracker")
+    
+          # Validate data directory structure
+          required_dirs = [
+          data_dir / 'application_packages',
+          data_dir / 'reports',
+          data_dir / 'cover_letters'
+          ]
+    
+          for dir_path in required_dirs:
+            dir_path.mkdir(parents=True, exist_ok=True)
+    
+          print("\n✅ All data structures validated/repaired")
+          print("="*70)
+          EOF
       
       - name: Auto-update application statuses
         id: status
