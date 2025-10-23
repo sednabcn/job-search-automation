@@ -3,24 +3,25 @@
     "id": "company1_2025",
     "company": "Tech Corp",
     "position": "Software Engineer",
+    "location": "Unknown",
+    "salary": "Not specified",
     "url": "https://techcorp.com/careers/123",
-    "source": "LinkedIn",
-    "resume_version": "default",
-    "cover_letter": true,
-    "applied_date": "2025-10-11T10:00:00",
-    "status": "applied",
-    "follow_up_date": "2025-10-18T10:00:00",
-    "notes": "Applied through LinkedIn, good cultural fit",
-    "timeline": [
+    "platform": "generic",
+    "score": 0,
+    "status": "discovered",
+    "package_path": null,
+    "created_at": "2025-10-23T21:03:25.860343",
+    "last_updated": "2025-10-23T21:03:25.860350",
+    "submitted_at": null,
+    "followed_up": false,
+    "status_history": [
       {
-        "date": "2025-10-11T10:00:00",
-        "event": "applied",
-        "notes": "Initial application submitted"
+        "status": "discovered",
+        "timestamp": "2025-10-23T21:03:25.860343",
+        "notes": "Initial status"
       }
-    ]
-  },
-  {
-    "company": "OpenAI",
-    "position": "AI Researcher"
+    ],
+    "reminders": [],
+    "notes": "Applied through LinkedIn, good cultural fit"
   }
 ]
