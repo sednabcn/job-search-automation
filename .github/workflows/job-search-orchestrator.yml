@@ -699,39 +699,39 @@ jobs:
                  txt|TXT)
                      # Create text cover letter
                      cat > "$COVER_LETTER_PATH" << 'EOF'
-                     Dear Hiring Manager,
+          Dear Hiring Manager,
+          
+          I am writing to express my strong interest in the [POSITION] position at [COMPANY].
 
-                     I am writing to express my strong interest in the [POSITION] position at [COMPANY].
-
-                     [This is a placeholder cover letter. Please customize for each application or enable AI generation.]
+          [This is a placeholder cover letter. Please customize for each application or enable AI generation.]
                      
-                     With my background and skills outlined in my CV, I am confident I would be a valuable addition to your team.
-
-                     Best regards,
-                     [Your Name]
-                     EOF
-                     echo "✅ Created text placeholder: $COVER_LETTER_PATH"
-                     ;;
+          With my background and skills outlined in my CV, I am confident I would be a valuable addition to your team.
+        
+          Best regards,
+          [Your Name]
+          EOF
+          echo "✅ Created text placeholder: $COVER_LETTER_PATH"
+          ;;
         
                  pdf|PDF|docx|DOCX)
                     # For binary formats, create a text version first
                     TXT_PATH="${COVER_LETTER_PATH%.*}.txt"
                     cat > "$TXT_PATH" << 'EOF'
-                    Dear Hiring Manager,
+          Dear Hiring Manager,
 
-                    I am writing to express my strong interest in the [POSITION] position at [COMPANY].
+          I am writing to express my strong interest in the [POSITION] position at [COMPANY].
 
-                    [This is a placeholder cover letter. Please customize for each application or enable AI generation.]
+          [This is a placeholder cover letter. Please customize for each application or enable AI generation.]
 
-                    With my background and skills outlined in my CV, I am confident I would be a valuable addition to your team.
+          With my background and skills outlined in my CV, I am confident I would be a valuable addition to your team.
 
-                    Best regards,
-                    [Your Name]
-                    EOF
-                    echo "✅ Created text placeholder: $TXT_PATH"
-                    echo "⚠️  Note: Requested .$COVER_EXT format - created .txt instead"
-                    echo "   You can convert it manually or use AI generation"
-                    ;;
+          Best regards,
+          [Your Name]
+          EOF
+          echo "✅ Created text placeholder: $TXT_PATH"
+          echo "⚠️  Note: Requested .$COVER_EXT format - created .txt instead"
+          echo "   You can convert it manually or use AI generation"
+          ;;
         
                  *)
                     echo "❌ Unknown cover letter format: .$COVER_EXT"
