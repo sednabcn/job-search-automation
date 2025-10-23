@@ -35,6 +35,18 @@ on:
         type: string
         default: 'job_search'
 
+      cv_file:
+        description: 'CV file path (supports .pdf, .docx, .txt)'
+        required: false
+        type: string
+        default: 'cv/my_cv.pdf'
+    
+      cover_letter_file:
+        description: 'Cover letter file path (supports .pdf, .docx, .txt)'
+        required: false
+        type: string
+        default: 'cover_letter/my_cover.txt'
+      
       enable_scoring:
         description: 'Enable job scoring'
         required: false
@@ -68,6 +80,8 @@ on:
 env:
   PYTHON_VERSION: '3.11'
   DATA_DIR: ${{ github.event.inputs.data_directory || 'job_search' }}
+  CV_FILE: ${{ github.event.inputs.cv_file || 'cv/my_cv.pdf' }}
+  COVER_LETTER_FILE: ${{ github.event.inputs.cover_letter_file || 'cover_letter/my_cover.txt' }} 
   ENABLE_SCORING: ${{ github.event.inputs.enable_scoring || 'true' }}
   MIN_SCORE: ${{ github.event.inputs.min_score_threshold || 70 }}
   ENABLE_AI: ${{ github.event.inputs.generate_cover_letters || 'false' }}
@@ -302,11 +316,30 @@ jobs:
         id: score
         run: |
           # Check if required files exist
-          if [ ! -f "cv/my_cv.txt" ]; then
-            echo "⚠️ CV file not found, creating placeholder"
-            mkdir -p cv
-            echo "Software Engineer with experience in Python, JavaScript, React, Node.js, AWS, Docker, Kubernetes, SQL, MongoDB, Git, CI/CD" > cv/my_cv.txt
+          CV_PATH="${{ env.CV_FILE }}"
+    
+          # Check if CV exists
+          if [ ! -f "$CV_PATH" ]; then
+              echo "⚠️ CV file not found at: $CV_PATH, trying alternatives..."
+      
+              # Try common CV locations
+              for alt_cv in cv/my_cv.pdf cv/resume.pdf cv/cv.pdf cv/*.pdf; do
+                 if [ -f "$alt_cv" ]; then
+                     echo "✅ Found alternative CV: $alt_cv"
+                     CV_PATH="$alt_cv"
+                     break
+                  fi
+              done
+      
+              if [ ! -f "$CV_PATH" ]; then
+                 echo "❌ No CV found, creating placeholder"
+                 mkdir -p cv
+                 echo "Software Engineer with experience in Python, JavaScript, React, Node.js, AWS, Docker, Kubernetes, SQL, MongoDB, Git, CI/CD" > cv/my_cv.txt
+                 CV_PATH="cv/my_cv.txt"
+              fi
           fi
+    
+          echo "📄 Using CV: $CV_PATH"
           
           if [ ! -f "job_search/applications.json" ]; then
             echo "⚠️ No applications found to score"
@@ -336,13 +369,13 @@ jobs:
           PREFS
           fi
           
-          # Run scoring with correct arguments
+          # Run scoring with the configured CV path
           python3 .github/scripts/job_scorer.py \
-            --cv cv/my_cv.txt \
-            --jobs job_search/applications.json \
-            --output job_search/scored_jobs.json \
-            --preferences configs/scoring_preferences.json \
-            --min-score 70
+          --cv "$CV_PATH" \
+          --jobs job_search/applications.json \
+          --output job_search/scored_jobs.json \
+          --preferences configs/scoring_preferences.json \
+          --min-score 70
           
           # Extract high score count from output file
           if [ -f "job_search/scored_jobs.json" ]; then
@@ -544,31 +577,118 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      
+
       - name: Validate required files
         run: |
           echo "🔍 Validating required files..."
-          
-          # Check for CV
-          if [ ! -f "cv/my_cv.pdf" ]; then
-            echo "❌ CV file not found at cv/my_cv.pdf"
-            exit 1
+          echo "================================"
+    
+          CV_PATH="${{ env.CV_FILE }}"
+          COVER_LETTER_PATH="${{ env.COVER_LETTER_FILE }}"
+    
+          # Check for CV with flexible extensions
+          if [ -f "$CV_PATH" ]; then
+             echo "✅ CV found: $CV_PATH"
+             CV_EXT="${CV_PATH##*.}"
+             echo "   Format: .$CV_EXT"
+      
+             # Validate CV format
+             case "$CV_EXT" in
+                 pdf|PDF)
+                   echo "   ✅ PDF format supported"
+                   ;;
+                 docx|DOCX|doc|DOC)
+                    echo "   ✅ Word format supported"
+                    ;;
+                 txt|TXT)
+                     echo "   ✅ Text format supported"
+                     ;;
+                  *)
+                     echo "   ⚠️  Warning: Unusual format (.$CV_EXT) - may need conversion"
+                     ;;
+             esac
+          else
+             echo "❌ CV file not found at: $CV_PATH"
+             echo ""
+             echo "Available CV files:"
+             find cv/ -type f 2>/dev/null || echo "  (cv/ directory not found)"
+             exit 1
           fi
-          
-          # Check for cover letter
-          if [ ! -f "cover_letter/my_cover.txt" ]; then
-            echo "❌ Cover letter not found at cover_letter/my_cover.txt"
-            exit 1
+    
+          echo ""
+    
+          # Check for cover letter (optional with auto-creation)
+          if [ -f "$COVER_LETTER_PATH" ]; then
+             echo "✅ Cover letter found: $COVER_LETTER_PATH"
+             COVER_EXT="${COVER_LETTER_PATH##*.}"
+             echo "   Format: .$COVER_EXT"
+          else
+             echo "⚠️  Cover letter not found at: $COVER_LETTER_PATH"
+             echo "ℹ️  Creating placeholder cover letter..."
+      
+             # Create directory if needed
+             mkdir -p "$(dirname "$COVER_LETTER_PATH")"
+      
+             # Determine format from extension
+             COVER_EXT="${COVER_LETTER_PATH##*.}"
+      
+             case "$COVER_EXT" in
+                 txt|TXT)
+                     # Create text cover letter
+                     cat > "$COVER_LETTER_PATH" << 'EOF'
+                     Dear Hiring Manager,
+
+                     I am writing to express my strong interest in the [POSITION] position at [COMPANY].
+
+                     [This is a placeholder cover letter. Please customize for each application or enable AI generation.]
+                     
+                     With my background and skills outlined in my CV, I am confident I would be a valuable addition to your team.
+
+                     Best regards,
+                     [Your Name]
+                     EOF
+                     echo "✅ Created text placeholder: $COVER_LETTER_PATH"
+                     ;;
+        
+                 pdf|PDF|docx|DOCX)
+                    # For binary formats, create a text version first
+                    TXT_PATH="${COVER_LETTER_PATH%.*}.txt"
+                    cat > "$TXT_PATH" << 'EOF'
+                    Dear Hiring Manager,
+
+                    I am writing to express my strong interest in the [POSITION] position at [COMPANY].
+
+                    [This is a placeholder cover letter. Please customize for each application or enable AI generation.]
+
+                    With my background and skills outlined in my CV, I am confident I would be a valuable addition to your team.
+
+                    Best regards,
+                    [Your Name]
+                    EOF
+                    echo "✅ Created text placeholder: $TXT_PATH"
+                    echo "⚠️  Note: Requested .$COVER_EXT format - created .txt instead"
+                    echo "   You can convert it manually or use AI generation"
+                    ;;
+        
+                 *)
+                    echo "❌ Unknown cover letter format: .$COVER_EXT"
+                    echo "   Supported formats: .txt, .pdf, .docx"
+                    exit 1
+                    ;;
+             esac
           fi
-          
+    
+          echo ""
+          echo "================================"
+    
           # Check for matched jobs
           if [ ! -f "${{ env.DATA_DIR }}/matched_jobs.json" ]; then
-            echo "⚠️ No matched jobs found - skipping package generation"
-            echo "skip_generation=true" >> $GITHUB_ENV
-            exit 0
+             echo "⚠️  No matched jobs found - skipping package generation"
+             echo "skip_generation=true" >> $GITHUB_ENV
+             exit 0
           fi
-          
-          echo "✅ All required files present"
+    
+          echo "✅ All required files validated"
       
       - name: Create packages for matched jobs
         if: env.skip_generation != 'true'
@@ -607,22 +727,56 @@ jobs:
               job_string = f"{job.get('company', '')}_{job.get('title', '')}_{job.get('location', '')}"
               job_hash = hashlib.md5(job_string.encode()).hexdigest()[:12]
               return f"job_{job_hash}"
-          
-          # Validate required files
-          cv_path = Path('cv/my_cv.pdf')
-          cover_letter_path = Path('cover_letter/my_cover.txt')
-          
+
+
+          # Get file paths from environment variables
+          cv_path = Path('${{ env.CV_FILE }}')
+          cover_letter_path = Path('${{ env.COVER_LETTER_FILE }}')
+
+          print(f"\n📄 File Configuration:")
+          print(f"   CV: {cv_path}")
+          print(f"   Cover Letter: {cover_letter_path}")
+
+
+          # Validate CV exists
           if not cv_path.exists():
-              print(f"❌ CV not found at: {cv_path}")
-              sys.exit(1)
-          
+             print(f"\n❌ CV not found at: {cv_path}")
+             print("\nAvailable files in cv/:")
+             cv_dir = Path('cv')
+             if cv_dir.exists():
+                 for file in cv_dir.iterdir():
+                     print(f"   - {file}")
+             sys.exit(1)
+
+          print(f"✅ CV found: {cv_path} ({cv_path.stat().st_size} bytes)")
+
+          # Handle cover letter (with fallback)
           if not cover_letter_path.exists():
-              print(f"❌ Cover letter not found at: {cover_letter_path}")
-              sys.exit(1)
-          
-          print(f"✅ CV found: {cv_path}")
-          print(f"✅ Cover letter found: {cover_letter_path}")
-          
+            print(f"⚠️  Cover letter not found at: {cover_letter_path}")
+    
+            # Try to find alternative cover letter
+            cover_dir = cover_letter_path.parent
+            if cover_dir.exists():
+               alt_covers = list(cover_dir.glob('*'))
+               if alt_covers:
+                   print(f"📋 Found alternative cover letters:")
+                   for alt in alt_covers:
+                        print(f"   - {alt}")
+                   # Use the first one found
+                   cover_letter_path = alt_covers[0]
+                   print(f"✅ Using: {cover_letter_path}")
+               else:
+                   print("ℹ️  Creating placeholder cover letter")
+                   cover_letter_path.parent.mkdir(parents=True, exist_ok=True)
+                   cover_letter_path.write_text("Generic cover letter - customize per application")
+            else:
+              print("ℹ️  Creating cover letter directory and placeholder")
+              cover_letter_path.parent.mkdir(parents=True, exist_ok=True)
+              cover_letter_path.write_text("Generic cover letter - customize per application")
+
+          print(f"✅ Cover letter: {cover_letter_path} ({cover_letter_path.stat().st_size} bytes)")
+          print()
+
           # Load matched jobs
           matched_file = Path('${{ env.DATA_DIR }}/matched_jobs.json')
           
