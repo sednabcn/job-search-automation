@@ -1128,13 +1128,13 @@ jobs:
           path: followup_data.json
           retention-days: 14
 
-# ========================================
+  # ========================================
   # STAGE 7: STATUS MANAGEMENT & TRACKING
   # ========================================
   manage-application-status:
     name: Update Application Statuses
     runs-on: ubuntu-latest
-    needs: [coordinator, create-packages]
+    needs: [coordinator, generate-packages]
     if: |
       always() &&
       needs.create-packages.result == 'success'
@@ -1251,7 +1251,7 @@ jobs:
   process-followup-reminders:
     name: Process Follow-up Reminders
     runs-on: ubuntu-latest
-    needs: [coordinator, manage-application-status]
+    needs: [coordinator, generate-packages]
     if: always()
     
     outputs:
