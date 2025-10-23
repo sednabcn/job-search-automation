@@ -2,14 +2,12 @@
 """
 GitHub Actions wrapper for follow-up reminder management
 """
-
 import sys
 import json
 from pathlib import Path
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent))
-
 from follow_up_remainders import GitHubActionsFollowUpManager
 
 def main():
@@ -31,7 +29,7 @@ def main():
     if args.mode == 'create':
         # Create reminders from campaign results
         if not args.campaign_results:
-            print("âŒ --campaign-results required for 'create' mode")
+            print("❌ --campaign-results required for 'create' mode")
             return 1
         
         with open(args.campaign_results, 'r') as f:
@@ -47,7 +45,7 @@ def main():
         with open(args.output, 'w') as f:
             json.dump(result, f, indent=2)
         
-        print(f"âœ… Created {count} reminders")
+        print(f"✅ Created {count} reminders")
         
     elif args.mode == 'report':
         # Generate report
@@ -56,7 +54,7 @@ def main():
         with open(args.output, 'w') as f:
             json.dump(report, f, indent=2)
         
-        print(f"StatuŠ Report generated:")
+        print(f"📊 Report generated:")
         print(f"  Due reminders: {report['summary']['due_reminders']}")
         print(f"  Follow-ups needed: {report['summary']['follow_ups_needed']}")
         print(f"  Critical: {report['summary']['critical_reminders']}")
@@ -72,10 +70,10 @@ def main():
         with open(text_file, 'w') as f:
             f.write(text_report)
         
-        # Export calendar
-        calendar_file = manager.export_to_calendar()
+        # Export calendar - THIS WAS MISSING!
+        calendar_file = manager.export_to_calendar('reminders_calendar.ics')
         
-        print(f"Information Exported:")
+        print(f"📦 Exported:")
         print(f"  JSON: {output_file}")
         print(f"  Text: {text_file}")
         print(f"  Calendar: {calendar_file}")
