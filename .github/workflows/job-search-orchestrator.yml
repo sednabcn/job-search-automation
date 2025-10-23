@@ -35,7 +35,7 @@ on:
         type: string
         default: 'job_search'
 
-           enable_scoring:
+      enable_scoring:
         description: 'Enable job scoring'
         required: false
         type: boolean
