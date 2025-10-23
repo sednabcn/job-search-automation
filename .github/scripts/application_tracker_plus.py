@@ -54,20 +54,100 @@ class ApplicationTracker:
         self.reminders_file = self.data_dir / 'reminders.json'
         
         self.applications = self.load_applications()
+
+    def repair_applications_data(self) -> int:
+    """Repair/migrate applications data to ensure all required fields exist"""
+    repaired_count = 0
     
-    def load_applications(self) -> List[Dict]:
-        """Load applications with error handling"""
-        if self.applications_file.exists():
-            try:
-                with open(self.applications_file, 'r') as f:
-                    return json.load(f)
-            except json.JSONDecodeError:
-                print(f"⚠️ Error loading applications, creating backup")
-                backup = self.applications_file.with_suffix('.json.bak')
-                if self.applications_file.exists():
-                    self.applications_file.rename(backup)
-                return []
-        return []
+    for app in self.applications:
+        modified = False
+        
+        # Ensure required fields exist
+        required_fields = {
+            'id': f"app_{hash(str(app))}",
+            'status': 'discovered',
+            'status_history': [],
+            'created_at': datetime.now().isoformat(),
+            'last_updated': datetime.now().isoformat(),
+            'submitted_at': None,
+            'platform': 'generic',
+            'company': 'Unknown',
+            'position': 'Unknown',
+            'location': 'Unknown',
+            'url': '',
+            'salary': 'Not specified',
+            'package_path': None,
+            'cv_score': None,
+            'match_reasons': [],
+            'follow_ups': [],
+            'interviews': [],
+            'communications': [],
+            'reminders': [],
+            'metadata': {
+                'source': 'manual',
+                'tags': [],
+                'priority': 'medium'
+            }
+        }
+        
+        # Add missing fields
+        for field, default_value in required_fields.items():
+            if field not in app:
+                app[field] = default_value
+                modified = True
+        
+        # Ensure status_history exists and has at least one entry
+        if not app.get('status_history'):
+            app['status_history'] = [{
+                'status': app['status'],
+                'timestamp': app.get('created_at', datetime.now().isoformat()),
+                'notes': 'Migrated/repaired entry'
+            }]
+            modified = True
+        
+        if modified:
+            repaired_count += 1
+    
+    if repaired_count > 0:
+        print(f"✅ Repaired {repaired_count} applications")
+        self.save_applications()
+    
+    return repaired_count
+
+def load_applications(self) -> List[Dict]:
+    """Load applications with error handling and auto-repair"""
+    if self.applications_file.exists():
+        try:
+            with open(self.applications_file, 'r') as f:
+                data = json.load(f)
+            
+            # Handle different data structures
+            if isinstance(data, dict):
+                if 'applications' in data:
+                    apps = data['applications']
+                else:
+                    # Assume it's a single application wrapped in dict
+                    apps = [data]
+            elif isinstance(data, list):
+                apps = data
+            else:
+                print(f"⚠️  Unknown data format, starting fresh")
+                apps = []
+            
+            # Store temporarily and repair
+            self.applications = apps
+            self.repair_applications_data()
+            
+            return self.applications
+            
+        except json.JSONDecodeError as e:
+            print(f"⚠️  Error loading applications: {e}")
+            print(f"   Creating backup and starting fresh")
+            backup = self.applications_file.with_suffix('.json.bak')
+            if self.applications_file.exists():
+                self.applications_file.rename(backup)
+            return []
+    return []
     
     def save_applications(self):
         """Save applications with backup"""

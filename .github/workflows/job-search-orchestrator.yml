@@ -1223,6 +1223,58 @@ jobs:
               print(f"Notification sent: {response.status_code}")
           EOF      
 
+      - name: Validate applications data
+        run: |
+          python3 << 'EOF'
+          import json
+          from pathlib import Path
+    
+          apps_file = Path('${{ env.DATA_DIR }}/applications.json')
+    
+          if not apps_file.exists():
+             print("ℹ️  No applications.json found - creating empty structure")
+             apps_file.parent.mkdir(parents=True, exist_ok=True)
+             with open(apps_file, 'w') as f:
+                   json.dump([], f)
+             exit(0)
+    
+          # Load and validate
+          with open(apps_file, 'r') as f:
+               data = json.load(f)
+    
+          # Normalize to list
+          if isinstance(data, dict):
+                if 'applications' in data:
+                    apps = data['applications']
+                else:
+                    apps = [data]
+          elif isinstance(data, list):
+                    apps = data
+          else:
+                 print("❌ Invalid format - resetting")
+                 apps = []
+    
+          # Validate each app has required fields
+          required = ['id', 'status', 'company', 'position']
+          valid_apps = []
+    
+          for app in apps:
+                if all(field in app for field in required):
+                     # Ensure all optional fields exist
+                     app.setdefault('submitted_at', None)
+                     app.setdefault('follow_ups', [])
+                     app.setdefault('reminders', [])
+                     app.setdefault('status_history', [])
+                     valid_apps.append(app)
+                else:
+                       print(f"⚠️  Skipping invalid app: {app.get('id', 'unknown')}")
+    
+          # Save cleaned data
+          with open(apps_file, 'w') as f:
+                 json.dump(valid_apps, f, indent=2)
+    
+          print(f"✅ Validated {len(valid_apps)} applications")
+          EOF
   # ========================================
   # STAGE 6: FOLLOW-UP MANAGEMENT
   # ========================================
