@@ -1121,30 +1121,30 @@ jobs:
           
           try:
               from update_application_status import ApplicationStatusUpdater, GitHubActionsUpdater
-              print("âœ… update_application_status.py imported successfully")
+              print("update_application_status.py imported successfully")
           except Exception as e:
-              print(f"âŒ Failed to import update_application_status.py: {e}")
+              print(f"Failed to import update_application_status.py: {e}")
               sys.exit(1)
           
           try:
               from follow_up_remainders import FollowUpManager, GitHubActionsFollowUpManager
-              print("âœ… follow_up_remainders.py imported successfully")
+              print("follow_up_remainders.py imported successfully")
           except Exception as e:
-              print(f"âŒ Failed to import follow_up_remainders.py: {e}")
+              print(f"Failed to import follow_up_remainders.py: {e}")
               sys.exit(1)
           
           try:
               from github_actions_status_updater import main as status_main
-              print("âœ… github_actions_status_updater.py imported successfully")
+              print("github_actions_status_updater.py imported successfully")
           except Exception as e:
-              print(f"âŒ Failed to import github_actions_status_updater.py: {e}")
+              print(f"Failed to import github_actions_status_updater.py: {e}")
               sys.exit(1)
           
           try:
               from github_actions_followup_manager import main as followup_main
-              print("âœ… github_actions_followup_manager.py imported successfully")
+              print("github_actions_followup_manager.py imported successfully")
           except Exception as e:
-              print(f"âŒ Failed to import github_actions_followup_manager.py: {e}")
+              print(f"Failed to import github_actions_followup_manager.py: {e}")
               sys.exit(1)
           
           print("\nâœ… All integrations validated successfully!")

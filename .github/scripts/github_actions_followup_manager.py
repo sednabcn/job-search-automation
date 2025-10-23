@@ -56,7 +56,7 @@ def main():
         with open(args.output, 'w') as f:
             json.dump(report, f, indent=2)
         
-        print(f"ðŸ"Š Report generated:")
+        print(f"StatuŠ Report generated:")
         print(f"  Due reminders: {report['summary']['due_reminders']}")
         print(f"  Follow-ups needed: {report['summary']['follow_ups_needed']}")
         print(f"  Critical: {report['summary']['critical_reminders']}")
@@ -75,7 +75,7 @@ def main():
         # Export calendar
         calendar_file = manager.export_to_calendar()
         
-        print(f"âœ… Exported:")
+        print(f"Information Exported:")
         print(f"  JSON: {output_file}")
         print(f"  Text: {text_file}")
         print(f"  Calendar: {calendar_file}")
