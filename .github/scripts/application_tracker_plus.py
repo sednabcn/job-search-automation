@@ -56,63 +56,63 @@ class ApplicationTracker:
         self.applications = self.load_applications()
 
     def repair_applications_data(self) -> int:
-    """Repair/migrate applications data to ensure all required fields exist"""
-    repaired_count = 0
+        """Repair/migrate applications data to ensure all required fields exist"""
+        repaired_count = 0
     
-    for app in self.applications:
-        modified = False
+        for app in self.applications:
+            modified = False
         
-        # Ensure required fields exist
-        required_fields = {
-            'id': f"app_{hash(str(app))}",
-            'status': 'discovered',
-            'status_history': [],
-            'created_at': datetime.now().isoformat(),
-            'last_updated': datetime.now().isoformat(),
-            'submitted_at': None,
-            'platform': 'generic',
-            'company': 'Unknown',
-            'position': 'Unknown',
-            'location': 'Unknown',
-            'url': '',
-            'salary': 'Not specified',
-            'package_path': None,
-            'cv_score': None,
-            'match_reasons': [],
-            'follow_ups': [],
-            'interviews': [],
-            'communications': [],
-            'reminders': [],
-            'metadata': {
-                'source': 'manual',
-                'tags': [],
-                'priority': 'medium'
+            # Ensure required fields exist
+            required_fields = {
+                'id': f"app_{hash(str(app))}",
+                'status': 'discovered',
+                'status_history': [],
+                'created_at': datetime.now().isoformat(),
+                'last_updated': datetime.now().isoformat(),
+                'submitted_at': None,
+                'platform': 'generic',
+                'company': 'Unknown',
+                'position': 'Unknown',
+                'location': 'Unknown',
+                'url': '',
+                'salary': 'Not specified',
+                'package_path': None,
+                'cv_score': None,
+                'match_reasons': [],
+                'follow_ups': [],
+                'interviews': [],
+                'communications': [],
+                'reminders': [],
+                'metadata': {
+                    'source': 'manual',
+                    'tags': [],
+                    'priority': 'medium'
+                }
             }
-        }
         
-        # Add missing fields
-        for field, default_value in required_fields.items():
-            if field not in app:
-                app[field] = default_value
+            # Add missing fields
+            for field, default_value in required_fields.items():
+                if field not in app:
+                    app[field] = default_value
+                    modified = True
+        
+            # Ensure status_history exists and has at least one entry
+            if not app.get('status_history'):
+                app['status_history'] = [{
+                    'status': app['status'],
+                    'timestamp': app.get('created_at', datetime.now().isoformat()),
+                    'notes': 'Migrated/repaired entry'
+                }]
                 modified = True
         
-        # Ensure status_history exists and has at least one entry
-        if not app.get('status_history'):
-            app['status_history'] = [{
-                'status': app['status'],
-                'timestamp': app.get('created_at', datetime.now().isoformat()),
-                'notes': 'Migrated/repaired entry'
-            }]
-            modified = True
-        
-        if modified:
-            repaired_count += 1
+            if modified:
+                repaired_count += 1
     
-    if repaired_count > 0:
-        print(f"✅ Repaired {repaired_count} applications")
-        self.save_applications()
+            if repaired_count > 0:
+                print(f"✅ Repaired {repaired_count} applications")
+                self.save_applications()
     
-    return repaired_count
+            return repaired_count
 
 def load_applications(self) -> List[Dict]:
     """Load applications with error handling and auto-repair"""
