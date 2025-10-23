@@ -794,57 +794,6 @@ jobs:
           name: application-packages-${{ github.run_number }}
           path: ${{ env.DATA_DIR }}/application_packages/
           retention-days: 90
-
-  pipeline-summary:
-    name: Pipeline Summary
-    runs-on: ubuntu-latest
-    needs: [
-      coordinator, 
-      trigger-discovery, 
-      trigger-matching, 
-      manage-application-status,
-      process-followup-reminders,
-      send-enhanced-notifications
-    ]
-    if: always()
-    
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-      
-      - name: Generate Comprehensive Pipeline Report
-        run: |
-          python3 << 'EOF'
-          import json
-          from datetime import datetime
-          from pathlib import Path
-          
-          print("\n" + "="*80)
-          print("JOB SEARCH PIPELINE COMPREHENSIVE SUMMARY")
-          print("="*80)
-          print(f"\nðŸ"Š Pipeline ID: ${{ needs.coordinator.outputs.pipeline_id }}")
-          print(f"â° Timestamp: ${{ needs.coordinator.outputs.timestamp }}")
-          print(f"ðŸŽ¯ Mode: ${{ github.event.inputs.pipeline_mode || 'full_pipeline' }}")
-          
-          print("\nðŸ"ˆ STAGE RESULTS:")
-          print(f"  Discovery:        ${{ needs.trigger-discovery.result || 'skipped' }}")
-          print(f"  Matching:         ${{ needs.trigger-matching.result || 'skipped' }}")
-          print(f"  Scoring:          ${{ needs.score-jobs.result || 'skipped' }}")
-          print(f"  Packages:         ${{ needs.create-packages.result || 'skipped' }}")
-          print(f"  Status Updates:   ${{ needs.manage-application-status.result || 'skipped' }}")
-          print(f"  Follow-ups:       ${{ needs.process-followup-reminders.result || 'skipped' }}")
-          print(f"  Notifications:    ${{ needs.send-enhanced-notifications.result || 'skipped' }}")
-          
-          print("\nðŸ"Š KEY METRICS:")
-          print(f"  High-quality matches:    ${{ needs.score-jobs.outputs.total_scored }}")
-          print(f"  Status updates:          ${{ needs.manage-application-status.outputs.status_updates }}")
-          print(f"  Reminders created:       ${{ needs.manage-application-status.outputs.reminders_created }}")
-          print(f"  Due reminders:           ${{ needs.process-followup-reminders.outputs.due_reminders }}")
-          print(f"  Follow-ups needed:       ${{ needs.process-followup-reminders.outputs.followups_needed }}")
-          
-          print("\nðŸ'¾ DATA DIRECTORY: ${{ env.DATA_DIR }}")
-          print("\n" + "="*80)
-          EOF
       
 
   # ========================================
