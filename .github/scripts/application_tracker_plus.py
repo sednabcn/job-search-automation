@@ -114,40 +114,40 @@ class ApplicationTracker:
     
             return repaired_count
 
-def load_applications(self) -> List[Dict]:
-    """Load applications with error handling and auto-repair"""
-    if self.applications_file.exists():
-        try:
-            with open(self.applications_file, 'r') as f:
-                data = json.load(f)
+    def load_applications(self) -> List[Dict]:
+        """Load applications with error handling and auto-repair"""
+        if self.applications_file.exists():
+            try:
+                with open(self.applications_file, 'r') as f:
+                    data = json.load(f)
             
-            # Handle different data structures
-            if isinstance(data, dict):
-                if 'applications' in data:
-                    apps = data['applications']
+                # Handle different data structures
+                if isinstance(data, dict):
+                    if 'applications' in data:
+                        apps = data['applications']
+                    else:
+                        # Assume it's a single application wrapped in dict
+                        apps = [data]
+                elif isinstance(data, list):
+                        apps = data
                 else:
-                    # Assume it's a single application wrapped in dict
-                    apps = [data]
-            elif isinstance(data, list):
-                apps = data
-            else:
-                print(f"⚠️  Unknown data format, starting fresh")
-                apps = []
+                    print(f"⚠️  Unknown data format, starting fresh")
+                    apps = []
             
-            # Store temporarily and repair
-            self.applications = apps
-            self.repair_applications_data()
+                # Store temporarily and repair
+                self.applications = apps
+                self.repair_applications_data()
             
-            return self.applications
+                return self.applications
             
-        except json.JSONDecodeError as e:
-            print(f"⚠️  Error loading applications: {e}")
-            print(f"   Creating backup and starting fresh")
-            backup = self.applications_file.with_suffix('.json.bak')
-            if self.applications_file.exists():
-                self.applications_file.rename(backup)
-            return []
-    return []
+            except json.JSONDecodeError as e:
+                print(f"⚠️  Error loading applications: {e}")
+                print(f"   Creating backup and starting fresh")
+                backup = self.applications_file.with_suffix('.json.bak')
+                if self.applications_file.exists():
+                    self.applications_file.rename(backup)
+                return []
+        return []
     
     def save_applications(self):
         """Save applications with backup"""
