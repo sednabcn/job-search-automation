@@ -508,7 +508,7 @@ jobs:
         run: |
           echo "🎯 Scoring discovered jobs..."
           
-          python3 scripts/job_scorer.py \
+          python3 .github/scripts/job_scorer.py \
             --cv cv/my_cv.txt \
             --jobs job_search/discovered_jobs.json \
             --output job_search/matched_jobs_scored.json \
