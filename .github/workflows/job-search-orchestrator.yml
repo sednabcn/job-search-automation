@@ -12,13 +12,34 @@ on:
         required: true
         type: choice
         options:
-          - full_pipeline      # Complete end-to-end pipeline
+          - full_pipeline      # Discovery → Match → Email
           - discovery_only     # Just discover jobs
-          - scoring_only       # Score existing jobs
-          - packages_only      # Generate packages from scored jobs
-          - notifications_only # Send status emails
+          - match_only         # Just match existing jobs
+          - manual_entry       # Open form submission
           - maintenance        # Cleanup old data
         default: 'full_pipeline'
+      
+      discovery_mode:
+        description: 'Discovery mode (if supported by job-discovery-worker.yml)'
+        required: false
+        type: choice
+        options:
+          - full
+          - incremental
+          - test
+        default: 'full'
+      
+      data_directory:
+        description: 'Data directory path'
+        required: false
+        type: string
+        default: 'job_search'
+
+      enable_scoring:
+        description: 'Enable job scoring'
+        required: false
+        type: boolean
+        default: true
       
       min_score_threshold:
         description: 'Minimum job score (0-100)'
@@ -26,19 +47,19 @@ on:
         type: number
         default: 70
       
-      max_applications:
-        description: 'Maximum applications to package'
-        required: false
-        type: number
-        default: 20
-      
       generate_cover_letters:
         description: 'Generate AI cover letters'
         required: false
         type: boolean
         default: false
       
-      send_notifications:
+      max_cover_letters:
+        description: 'Max cover letters to generate'
+        required: false
+        type: number
+        default: 10
+  
+      send_emails:
         description: 'Send email notifications'
         required: false
         type: boolean
@@ -46,9 +67,12 @@ on:
 
 env:
   PYTHON_VERSION: '3.11'
-  DATA_DIR: 'job_search'
+  DATA_DIR: ${{ github.event.inputs.data_directory || 'job_search' }}
+  ENABLE_SCORING: ${{ github.event.inputs.enable_scoring || 'true' }}
   MIN_SCORE: ${{ github.event.inputs.min_score_threshold || 70 }}
-  MAX_APPLICATIONS: ${{ github.event.inputs.max_applications || 20 }}
+  ENABLE_AI: ${{ github.event.inputs.generate_cover_letters || 'false' }}
+  MAX_AI_LETTERS: ${{ github.event.inputs.max_cover_letters || 10 }}
+
 
 jobs:
   # ========================================
@@ -59,10 +83,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       run_discovery: ${{ steps.plan.outputs.run_discovery }}
-      run_scoring: ${{ steps.plan.outputs.run_scoring }}
-      run_cover_letters: ${{ steps.plan.outputs.run_cover_letters }}
-      run_packages: ${{ steps.plan.outputs.run_packages }}
-      run_notifications: ${{ steps.plan.outputs.run_notifications }}
+      run_matching: ${{ steps.plan.outputs.run_matching }}
+      run_emails: ${{ steps.plan.outputs.run_emails }}
       run_maintenance: ${{ steps.plan.outputs.run_maintenance }}
       pipeline_id: ${{ steps.setup.outputs.pipeline_id }}
       timestamp: ${{ steps.setup.outputs.timestamp }}
@@ -80,8 +102,6 @@ jobs:
           echo "🚀 Job Search Pipeline Orchestrator"
           echo "Pipeline ID: $PIPELINE_ID"
           echo "Mode: ${{ github.event.inputs.pipeline_mode || 'full_pipeline' }}"
-          echo "Min Score: ${{ env.MIN_SCORE }}"
-          echo "Max Applications: ${{ env.MAX_APPLICATIONS }}"
       
       - name: Determine Execution Plan
         id: plan
@@ -96,57 +116,38 @@ jobs:
           case "$MODE" in
             full_pipeline)
               echo "run_discovery=true" >> $GITHUB_OUTPUT
-              echo "run_scoring=true" >> $GITHUB_OUTPUT
-              echo "run_cover_letters=${{ github.event.inputs.generate_cover_letters || 'false' }}" >> $GITHUB_OUTPUT
-              echo "run_packages=true" >> $GITHUB_OUTPUT
-              echo "run_notifications=${{ github.event.inputs.send_notifications || 'true' }}" >> $GITHUB_OUTPUT
+              echo "run_matching=true" >> $GITHUB_OUTPUT
+              echo "run_emails=true" >> $GITHUB_OUTPUT
               echo "run_maintenance=false" >> $GITHUB_OUTPUT
-              echo "📋 Full pipeline: Discovery → Scoring → Packages → Notifications"
+              echo "📋 Plan: Full pipeline (Discover → Match → Email)"
               ;;
             discovery_only)
               echo "run_discovery=true" >> $GITHUB_OUTPUT
-              echo "run_scoring=false" >> $GITHUB_OUTPUT
-              echo "run_cover_letters=false" >> $GITHUB_OUTPUT
-              echo "run_packages=false" >> $GITHUB_OUTPUT
-              echo "run_notifications=false" >> $GITHUB_OUTPUT
+              echo "run_matching=false" >> $GITHUB_OUTPUT
+              echo "run_emails=false" >> $GITHUB_OUTPUT
               echo "run_maintenance=false" >> $GITHUB_OUTPUT
-              echo "📋 Discovery only"
+              echo "📋 Plan: Discovery only"
               ;;
-            scoring_only)
+            match_only)
               echo "run_discovery=false" >> $GITHUB_OUTPUT
-              echo "run_scoring=true" >> $GITHUB_OUTPUT
-              echo "run_cover_letters=false" >> $GITHUB_OUTPUT
-              echo "run_packages=false" >> $GITHUB_OUTPUT
-              echo "run_notifications=false" >> $GITHUB_OUTPUT
+              echo "run_matching=true" >> $GITHUB_OUTPUT
+              echo "run_emails=true" >> $GITHUB_OUTPUT
               echo "run_maintenance=false" >> $GITHUB_OUTPUT
-              echo "📋 Scoring only"
+              echo "📋 Plan: Matching only"
               ;;
-            packages_only)
+            manual_entry)
               echo "run_discovery=false" >> $GITHUB_OUTPUT
-              echo "run_scoring=false" >> $GITHUB_OUTPUT
-              echo "run_cover_letters=false" >> $GITHUB_OUTPUT
-              echo "run_packages=true" >> $GITHUB_OUTPUT
-              echo "run_notifications=false" >> $GITHUB_OUTPUT
+              echo "run_matching=false" >> $GITHUB_OUTPUT
+              echo "run_emails=false" >> $GITHUB_OUTPUT
               echo "run_maintenance=false" >> $GITHUB_OUTPUT
-              echo "📋 Package generation only"
-              ;;
-            notifications_only)
-              echo "run_discovery=false" >> $GITHUB_OUTPUT
-              echo "run_scoring=false" >> $GITHUB_OUTPUT
-              echo "run_cover_letters=false" >> $GITHUB_OUTPUT
-              echo "run_packages=false" >> $GITHUB_OUTPUT
-              echo "run_notifications=true" >> $GITHUB_OUTPUT
-              echo "run_maintenance=false" >> $GITHUB_OUTPUT
-              echo "📋 Notifications only"
+              echo "📋 Plan: Manual entry (use form_submit_workflow.yml)"
               ;;
             maintenance)
               echo "run_discovery=false" >> $GITHUB_OUTPUT
-              echo "run_scoring=false" >> $GITHUB_OUTPUT
-              echo "run_cover_letters=false" >> $GITHUB_OUTPUT
-              echo "run_packages=false" >> $GITHUB_OUTPUT
-              echo "run_notifications=false" >> $GITHUB_OUTPUT
+              echo "run_matching=false" >> $GITHUB_OUTPUT
+              echo "run_emails=false" >> $GITHUB_OUTPUT
               echo "run_maintenance=true" >> $GITHUB_OUTPUT
-              echo "📋 Maintenance only"
+              echo "📋 Plan: Maintenance only"
               ;;
             *)
               echo "❌ Unknown mode: $MODE"
@@ -157,131 +158,171 @@ jobs:
   # ========================================
   # STAGE 1: JOB DISCOVERY
   # ========================================
-  job-discovery:
-    name: Discover Jobs
+  trigger-discovery:
+    name: Trigger Job Discovery
     runs-on: ubuntu-latest
     needs: coordinator
     if: needs.coordinator.outputs.run_discovery == 'true'
     
-    outputs:
-      jobs_discovered: ${{ steps.discover.outputs.job_count }}
-    
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
       
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      
-      - name: Install dependencies
+      - name: Trigger Job Discovery Workflow
         run: |
-          pip install -q requests beautifulsoup4 selenium pandas
-      
-      - name: Run job discovery
-        id: discover
-        run: |
-          echo "🔍 Starting job discovery..."
+          echo "🔍 Triggering job discovery workflow..."
           
-          # Trigger discovery workflow and wait
+          # Trigger without any inputs - let the workflow use its defaults
+          # If job-discovery-worker.yml requires specific inputs, uncomment and adjust:
+          # MODE="${{ github.event.inputs.discovery_mode || 'full' }}"
+          # gh workflow run job-discovery-worker.yml -f mode="$MODE"
+          
           gh workflow run job-discovery-worker.yml
           
-          echo "⏳ Waiting for discovery to complete..."
-          sleep 60
+          echo "✅ Discovery workflow triggered"
+          echo "ℹ️  Using job-discovery-worker.yml default configuration"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Wait for Discovery Completion
+        run: |
+          echo "⏳ Waiting for discovery workflow to complete..."
+          sleep 30
           
-          # Check results
-          if [ -f "${{ env.DATA_DIR }}/discovered_jobs.json" ]; then
-            JOB_COUNT=$(python3 -c "
-          import json
-          with open('${{ env.DATA_DIR }}/discovered_jobs.json') as f:
-              data = json.load(f)
-              print(len(data) if isinstance(data, list) else len(data.get('jobs', [])))
-          ")
-            echo "job_count=$JOB_COUNT" >> $GITHUB_OUTPUT
-            echo "✅ Discovered $JOB_COUNT jobs"
-          else
-            echo "job_count=0" >> $GITHUB_OUTPUT
-            echo "⚠️ No jobs discovered"
-          fi
+          # Check last workflow run status
+          echo "📊 Recent discovery workflow runs:"
+          gh run list --workflow=job-discovery-worker.yml --limit=3 --json status,conclusion,createdAt,displayTitle \
+            --jq '.[] | "\(.createdAt) - \(.displayTitle) - \(.status) - \(.conclusion // "pending")"'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ========================================
-  # STAGE 2: CV MATCHING & JOB SCORING
+  # STAGE 2: KEYWORD EXTRACTION & CONFIG UPDATE
   # ========================================
-  cv-matching-and-scoring:
-    name: CV Matching & Job Scoring
+  trigger-keyword-extraction:
+    name: Trigger Keyword Extraction
     runs-on: ubuntu-latest
-    needs: [coordinator, job-discovery]
+    needs: [coordinator, trigger-discovery]
     if: |
-      always() &&
-      needs.coordinator.outputs.run_scoring == 'true' &&
-      (needs.job-discovery.result == 'success' || needs.coordinator.outputs.run_discovery == 'false')
-    
-    outputs:
-      high_score_count: ${{ steps.score.outputs.high_score_count }}
-      top_score: ${{ steps.score.outputs.top_score }}
-      scored_file: ${{ steps.score.outputs.scored_file }}
+      needs.coordinator.outputs.run_discovery == 'true' &&
+      needs.trigger-discovery.result == 'success'
     
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
       
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      
-      - name: Install dependencies
+      - name: Trigger Keyword Extraction
         run: |
-          pip install -q pandas scikit-learn nltk pypdf2
-      
-      - name: Validate input files
-        run: |
-          echo "🔍 Validating input files..."
+          echo "🔑 Triggering keyword extraction and config update..."
           
-          # Check for CV
-          if [ ! -f "cv/my_cv.txt" ] && [ ! -f "cv/my_cv.pdf" ]; then
-            echo "⚠️ No CV found, creating placeholder"
-            mkdir -p cv
-            echo "Software Engineer with experience in Python, JavaScript, React, AWS, Docker" > cv/my_cv.txt
-          fi
+          # Trigger without inputs if they're not supported
+          # Uncomment and adjust if specific inputs are needed:
+          # gh workflow run job-manager-center-multiplatform.yml \
+          #   -f update_config=true \
+          #   -f trigger_discovery=false
           
-          # Check for discovered jobs
-          if [ ! -f "${{ env.DATA_DIR }}/discovered_jobs.json" ]; then
-            echo "❌ No discovered jobs found"
-            echo "skip_scoring=true" >> $GITHUB_ENV
-            exit 0
-          fi
+          gh workflow run job-manager-center-multiplatform.yml
           
-          echo "✅ Input files validated"
-      
-      - name: Run CV matcher
-        if: env.skip_scoring != 'true'
-        run: |
-          echo "🎯 Running CV matcher..."
-          
-          # Trigger CV matcher workflow
-          gh workflow run cv_job_matcher.yml
-          
-          echo "⏳ Waiting for CV matching..."
-          sleep 30
+          echo "✅ Keyword extraction workflow triggered"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: Create scoring preferences
-        if: env.skip_scoring != 'true'
+      - name: Wait for Config Update
         run: |
-          mkdir -p configs
+          echo "⏳ Waiting for config update..."
+          sleep 20
+
+  # ========================================
+  # STAGE 3: CV MATCHING
+  # ========================================
+  trigger-matching:
+    name: Trigger CV Matching
+    runs-on: ubuntu-latest
+    needs: [coordinator, trigger-discovery]
+    if: |
+      always() &&
+      needs.coordinator.outputs.run_matching == 'true' &&
+      (needs.trigger-discovery.result == 'success' || needs.coordinator.outputs.run_discovery == 'false')
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: Trigger CV Matcher
+        run: |
+          echo "🎯 Triggering CV matching..."
           
+          # Trigger without inputs - let cv_job_matcher.yml use its defaults
+          # If specific inputs are supported, uncomment and adjust:
+          # gh workflow run cv_job_matcher.yml -f threshold="75"
+          
+          gh workflow run cv_job_matcher.yml
+          
+          echo "✅ CV matching workflow triggered"
+          echo "ℹ️  Using cv_job_matcher.yml default configuration"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Wait for Matching Completion
+        run: |
+          echo "⏳ Waiting for matching to complete..."
+          sleep 30
+          
+          echo "📊 Recent CV matcher workflow runs:"
+          gh run list --workflow=cv_job_matcher.yml --limit=3 --json status,conclusion,createdAt \
+            --jq '.[] | "\(.createdAt) - \(.status) - \(.conclusion // "pending")"'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+# ========================================
+  # NEW: JOB SCORING STAGE
+  # ========================================
+  job-scoring:
+    name: Score Jobs by Relevance
+    runs-on: ubuntu-latest
+    needs: [coordinator, trigger-discovery]
+    if: |
+      always() &&
+      (needs.trigger-discovery.result == 'success' || needs.coordinator.outputs.run_discovery == 'false')
+    
+    outputs:
+      high_score_count: ${{ steps.score.outputs.high_score_count }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install scoring dependencies
+        run: pip install pandas scikit-learn nltk
+      
+      - name: Run job scorer
+        id: score
+        run: |
+          # Check if required files exist
+          if [ ! -f "cv/my_cv.txt" ]; then
+            echo "⚠️ CV file not found, creating placeholder"
+            mkdir -p cv
+            echo "Software Engineer with experience in Python, JavaScript, React, Node.js, AWS, Docker, Kubernetes, SQL, MongoDB, Git, CI/CD" > cv/my_cv.txt
+          fi
+          
+          if [ ! -f "job_search/applications.json" ]; then
+            echo "⚠️ No applications found to score"
+            echo "high_score_count=0" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Create preferences file if it doesn't exist
           if [ ! -f "configs/scoring_preferences.json" ]; then
+            mkdir -p configs
             cat > configs/scoring_preferences.json << 'PREFS'
           {
             "salary_min": 50000,
             "salary_max": 150000,
-            "preferred_locations": ["remote", "london", "uk", "hybrid"],
-            "experience_level": "mid-senior",
+            "locations": ["remote", "london", "uk"],
+            "experience_level": "mid",
             "recency_days": 30,
             "weights": {
               "keywords": 40,
@@ -290,81 +331,50 @@ jobs:
               "company": 10,
               "experience": 10,
               "recency": 5
-            },
-            "must_have_keywords": [
-              "python", "software engineer", "developer"
-            ],
-            "nice_to_have_keywords": [
-              "react", "aws", "docker", "kubernetes", "ci/cd"
-            ]
+            }
           }
           PREFS
-            echo "✅ Created default scoring preferences"
-          fi
-      
-      - name: Score jobs
-        if: env.skip_scoring != 'true'
-        id: score
-        run: |
-          echo "🎯 Scoring jobs..."
-          
-          # Determine CV file
-          CV_FILE="cv/my_cv.txt"
-          if [ ! -f "$CV_FILE" ] && [ -f "cv/my_cv.pdf" ]; then
-            CV_FILE="cv/my_cv.pdf"
           fi
           
-          # Run scorer
+          # Run scoring with correct arguments
           python3 .github/scripts/job_scorer.py \
-            --cv "$CV_FILE" \
-            --jobs "${{ env.DATA_DIR }}/discovered_jobs.json" \
-            --output "${{ env.DATA_DIR }}/scored_jobs.json" \
+            --cv cv/my_cv.txt \
+            --jobs job_search/applications.json \
+            --output job_search/scored_jobs.json \
             --preferences configs/scoring_preferences.json \
-            --min-score ${{ env.MIN_SCORE }}
+            --min-score 70
           
-          # Extract statistics
-          if [ -f "${{ env.DATA_DIR }}/scored_jobs.json" ]; then
-            python3 << 'STATS'
+          # Extract high score count from output file
+          if [ -f "job_search/scored_jobs.json" ]; then
+            HIGH_SCORE=$(python3 -c "
           import json
-          import sys
-          
           try:
-              with open('${{ env.DATA_DIR }}/scored_jobs.json') as f:
+              with open('job_search/scored_jobs.json', 'r') as f:
                   data = json.load(f)
-              
-              # Handle different formats
+              # Handle both formats
               if isinstance(data, dict):
-                  jobs = data.get('jobs', data.get('filtered_jobs', []))
-                  total = data.get('total_jobs', len(jobs))
-                  filtered = data.get('filtered_jobs', len([j for j in jobs if j.get('total_score', 0) >= ${{ env.MIN_SCORE }}]))
-                  top_score = max([j.get('total_score', 0) for j in jobs], default=0)
+                  if 'filtered_jobs' in data:
+                      print(data['filtered_jobs'])
+                  elif 'jobs' in data:
+                      jobs = data['jobs']
+                      count = len([j for j in jobs if j.get('total_score', 0) >= 70])
+                      print(count)
+                  else:
+                      print(0)
+              elif isinstance(data, list):
+                  count = len([j for j in data if j.get('total_score', 0) >= 70])
+                  print(count)
               else:
-                  jobs = data
-                  total = len(jobs)
-                  filtered = len([j for j in jobs if j.get('total_score', 0) >= ${{ env.MIN_SCORE }}])
-                  top_score = max([j.get('total_score', 0) for j in jobs], default=0)
-              
-              print(f"high_score_count={filtered}")
-              print(f"top_score={top_score}")
-              print(f"scored_file=${{ env.DATA_DIR }}/scored_jobs.json")
-              
-              with open('${{ github.output }}', 'a') as f:
-                  f.write(f"high_score_count={filtered}\n")
-                  f.write(f"top_score={top_score}\n")
-                  f.write(f"scored_file=${{ env.DATA_DIR }}/scored_jobs.json\n")
-              
-              print(f"\n✅ Scoring complete:")
-              print(f"   Total jobs: {total}")
-              print(f"   High-quality matches (≥{${{ env.MIN_SCORE }}}): {filtered}")
-              print(f"   Top score: {top_score}")
-              
+                  print(0)
           except Exception as e:
-              print(f"❌ Error processing scored jobs: {e}", file=sys.stderr)
-              sys.exit(1)
-          STATS
+              print(f'Error: {e}', file=__import__('sys').stderr)
+              print(0)
+          ")
+            echo "high_score_count=$HIGH_SCORE" >> $GITHUB_OUTPUT
+            echo "✅ Found $HIGH_SCORE high-quality matches (score ≥ 70)"
           else
-            echo "❌ Scored jobs file not created"
-            exit 1
+            echo "⚠️ No scored jobs file created"
+            echo "high_score_count=0" >> $GITHUB_OUTPUT
           fi
       
       - name: Commit scored results
@@ -372,93 +382,73 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          git add ${{ env.DATA_DIR }}/scored_jobs.json
-          git add configs/scoring_preferences.json
-          
-          git diff --quiet && git diff --staged --quiet || \
-            git commit -m "🎯 Scored ${{ steps.score.outputs.high_score_count }} high-quality job matches (score ≥ ${{ env.MIN_SCORE }})"
-          
-          git push || echo "⚠️ Nothing to push"
+          if [ -f "job_search/scored_jobs.json" ]; then
+            git add job_search/scored_jobs.json
+            git add configs/scoring_preferences.json
+            git commit -m "🎯 Scored jobs: ${{ steps.score.outputs.high_score_count }} high-quality matches" || true
+            git push || true
+          else
+            echo "⚠️ No changes to commit"
+          fi
 
   # ========================================
-  # STAGE 3: AI COVER LETTER GENERATION
+  # NEW: AI COVER LETTER GENERATION
   # ========================================
-  generate-cover-letters:
+  ai-cover-letters:
     name: Generate AI Cover Letters
     runs-on: ubuntu-latest
-    needs: [coordinator, cv-matching-and-scoring]
-    if: |
-      needs.coordinator.outputs.run_cover_letters == 'true' &&
-      needs.cv-matching-and-scoring.outputs.high_score_count > 0
+    needs: [coordinator, job-scoring]
+    if: needs.job-scoring.outputs.high_score_count > 0
     
     outputs:
       letters_generated: ${{ steps.generate.outputs.count }}
     
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - uses: actions/setup-python@v4
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: '3.11'
       
-      - name: Install dependencies
-        run: |
-          pip install -q openai
+      - name: Install OpenAI
+        run: pip install openai
       
       - name: Generate cover letters
         id: generate
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          if [ -z "$OPENAI_API_KEY" ]; then
-            echo "⚠️ OPENAI_API_KEY not set, skipping cover letter generation"
-            echo "count=0" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          
-          echo "📝 Generating AI cover letters..."
-          
-          python3 .github/scripts/cover_letter_generator.py \
-            --jobs "${{ needs.cv-matching-and-scoring.outputs.scored_file }}" \
+          python3 scripts/cover_letter_generator.py \
+            --jobs job_search/scored_jobs.json \
             --cv cv/my_cv.txt \
-            --output-dir "${{ env.DATA_DIR }}/cover_letters" \
-            --max-count ${{ env.MAX_APPLICATIONS }}
+            --output-dir job_search/cover_letters \
+            --max-count 20
           
-          COUNT=$(ls ${{ env.DATA_DIR }}/cover_letters/*.txt 2>/dev/null | wc -l || echo 0)
+          COUNT=$(ls job_search/cover_letters/*.txt 2>/dev/null | wc -l)
           echo "count=$COUNT" >> $GITHUB_OUTPUT
-          
-          echo "✅ Generated $COUNT cover letters"
       
       - name: Commit cover letters
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          git add ${{ env.DATA_DIR }}/cover_letters/
-          
-          git diff --quiet && git diff --staged --quiet || \
-            git commit -m "📝 Generated ${{ steps.generate.outputs.count }} AI cover letters"
-          
-          git push || echo "⚠️ Nothing to push"
-
+          git add cover_letter/
+          git commit -m "📝 Generated ${{ steps.generate.outputs.count }} AI cover letters" || true
+          git push || true
   # ========================================
-  # STAGE 4: APPLICATION PACKAGE GENERATION
+  # STAGE 3.5: JOB SCORING
   # ========================================
-  generate-application-packages:
-    name: Generate Application Packages
+  score-jobs:
+    name: Score Discovered Jobs
     runs-on: ubuntu-latest
-    needs: [coordinator, cv-matching-and-scoring, generate-cover-letters]
+    needs: [coordinator, trigger-matching]
     if: |
       always() &&
-      needs.coordinator.outputs.run_packages == 'true' &&
-      needs.cv-matching-and-scoring.result == 'success' &&
-      needs.cv-matching-and-scoring.outputs.high_score_count > 0
+      needs.coordinator.outputs.run_matching == 'true' &&
+      needs.trigger-matching.result == 'success'
     
     outputs:
-      packages_created: ${{ steps.package.outputs.packages_created }}
-      packages_failed: ${{ steps.package.outputs.packages_failed }}
+      total_scored: ${{ steps.score.outputs.total_scored }}
+      top_score: ${{ steps.score.outputs.top_score }}
     
     steps:
       - name: Checkout Repository
@@ -469,9 +459,91 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       
-      - name: Install dependencies
+      - name: Score all discovered jobs
+        id: score
         run: |
-          pip install -q pypdf2 python-docx
+          echo "🎯 Scoring discovered jobs..."
+          
+          python3 .github/scripts/job_scorer.py \
+            --cv cv/my_cv.txt \
+            --jobs job_search/discovered_jobs.json \
+            --output job_search/matched_jobs_scored.json \
+            --preferences configs/scoring_preferences.json \
+            --min-score 70
+          
+          # Extract stats
+          TOTAL=$(jq '.total_jobs' job_search/matched_jobs_scored.json)
+          TOP=$(jq '.top_matches[0].total_score' job_search/matched_jobs_scored.json)
+          
+          echo "total_scored=$TOTAL" >> $GITHUB_OUTPUT
+          echo "top_score=$TOP" >> $GITHUB_OUTPUT
+          
+          echo "✅ Scored $TOTAL jobs, top score: $TOP"
+
+      - name: Commit scored jobs
+        uses: ./.github/actions/safe-git-push
+        with:
+          commit-message: "🎯 Job scoring complete: ${{ steps.score.outputs.total_scored }} matches"
+          files: "job_search/*_scored.json"    
+             
+  # ========================================
+  # STAGE 4: EMAIL NOTIFICATIONS
+  # ========================================
+  trigger-emails:
+    name: Send Email Notifications
+    runs-on: ubuntu-latest
+    needs: [coordinator, trigger-matching, score-jobs]  # Added score-jobs
+    if: |
+      always() &&
+      needs.coordinator.outputs.run_emails == 'true' &&
+      needs.score-jobs.result == 'success' &&  
+      github.event.inputs.send_emails != 'false'
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: Trigger Email Sender
+        run: |
+          echo "📧 Triggering email notifications..."
+          
+          gh workflow run send-cv-match-emails.yml
+          
+          echo "✅ Email workflow triggered"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Wait for Email Completion
+        run: |
+          echo "⏳ Waiting for emails to send..."
+          sleep 20
+          
+          echo "📊 Recent email workflow runs:"
+          gh run list --workflow=send-cv-match-emails.yml --limit=3 --json status,conclusion,createdAt \
+            --jq '.[] | "\(.createdAt) - \(.status) - \(.conclusion // "pending")"'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+# ========================================
+# STAGE 5: APPLICATION PACKAGE GENERATION
+# ========================================
+  generate-packages:
+    name: Generate Application Packages
+    runs-on: ubuntu-latest
+    needs: [coordinator, trigger-matching]
+    if: |
+      always() &&
+      needs.coordinator.outputs.run_matching == 'true' &&
+      needs.trigger-matching.result == 'success'
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
       
       - name: Validate required files
         run: |
@@ -483,36 +555,23 @@ jobs:
             exit 1
           fi
           
-          # Check for cover letter template
+          # Check for cover letter
           if [ ! -f "cover_letter/my_cover.txt" ]; then
-            echo "⚠️ Cover letter template not found, creating placeholder"
-            mkdir -p cover_letter
-            cat > cover_letter/my_cover.txt << 'COVER'
-          Dear Hiring Manager,
-
-          I am writing to express my interest in the [POSITION] position at [COMPANY].
-
-          With my background in software development and proven track record of delivering high-quality solutions, I am confident I would be a valuable addition to your team.
-
-          I look forward to discussing this opportunity further.
-
-          Best regards,
-          [YOUR NAME]
-          COVER
+            echo "❌ Cover letter not found at cover_letter/my_cover.txt"
+            exit 1
           fi
           
-          # Check for scored jobs
-          if [ ! -f "${{ env.DATA_DIR }}/scored_jobs.json" ]; then
-            echo "❌ No scored jobs found"
-            echo "skip_packages=true" >> $GITHUB_ENV
+          # Check for matched jobs
+          if [ ! -f "${{ env.DATA_DIR }}/matched_jobs.json" ]; then
+            echo "⚠️ No matched jobs found - skipping package generation"
+            echo "skip_generation=true" >> $GITHUB_ENV
             exit 0
           fi
           
           echo "✅ All required files present"
       
-      - name: Create application packages
-        if: env.skip_packages != 'true'
-        id: package
+      - name: Create packages for matched jobs
+        if: env.skip_generation != 'true'
         run: |
           python3 << 'EOF'
           import sys
@@ -521,6 +580,7 @@ jobs:
           from pathlib import Path
           from datetime import datetime
           
+          # Add scripts directory to path (standardized location)
           sys.path.insert(0, '.github/scripts')
           
           print("="*70)
@@ -534,18 +594,21 @@ jobs:
               print("✅ Modules imported successfully")
           except ImportError as e:
               print(f"❌ Failed to import required modules: {e}")
+              print("📍 Looking in: .github/scripts/")
               sys.exit(1)
           
           def generate_job_id(job):
               """Generate consistent job ID from job data"""
+              # Use existing ID if available
               if job.get('id'):
                   return str(job['id'])
               
+              # Generate hash-based ID from job details
               job_string = f"{job.get('company', '')}_{job.get('title', '')}_{job.get('location', '')}"
               job_hash = hashlib.md5(job_string.encode()).hexdigest()[:12]
               return f"job_{job_hash}"
           
-          # Validate files
+          # Validate required files
           cv_path = Path('cv/my_cv.pdf')
           cover_letter_path = Path('cover_letter/my_cover.txt')
           
@@ -557,41 +620,39 @@ jobs:
               print(f"❌ Cover letter not found at: {cover_letter_path}")
               sys.exit(1)
           
-          # Load scored jobs
-          scored_file = Path('${{ env.DATA_DIR }}/scored_jobs.json')
-          with open(scored_file) as f:
-              data = json.load(f)
+          print(f"✅ CV found: {cv_path}")
+          print(f"✅ Cover letter found: {cover_letter_path}")
           
-          # Handle different formats
-          if isinstance(data, dict):
-              jobs = data.get('jobs', data.get('filtered_jobs', []))
-          else:
-              jobs = data
+          # Load matched jobs
+          matched_file = Path('${{ env.DATA_DIR }}/matched_jobs.json')
           
-          # Filter to high-scoring jobs only
-          high_score_jobs = [j for j in jobs if j.get('total_score', 0) >= ${{ env.MIN_SCORE }}]
+          with open(matched_file, 'r') as f:
+              matched_jobs = json.load(f)
           
-          # Limit to max applications
-          max_apps = min(len(high_score_jobs), ${{ env.MAX_APPLICATIONS }})
-          selected_jobs = sorted(high_score_jobs, key=lambda x: x.get('total_score', 0), reverse=True)[:max_apps]
+          print(f"\n📊 Processing {len(matched_jobs)} matched jobs")
           
-          print(f"\n📊 Processing {len(selected_jobs)} jobs (from {len(jobs)} total)")
-          
-          # Initialize
-          prefiller = ApplicationPrefiller()
-          tracker = ApplicationTracker('${{ env.DATA_DIR }}')
+          # Initialize prefiller and tracker
+          try:
+              prefiller = ApplicationPrefiller()
+              tracker = ApplicationTracker('${{ env.DATA_DIR }}')
+              print("✅ ApplicationPrefiller and Tracker initialized")
+          except Exception as e:
+              print(f"❌ Failed to initialize components: {e}")
+              import traceback
+              traceback.print_exc()
+              sys.exit(1)
           
           packages_created = 0
           packages_failed = 0
           results = []
           
-          for idx, job in enumerate(selected_jobs, 1):
+          for idx, job in enumerate(matched_jobs, 1):
               job_id = generate_job_id(job)
               company = job.get('company', 'Unknown Company')
               title = job.get('title', 'Unknown Position')
-              score = job.get('total_score', 0)
               
-              print(f"\n[{idx}/{len(selected_jobs)}] 📦 {company} - {title} (Score: {score})")
+              print(f"\n[{idx}/{len(matched_jobs)}] 📦 Processing: {company} - {title}")
+              print(f"   Job ID: {job_id}")
               
               try:
                   # Determine platform
@@ -600,26 +661,20 @@ jobs:
                   if platform not in valid_platforms:
                       platform = 'generic'
                   
-                  # Check for custom cover letter
-                  cover_letter_file = Path(f"${{ env.DATA_DIR }}/cover_letters/{job_id}.txt")
-                  if cover_letter_file.exists():
-                      cover_path = str(cover_letter_file)
-                      print(f"   Using custom cover letter")
-                  else:
-                      cover_path = str(cover_letter_path)
+                  print(f"   Platform: {platform}")
                   
                   # Create package
                   package_dir = prefiller.create_application_package(
                       job_posting=job,
                       cv_path=str(cv_path),
-                      cover_letter_path=cover_path,
+                      cover_letter_path=str(cover_letter_path),
                       platform=platform
                   )
                   
                   if not package_dir:
                       raise ValueError("Package creation returned None")
                   
-                  print(f"   ✅ Package: {package_dir}")
+                  print(f"   ✅ Package created at: {package_dir}")
                   
                   # Add to tracker
                   tracker.add_application(
@@ -629,11 +684,12 @@ jobs:
                       package_path=str(package_dir)
                   )
                   
-                  # Update status
+                  # Update status with score information
+                  score_info = f"CV: {job.get('cv_score', 'N/A')}, Match: {job.get('match_score', 'N/A')}"
                   tracker.update_status(
                       job_id=job_id,
                       status='package_created',
-                      notes=f"Package ready. Score: {score}"
+                      notes=f"Package generated successfully. Scores - {score_info}"
                   )
                   
                   packages_created += 1
@@ -641,21 +697,37 @@ jobs:
                       'job_id': job_id,
                       'company': company,
                       'title': title,
-                      'score': score,
                       'status': 'success',
                       'package_path': str(package_dir)
                   })
+                  
+                  print(f"   ✅ Tracking updated")
                   
               except Exception as e:
                   packages_failed += 1
                   error_msg = str(e)
                   print(f"   ❌ Error: {error_msg}")
                   
+                  # Track failed attempt
+                  try:
+                      tracker.add_application(
+                          job_id=job_id,
+                          job_data=job,
+                          platform=platform,
+                          package_path=''
+                      )
+                      tracker.update_status(
+                          job_id=job_id,
+                          status='package_failed',
+                          notes=f"Package generation failed: {error_msg}"
+                      )
+                  except:
+                      pass
+                  
                   results.append({
                       'job_id': job_id,
                       'company': company,
                       'title': title,
-                      'score': score,
                       'status': 'failed',
                       'error': error_msg
                   })
@@ -668,79 +740,87 @@ jobs:
           print("="*70)
           print(f"✅ Successfully created: {packages_created}")
           print(f"❌ Failed: {packages_failed}")
-          print(f"📦 Total processed: {len(selected_jobs)}")
+          print(f"📦 Total processed: {len(matched_jobs)}")
           
           # Save tracker data
-          tracker.save_applications()
-          print("✅ Application tracking saved")
+          try:
+              tracker.save_applications()
+              print("✅ Application tracking data saved")
+          except Exception as e:
+              print(f"⚠️ Failed to save tracking data: {e}")
           
-          # Generate report
-          report = tracker.generate_report()
-          report_file = Path('${{ env.DATA_DIR }}/reports/tracker_report.md')
-          report_file.parent.mkdir(parents=True, exist_ok=True)
-          with open(report_file, 'w') as f:
-              f.write(report)
-          print(f"✅ Report: {report_file}")
+          # Generate and save report
+          try:
+              report = tracker.generate_report()
+              report_file = Path('${{ env.DATA_DIR }}/reports/tracker_report.md')
+              report_file.parent.mkdir(parents=True, exist_ok=True)
+              
+              with open(report_file, 'w') as f:
+                  f.write(report)
+              
+              print(f"✅ Report saved to: {report_file}")
+          except Exception as e:
+              print(f"⚠️ Failed to generate report: {e}")
           
           # Save detailed results
           results_file = Path('${{ env.DATA_DIR }}/package_generation_results.json')
           with open(results_file, 'w') as f:
               json.dump({
                   'timestamp': datetime.now().isoformat(),
-                  'total_jobs': len(selected_jobs),
+                  'total_jobs': len(matched_jobs),
                   'packages_created': packages_created,
                   'packages_failed': packages_failed,
                   'results': results
               }, f, indent=2)
           
-          # Set outputs
-          import os
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-              f.write(f"packages_created={packages_created}\n")
-              f.write(f"packages_failed={packages_failed}\n")
-          
+          print(f"✅ Detailed results saved to: {results_file}")
           print("="*70)
           
-          # Exit with error if all failed
-          if packages_created == 0 and len(selected_jobs) > 0:
+          # Exit with error if all packages failed
+          if packages_created == 0 and len(matched_jobs) > 0:
               print("\n❌ All package generation attempts failed!")
               sys.exit(1)
+          
           EOF
       
       - name: Commit packages and tracking data
-        if: env.skip_packages != 'true'
+        if: env.skip_generation != 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Check for changes
+          # Check if there are changes
           if [ -z "$(git status --porcelain)" ]; then
             echo "No changes to commit"
             exit 0
           fi
           
-          # Add generated files
-          git add ${{ env.DATA_DIR }}/application_packages/
-          git add ${{ env.DATA_DIR }}/applications.json
-          git add ${{ env.DATA_DIR }}/analytics.json
-          git add ${{ env.DATA_DIR }}/reports/
-          git add ${{ env.DATA_DIR }}/package_generation_results.json
+          # Add all generated files
+          git add ${{ env.DATA_DIR }}/application_packages/ 2>/dev/null || true
+          git add ${{ env.DATA_DIR }}/applications.json 2>/dev/null || true
+          git add ${{ env.DATA_DIR }}/analytics.json 2>/dev/null || true
+          git add ${{ env.DATA_DIR }}/reports/ 2>/dev/null || true
+          git add ${{ env.DATA_DIR }}/package_generation_results.json 2>/dev/null || true
           
+          # Commit with timestamp
           TIMESTAMP=$(date +'%Y-%m-%d %H:%M:%S')
-          git commit -m "📦 Created ${{ steps.package.outputs.packages_created }} application packages - $TIMESTAMP" || {
+          git commit -m "📦 Application packages generated - $TIMESTAMP" || {
             echo "Nothing to commit"
             exit 0
           }
           
-          # Push with retry
+          # Push with retry logic
           MAX_RETRIES=3
-          for i in $(seq 1 $MAX_RETRIES); do
+          RETRY_COUNT=0
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
             if git push; then
-              echo "✅ Changes pushed"
+              echo "✅ Changes pushed successfully"
               exit 0
             else
-              if [ $i -lt $MAX_RETRIES ]; then
-                echo "⚠️ Push failed, retrying ($i/$MAX_RETRIES)..."
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                echo "⚠️ Push failed, retrying ($RETRY_COUNT/$MAX_RETRIES)..."
                 sleep 2
                 git pull --rebase
               else
@@ -748,619 +828,15 @@ jobs:
                 exit 1
               fi
             fi
+
           done
-      
-      - name: Upload application packages
-        if: env.skip_packages != 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: application-packages-${{ github.run_number }}
-          path: ${{ env.DATA_DIR }}/application_packages/
-          retention-days: 90
-          if-no-files-found: warn
-      
-      - name: Upload tracking data
-        if: env.skip_packages != 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: tracking-data-${{ github.run_number }}
-          path: |
-            ${{ env.DATA_DIR }}/applications.json
-            ${{ env.DATA_DIR }}/analytics.json
-            ${{ env.DATA_DIR }}/package_generation_results.json
-            ${{ env.DATA_DIR }}/reports/
-          retention-days: 90
-          if-no-files-found: warn
 
+      
   # ========================================
-  # STAGE 5: STATUS & FOLLOW-UP MANAGEMENT
+  # STAGE 5: MAINTENANCE
   # ========================================
-  manage-status-and-followups:
-    name: Manage Status & Follow-ups
-    runs-on: ubuntu-latest
-    needs: [coordinator, generate-application-packages]
-    if: |
-      always() &&
-      (needs.generate-application-packages.result == 'success' || 
-       needs.coordinator.outputs.run_notifications == 'true')
-    
-    outputs:
-      status_updates: ${{ steps.status.outputs.updates_count }}
-      due_reminders: ${{ steps.followup.outputs.due_count }}
-      followups_needed: ${{ steps.followup.outputs.followup_count }}
-    
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-      
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Repair corrupted tracking data
-        run: |
-          python3 << 'EOF'
-          import json
-          from pathlib import Path
-          from datetime import datetime
-    
-          print("="*70)
-          print("🔧 REPAIRING TRACKING DATA")
-          print("="*70)
-    
-          data_dir = Path('${{ env.DATA_DIR }}')
-          applications_file = data_dir / 'applications.json'
-          analytics_file = data_dir / 'analytics.json'
-    
-          # Repair applications.json
-          if applications_file.exists():
-            try:
-              with open(applications_file, 'r') as f:
-                content = f.read()
-                if content.strip():
-                    data = json.loads(content)
-                    print("✅ applications.json is valid")
-                else:
-                    raise ValueError("Empty file")
-            except (json.JSONDecodeError, ValueError) as e:
-              print(f"⚠️ Corrupted applications.json: {e}")
-              print("   Creating fresh tracking data...")
-              data = {
-              "applications": [],
-              "metadata": {
-                "version": "1.0",
-                "created_at": datetime.now().isoformat(),
-                "last_updated": datetime.now().isoformat()
-                }
-                }
-            with open(applications_file, 'w') as f:
-                json.dump(data, f, indent=2)
-            print("✅ Created fresh applications.json")
-          else:
-            print("ℹ️ applications.json doesn't exist, will be created by tracker")
-    
-          # Repair analytics.json
-          if analytics_file.exists():
-            try:
-              with open(analytics_file, 'r') as f:
-                content = f.read()
-                if content.strip():
-                    data = json.loads(content)
-                    print("✅ analytics.json is valid")
-                else:
-                    raise ValueError("Empty file")
-            except (json.JSONDecodeError, ValueError) as e:
-              print(f"⚠️ Corrupted analytics.json: {e}")
-              print("   Creating fresh analytics data...")
-            data = {
-                "daily_stats": {},
-                "summary": {
-                    "total_applications": 0,
-                    "by_status": {},
-                    "by_platform": {}
-                },
-                "last_updated": datetime.now().isoformat()
-            }
-            with open(analytics_file, 'w') as f:
-                json.dump(data, f, indent=2)
-            print("✅ Created fresh analytics.json")
-          else:
-            print("ℹ️ analytics.json doesn't exist, will be created by tracker")
-    
-          # Validate data directory structure
-          required_dirs = [
-          data_dir / 'application_packages',
-          data_dir / 'reports',
-          data_dir / 'cover_letters'
-          ]
-    
-          for dir_path in required_dirs:
-            dir_path.mkdir(parents=True, exist_ok=True)
-    
-          print("\n✅ All data structures validated/repaired")
-          print("="*70)
-          EOF
-      
-      - name: Auto-update application statuses
-        id: status
-        run: |
-          python3 << 'EOF'
-          import sys
-          sys.path.insert(0, '.github/scripts')
-          
-          from application_tracker import ApplicationTracker
-          from datetime import datetime, timedelta
-          
-          print("="*70)
-          print("📄 AUTO-UPDATING APPLICATION STATUSES")
-          print("="*70)
-          
-          tracker = ApplicationTracker('${{ env.DATA_DIR }}')
-          updates_count = 0
-          
-          # Auto-transition: package_created -> ready_to_apply
-          package_created_apps = tracker.get_applications_by_status('package_created')
-          print(f"\n📦 Found {len(package_created_apps)} applications with packages")
-          
-          for app in package_created_apps:
-              # Check if package was created recently (within last 2 hours)
-              try:
-                  last_updated = datetime.fromisoformat(app.get('last_updated', app.get('created_at')))
-                  if datetime.now() - last_updated < timedelta(hours=2):
-                      success = tracker.update_status(
-                          app['id'],
-                          'ready_to_apply',
-                          'Package ready for submission',
-                          auto_reminders=True
-                      )
-                      if success:
-                          updates_count += 1
-                          print(f"   ✅ {app['company']} -> ready_to_apply")
-              except Exception as e:
-                  print(f"   ⚠️ {app['company']}: {e}")
-          
-          print(f"\n📊 Status updates: {updates_count}")
-          
-          # Save changes
-          tracker.save_applications()
-          
-          # Set output
-          import os
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-              f.write(f"updates_count={updates_count}\n")
-          
-          print("="*70)
-          EOF
-      
-      - name: Check follow-ups and reminders
-        id: followup
-        run: |
-          python3 << 'EOF'
-          import sys
-          sys.path.insert(0, '.github/scripts')
-          
-          from application_tracker import ApplicationTracker
-          from datetime import datetime, timedelta
-          import json
-          
-          print("="*70)
-          print("📬 CHECKING FOLLOW-UPS & REMINDERS")
-          print("="*70)
-          
-          tracker = ApplicationTracker('${{ env.DATA_DIR }}')
-          
-          # Get applications needing follow-up (submitted > 7 days ago)
-          all_apps = tracker.applications
-          followups_needed = []
-          due_reminders = []
-          
-          for app in all_apps:
-              status = app.get('status', '')
-              
-              # Check for follow-ups needed
-              if status in ['submitted', 'interviewed']:
-                  try:
-                      last_updated = datetime.fromisoformat(app.get('last_updated', app.get('created_at')))
-                      days_since = (datetime.now() - last_updated).days
-                      
-                      if days_since >= 7 and status == 'submitted':
-                          followups_needed.append({
-                              'job_id': app['id'],
-                              'company': app['company'],
-                              'position': app['position'],
-                              'days_since_submission': days_since,
-                              'action': 'Send follow-up email',
-                              'priority': 'high' if days_since >= 14 else 'medium'
-                          })
-                      elif days_since >= 3 and status == 'interviewed':
-                          followups_needed.append({
-                              'job_id': app['id'],
-                              'company': app['company'],
-                              'position': app['position'],
-                              'days_since_interview': days_since,
-                              'action': 'Send thank you / follow-up',
-                              'priority': 'high'
-                          })
-                  except:
-                      pass
-              
-              # Check for due reminders
-              if app.get('reminders'):
-                  for reminder in app['reminders']:
-                      try:
-                          due_date = datetime.fromisoformat(reminder['due_date'])
-                          if due_date <= datetime.now() and not reminder.get('completed', False):
-                              due_reminders.append({
-                                  'job_id': app['id'],
-                                  'company': app['company'],
-                                  'position': app['position'],
-                                  'reminder': reminder
-                              })
-                      except:
-                          pass
-          
-          print(f"\n📊 Follow-ups needed: {len(followups_needed)}")
-          print(f"⏰ Due reminders: {len(due_reminders)}")
-          
-          if followups_needed:
-              print("\n📋 Follow-up List:")
-              for fu in followups_needed[:5]:  # Show first 5
-                  print(f"  • {fu['company']} - {fu['position']} ({fu['action']})")
-          
-          if due_reminders:
-              print("\n⏰ Due Reminders:")
-              for r in due_reminders[:5]:  # Show first 5
-                  print(f"  • {r['company']} - {r['reminder']['message']}")
-          
-          # Save follow-up data
-          followup_data = {
-              'generated_at': datetime.now().isoformat(),
-              'follow_ups': followups_needed,
-              'due_reminders': due_reminders,
-              'summary': {
-                  'follow_ups_count': len(followups_needed),
-                  'due_reminders_count': len(due_reminders)
-              }
-          }
-          
-          with open('${{ env.DATA_DIR }}/followup_summary.json', 'w') as f:
-              json.dump(followup_data, f, indent=2)
-          
-          # Generate text report
-          report_lines = []
-          report_lines.append("# Follow-up & Reminder Report")
-          report_lines.append(f"\nGenerated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-          report_lines.append(f"\n## Summary")
-          report_lines.append(f"- Follow-ups needed: {len(followups_needed)}")
-          report_lines.append(f"- Due reminders: {len(due_reminders)}")
-          
-          if followups_needed:
-              report_lines.append(f"\n## Applications Needing Follow-up ({len(followups_needed)})")
-              for fu in followups_needed:
-                  report_lines.append(f"\n### {fu['company']} - {fu['position']}")
-                  report_lines.append(f"- **Action:** {fu['action']}")
-                  report_lines.append(f"- **Priority:** {fu['priority']}")
-                  if 'days_since_submission' in fu:
-                      report_lines.append(f"- **Days since submission:** {fu['days_since_submission']}")
-          
-          if due_reminders:
-              report_lines.append(f"\n## Due Reminders ({len(due_reminders)})")
-              for r in due_reminders:
-                  report_lines.append(f"\n### {r['company']} - {r['position']}")
-                  report_lines.append(f"- **Reminder:** {r['reminder']['message']}")
-                  report_lines.append(f"- **Due date:** {r['reminder']['due_date']}")
-          
-          report_file = '${{ env.DATA_DIR }}/reports/followup_report.md'
-          with open(report_file, 'w') as f:
-              f.write('\n'.join(report_lines))
-          
-          print(f"\n✅ Report saved: {report_file}")
-          
-          # Set outputs
-          import os
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-              f.write(f"due_count={len(due_reminders)}\n")
-              f.write(f"followup_count={len(followups_needed)}\n")
-          
-          print("="*70)
-          EOF
-      
-      - name: Commit status updates and follow-up data
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          git add ${{ env.DATA_DIR }}/applications.json
-          git add ${{ env.DATA_DIR }}/analytics.json
-          git add ${{ env.DATA_DIR }}/followup_summary.json
-          git add ${{ env.DATA_DIR }}/reports/followup_report.md
-          
-          git diff --quiet && git diff --staged --quiet || \
-            git commit -m "📄 Status updates: ${{ steps.status.outputs.updates_count }} | Follow-ups: ${{ steps.followup.outputs.followup_count }}"
-          
-          git push || echo "⚠️ Nothing to push"
-      
-      - name: Upload follow-up data
-        uses: actions/upload-artifact@v4
-        with:
-          name: followup-data-${{ github.run_number }}
-          path: |
-            ${{ env.DATA_DIR }}/followup_summary.json
-            ${{ env.DATA_DIR }}/reports/followup_report.md
-          retention-days: 30
-
-  # ========================================
-  # STAGE 6: EMAIL NOTIFICATIONS
-  # ========================================
-  send-notifications:
-    name: Send Email Notifications
-    runs-on: ubuntu-latest
-    needs: [coordinator, cv-matching-and-scoring, generate-application-packages, manage-status-and-followups]
-    if: |
-      always() &&
-      needs.coordinator.outputs.run_notifications == 'true' &&
-      (needs.cv-matching-and-scoring.result == 'success' || 
-       needs.generate-application-packages.result == 'success')
-    
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-      
-      - name: Download follow-up data
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: followup-data-${{ github.run_number }}
-          path: ${{ env.DATA_DIR }}
-      
-      - name: Send comprehensive email notification
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 587
-          username: ${{ secrets.SMTP_USER }}
-          password: ${{ secrets.SMTP_PASS }}
-          subject: "🚀 Job Search Pipeline Complete | 🎯 ${{ needs.cv-matching-and-scoring.outputs.high_score_count || 0 }} Matches | ⏰ ${{ needs.manage-status-and-followups.outputs.due_reminders || 0 }} Reminders"
-          to: ${{ secrets.NOTIFICATION_EMAIL }}
-          from: Job Search Automation <${{ secrets.SMTP_USER }}>
-          html_body: |
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <style>
-                body { 
-                  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                  line-height: 1.6; 
-                  color: #333; 
-                  background: #f5f5f5;
-                  margin: 0;
-                  padding: 0;
-                }
-                .container { 
-                  max-width: 700px; 
-                  margin: 20px auto; 
-                  background: white;
-                  border-radius: 12px;
-                  overflow: hidden;
-                  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                }
-                .header { 
-                  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                  color: white; 
-                  padding: 40px 30px; 
-                  text-align: center;
-                }
-                .header h1 { margin: 0 0 10px 0; font-size: 28px; }
-                .header p { margin: 0; opacity: 0.9; font-size: 14px; }
-                .stats-grid { 
-                  display: grid; 
-                  grid-template-columns: repeat(2, 1fr); 
-                  gap: 20px; 
-                  padding: 30px;
-                  background: #f8f9fa;
-                }
-                .stat-card { 
-                  background: white; 
-                  padding: 20px; 
-                  border-radius: 10px; 
-                  text-align: center;
-                  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-                }
-                .stat-number { 
-                  font-size: 36px; 
-                  font-weight: bold; 
-                  color: #667eea;
-                  margin: 0;
-                }
-                .stat-label { 
-                  color: #666; 
-                  font-size: 13px;
-                  margin-top: 5px;
-                  text-transform: uppercase;
-                  letter-spacing: 0.5px;
-                }
-                .section { 
-                  padding: 25px 30px; 
-                  border-bottom: 1px solid #eee;
-                }
-                .section:last-child { border-bottom: none; }
-                .section h2 { 
-                  margin: 0 0 15px 0;
-                  font-size: 20px;
-                  color: #333;
-                }
-                .alert { 
-                  padding: 15px 20px; 
-                  margin: 15px 0; 
-                  border-radius: 8px;
-                  border-left: 4px solid;
-                }
-                .alert-warning { 
-                  background: #fff3cd; 
-                  border-color: #ffc107;
-                  color: #856404;
-                }
-                .alert-danger { 
-                  background: #f8d7da; 
-                  border-color: #dc3545;
-                  color: #721c24;
-                }
-                .alert-success { 
-                  background: #d4edda; 
-                  border-color: #28a745;
-                  color: #155724;
-                }
-                .alert-info {
-                  background: #d1ecf1;
-                  border-color: #17a2b8;
-                  color: #0c5460;
-                }
-                .btn { 
-                  display: inline-block; 
-                  padding: 12px 28px; 
-                  background: #667eea; 
-                  color: white !important; 
-                  text-decoration: none; 
-                  border-radius: 6px; 
-                  margin: 10px 5px;
-                  font-weight: 500;
-                  transition: background 0.3s;
-                }
-                .btn:hover { background: #5568d3; }
-                .footer { 
-                  background: #f8f9fa;
-                  padding: 25px 30px; 
-                  font-size: 13px; 
-                  color: #666; 
-                  text-align: center;
-                  border-top: 1px solid #eee;
-                }
-                .footer a { color: #667eea; text-decoration: none; }
-                ul { padding-left: 20px; }
-                li { margin: 8px 0; }
-                strong { color: #333; }
-              </style>
-            </head>
-            <body>
-              <div class="container">
-                <div class="header">
-                  <h1>🚀 Job Search Pipeline Complete</h1>
-                  <p>Execution completed on ${{ needs.coordinator.outputs.timestamp }}</p>
-                  <p>Pipeline ID: ${{ needs.coordinator.outputs.pipeline_id }}</p>
-                </div>
-
-                <div class="stats-grid">
-                  <div class="stat-card">
-                    <div class="stat-number">${{ needs.cv-matching-and-scoring.outputs.high_score_count || 0 }}</div>
-                    <div class="stat-label">High-Quality Matches</div>
-                  </div>
-                  <div class="stat-card">
-                    <div class="stat-number">${{ needs.generate-application-packages.outputs.packages_created || 0 }}</div>
-                    <div class="stat-label">Packages Created</div>
-                  </div>
-                  <div class="stat-card">
-                    <div class="stat-number">${{ needs.manage-status-and-followups.outputs.due_reminders || 0 }}</div>
-                    <div class="stat-label">Due Reminders</div>
-                  </div>
-                  <div class="stat-card">
-                    <div class="stat-number">${{ needs.manage-status-and-followups.outputs.followups_needed || 0 }}</div>
-                    <div class="stat-label">Follow-ups Needed</div>
-                  </div>
-                </div>
-
-                <div class="section">
-                  <h2>🎯 Job Matches</h2>
-                  <p>Found <strong>${{ needs.cv-matching-and-scoring.outputs.high_score_count || 0 }}</strong> high-quality job matches (score ≥ ${{ env.MIN_SCORE }})</p>
-                  <p>Top match score: <strong>${{ needs.cv-matching-and-scoring.outputs.top_score || 'N/A' }}</strong></p>
-                  
-                  <div class="alert alert-success">
-                    <strong>✅ Success!</strong> Jobs have been scored and ranked by relevance.
-                  </div>
-                  
-                  <a href="${{ github.server_url }}/${{ github.repository }}/blob/main/${{ env.DATA_DIR }}/scored_jobs.json" class="btn">
-                    View Scored Jobs
-                  </a>
-                </div>
-
-                <div class="section">
-                  <h2>📦 Application Packages</h2>
-                  <p><strong>${{ needs.generate-application-packages.outputs.packages_created || 0 }}</strong> ready-to-submit application packages created</p>
-                  
-                  <p><strong>Next Steps:</strong></p>
-                  <ul>
-                    <li>Review application packages in the repository</li>
-                    <li>Customize cover letters if needed</li>
-                    <li>Submit applications through respective platforms</li>
-                    <li>Update application status after submission</li>
-                  </ul>
-                  
-                  <a href="${{ github.server_url }}/${{ github.repository }}/tree/main/${{ env.DATA_DIR }}/application_packages" class="btn">
-                    View Packages
-                  </a>
-                </div>
-
-                <div class="section">
-                  <h2>⏰ Action Required: Reminders</h2>
-                  <p><strong>${{ needs.manage-status-and-followups.outputs.due_reminders || 0 }}</strong> reminders are due</p>
-                  
-                  <div class="alert alert-info">
-                    <strong>ℹ️ Status:</strong> Check the follow-up report for detailed reminder information.
-                  </div>
-                  
-                  <a href="${{ github.server_url }}/${{ github.repository }}/blob/main/${{ env.DATA_DIR }}/reports/followup_report.md" class="btn">
-                    View Reminder Report
-                  </a>
-                </div>
-
-                <div class="section">
-                  <h2>📞 Follow-up Actions</h2>
-                  <p><strong>${{ needs.manage-status-and-followups.outputs.followups_needed || 0 }}</strong> applications need follow-up</p>
-                  
-                  <div class="alert alert-warning">
-                    <strong>💡 Reminder:</strong> Applications submitted more than 7 days ago should be followed up.
-                  </div>
-                  
-                  <p><strong>Follow-up Guidelines:</strong></p>
-                  <ul>
-                    <li><strong>Day 7:</strong> Send polite follow-up email</li>
-                    <li><strong>Day 14:</strong> Second follow-up or phone call</li>
-                    <li><strong>Day 21:</strong> Final follow-up, consider moving on</li>
-                  </ul>
-                </div>
-
-                <div class="section">
-                  <h2>📊 Pipeline Summary</h2>
-                  <p><strong>Execution Mode:</strong> ${{ github.event.inputs.pipeline_mode || 'full_pipeline' }}</p>
-                  <p><strong>Status Updates:</strong> ${{ needs.manage-status-and-followups.outputs.status_updates || 0 }} applications updated</p>
-                  
-                  <p><strong>Stage Results:</strong></p>
-                  <ul>
-                    <li>✅ Job Discovery: Complete</li>
-                    <li>✅ CV Matching & Scoring: ${{ needs.cv-matching-and-scoring.outputs.high_score_count || 0 }} matches</li>
-                    <li>✅ Package Generation: ${{ needs.generate-application-packages.outputs.packages_created || 0 }} packages</li>
-                    <li>✅ Status Management: ${{ needs.manage-status-and-followups.outputs.status_updates || 0 }} updates</li>
-                  </ul>
-                </div>
-
-                <div class="footer">
-                  <p><strong>📄 Attachments:</strong> Follow-up summary and detailed report included</p>
-                  <p><a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Workflow Run</a> | 
-                     <a href="${{ github.server_url }}/${{ github.repository }}/tree/main/${{ env.DATA_DIR }}">View Data Directory</a></p>
-                  <p style="margin-top: 15px; color: #999;">Automated by Job Search Orchestrator</p>
-                </div>
-              </div>
-            </body>
-            </html>
-          attachments: |
-            ${{ env.DATA_DIR }}/followup_summary.json
-            ${{ env.DATA_DIR }}/reports/followup_report.md
-
-  # ========================================
-  # STAGE 7: MAINTENANCE
-  # ========================================
-  maintenance:
-    name: System Maintenance
+  trigger-maintenance:
+    name: Run Maintenance
     runs-on: ubuntu-latest
     needs: coordinator
     if: needs.coordinator.outputs.run_maintenance == 'true'
@@ -1369,185 +845,74 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
       
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      
-      - name: Clean old data
+      - name: Trigger Cleanup
         run: |
-          python3 << 'EOF'
-          from pathlib import Path
-          from datetime import datetime, timedelta
-          import json
-          import shutil
+          echo "🧹 Triggering maintenance cleanup..."
           
-          print("="*70)
-          print("🧹 SYSTEM MAINTENANCE")
-          print("="*70)
+          gh workflow run cleanup-old-workflows.yml
           
-          data_dir = Path('${{ env.DATA_DIR }}')
-          
-          # Archive old packages (>90 days)
-          packages_dir = data_dir / 'application_packages'
-          if packages_dir.exists():
-              archive_dir = data_dir / 'archived_packages'
-              archive_dir.mkdir(exist_ok=True)
-              
-              cutoff_date = datetime.now() - timedelta(days=90)
-              archived_count = 0
-              
-              for package in packages_dir.iterdir():
-                  if package.is_dir():
-                      mtime = datetime.fromtimestamp(package.stat().st_mtime)
-                      if mtime < cutoff_date:
-                          shutil.move(str(package), str(archive_dir / package.name))
-                          archived_count += 1
-              
-              print(f"📦 Archived {archived_count} old packages")
-          
-          # Clean up old scored job files
-          for old_file in data_dir.glob('scored_jobs_*.json'):
-              mtime = datetime.fromtimestamp(old_file.stat().st_mtime)
-              if datetime.now() - mtime > timedelta(days=30):
-                  old_file.unlink()
-                  print(f"🗑️  Deleted old file: {old_file.name}")
-          
-          # Compact analytics data
-          analytics_file = data_dir / 'analytics.json'
-          if analytics_file.exists():
-              with open(analytics_file) as f:
-                  analytics = json.load(f)
-              
-              # Keep only last 90 days of daily stats
-              if 'daily_stats' in analytics:
-                  cutoff = (datetime.now() - timedelta(days=90)).isoformat()
-                  analytics['daily_stats'] = {
-                      k: v for k, v in analytics['daily_stats'].items() 
-                      if k >= cutoff
-                  }
-              
-              with open(analytics_file, 'w') as f:
-                  json.dump(analytics, f, indent=2)
-              
-              print("📊 Compacted analytics data")
-          
-          print("✅ Maintenance complete")
-          print("="*70)
-          EOF
-      
-      - name: Trigger workflow cleanup
-        run: |
-          echo "🧹 Triggering workflow cleanup..."
-          gh workflow run cleanup-old-workflows.yml || echo "⚠️ Cleanup workflow not found"
+          echo "✅ Cleanup workflow triggered"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Commit maintenance changes
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          git add ${{ env.DATA_DIR }}/
-          
-          git diff --quiet && git diff --staged --quiet || \
-            git commit -m "🧹 System maintenance - $(date +'%Y-%m-%d')"
-          
-          git push || echo "⚠️ Nothing to push"
 
   # ========================================
-  # STAGE 8: PIPELINE SUMMARY & REPORTING
+  # STAGE 6: MONITORING & REPORTING
   # ========================================
   pipeline-summary:
     name: Pipeline Summary
     runs-on: ubuntu-latest
-    needs: [
-      coordinator,
-      job-discovery,
-      cv-matching-and-scoring,
-      generate-cover-letters,
-      generate-application-packages,
-      manage-status-and-followups,
-      send-notifications,
-      maintenance
-    ]
+    needs: [coordinator, trigger-discovery, trigger-matching, trigger-emails]
     if: always()
     
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
       
-      - name: Generate summary report
+      - name: Generate Pipeline Report
         run: |
-          cat << 'SUMMARY' >> $GITHUB_STEP_SUMMARY
-          # 🚀 Job Search Pipeline Summary
+          python3 << 'EOF'
+          import json
+          from datetime import datetime
           
-          **Pipeline ID:** ${{ needs.coordinator.outputs.pipeline_id }}  
-          **Timestamp:** ${{ needs.coordinator.outputs.timestamp }}  
-          **Mode:** ${{ github.event.inputs.pipeline_mode || 'full_pipeline' }}
+          print("\n" + "="*80)
+          print("JOB SEARCH PIPELINE SUMMARY")
+          print("="*80)
+          print(f"\n📊 Pipeline ID: ${{ needs.coordinator.outputs.pipeline_id }}")
+          print(f"⏰ Timestamp: ${{ needs.coordinator.outputs.timestamp }}")
+          print(f"🎯 Mode: ${{ github.event.inputs.pipeline_mode || 'full_pipeline' }}")
           
-          ## 📊 Execution Results
+          print("\n📈 STAGE RESULTS:")
+          print(f"  Discovery:    ${{ needs.trigger-discovery.result || 'skipped' }}")
+          print(f"  Matching:     ${{ needs.trigger-matching.result || 'skipped' }}")
+          print(f"  Emails:       ${{ needs.trigger-emails.result || 'skipped' }}")
           
-          | Stage | Status | Details |
-          |-------|--------|---------|
-          | Discovery | ${{ needs.job-discovery.result || '⏭️ skipped' }} | ${{ needs.job-discovery.outputs.jobs_discovered || 0 }} jobs discovered |
-          | CV Matching & Scoring | ${{ needs.cv-matching-and-scoring.result || '⏭️ skipped' }} | ${{ needs.cv-matching-and-scoring.outputs.high_score_count || 0 }} high-quality matches (score ≥ ${{ env.MIN_SCORE }}) |
-          | Cover Letters | ${{ needs.generate-cover-letters.result || '⏭️ skipped' }} | ${{ needs.generate-cover-letters.outputs.letters_generated || 0 }} AI letters generated |
-          | Package Generation | ${{ needs.generate-application-packages.result || '⏭️ skipped' }} | ${{ needs.generate-application-packages.outputs.packages_created || 0 }} packages created |
-          | Status Management | ${{ needs.manage-status-and-followups.result || '⏭️ skipped' }} | ${{ needs.manage-status-and-followups.outputs.status_updates || 0 }} status updates |
-          | Notifications | ${{ needs.send-notifications.result || '⏭️ skipped' }} | Email sent |
-          | Maintenance | ${{ needs.maintenance.result || '⏭️ skipped' }} | System cleaned |
-          
-          ## 🎯 Key Metrics
-          
-          - **High-Quality Matches:** ${{ needs.cv-matching-and-scoring.outputs.high_score_count || 0 }}
-          - **Top Match Score:** ${{ needs.cv-matching-and-scoring.outputs.top_score || 'N/A' }}
-          - **Packages Created:** ${{ needs.generate-application-packages.outputs.packages_created || 0 }}
-          - **Due Reminders:** ${{ needs.manage-status-and-followups.outputs.due_reminders || 0 }}
-          - **Follow-ups Needed:** ${{ needs.manage-status-and-followups.outputs.followups_needed || 0 }}
-          
-          ## 📁 Data Files
-          
-          - [Scored Jobs](${{ github.server_url }}/${{ github.repository }}/blob/main/${{ env.DATA_DIR }}/scored_jobs.json)
-          - [Application Packages](${{ github.server_url }}/${{ github.repository }}/tree/main/${{ env.DATA_DIR }}/application_packages)
-          - [Follow-up Report](${{ github.server_url }}/${{ github.repository }}/blob/main/${{ env.DATA_DIR }}/reports/followup_report.md)
-          - [Tracking Data](${{ github.server_url }}/${{ github.repository }}/blob/main/${{ env.DATA_DIR }}/applications.json)
-          
-          ## 🔗 Quick Links
-          
-          - [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          - [Download Artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts)
-          - [Data Directory](${{ github.server_url }}/${{ github.repository }}/tree/main/${{ env.DATA_DIR }})
-          
-          ---
-          
-          *Pipeline executed successfully. Check email for detailed notification.*
-          SUMMARY
+          print("\n💾 DATA DIRECTORY: ${{ env.DATA_DIR }}")
+          print("\nℹ️  NOTE: All workflows triggered with their default configurations")
+          print("="*80)
+          EOF
       
-      - name: Create summary issue
+      - name: Create Summary Issue
         if: |
           github.event_name == 'schedule' ||
           github.event.inputs.pipeline_mode == 'full_pipeline'
         uses: actions/github-script@v7
         with:
           script: |
-            const statusEmoji = {
-              'success': '✅',
-              'failure': '❌',
-              'skipped': '⏭️',
-              'cancelled': '🚫'
-            };
-            
             const pipelineId = '${{ needs.coordinator.outputs.pipeline_id }}';
             const timestamp = '${{ needs.coordinator.outputs.timestamp }}';
             const mode = '${{ github.event.inputs.pipeline_mode || 'full_pipeline' }}';
             
-            const discoveryResult = '${{ needs.job-discovery.result || 'skipped' }}';
-            const scoringResult = '${{ needs.cv-matching-and-scoring.result || 'skipped' }}';
-            const packagesResult = '${{ needs.generate-application-packages.result || 'skipped' }}';
-            const notificationsResult = '${{ needs.send-notifications.result || 'skipped' }}';
+            const discoveryResult = '${{ needs.trigger-discovery.result || 'skipped' }}';
+            const matchingResult = '${{ needs.trigger-matching.result || 'skipped' }}';
+            const emailsResult = '${{ needs.trigger-emails.result || 'skipped' }}';
             
-            const body = `# 🚀 Job Search Pipeline Summary
+            const statusEmoji = {
+              'success': '✅',
+              'failure': '❌',
+              'skipped': '⏭️'
+            };
+            
+            const body = `# Job Search Pipeline Summary
             
             **Pipeline ID:** ${pipelineId}  
             **Timestamp:** ${timestamp}  
@@ -1557,26 +922,22 @@ jobs:
             
             | Stage | Status |
             |-------|--------|
-            | Job Discovery | ${statusEmoji[discoveryResult]} ${discoveryResult} |
-            | CV Matching & Scoring | ${statusEmoji[scoringResult]} ${scoringResult} |
-            | Package Generation | ${statusEmoji[packagesResult]} ${packagesResult} |
-            | Notifications | ${statusEmoji[notificationsResult]} ${notificationsResult} |
+            | Discovery | ${statusEmoji[discoveryResult]} ${discoveryResult} |
+            | Matching | ${statusEmoji[matchingResult]} ${matchingResult} |
+            | Emails | ${statusEmoji[emailsResult]} ${emailsResult} |
             
-            ## Key Metrics
+            ## Workflow Links
             
-            - **High-Quality Matches:** ${{ needs.cv-matching-and-scoring.outputs.high_score_count || 0 }}
-            - **Packages Created:** ${{ needs.generate-application-packages.outputs.packages_created || 0 }}
-            - **Due Reminders:** ${{ needs.manage-status-and-followups.outputs.due_reminders || 0 }}
-            - **Follow-ups Needed:** ${{ needs.manage-status-and-followups.outputs.followups_needed || 0 }}
+            - [Job Discovery](${{ github.server_url }}/${{ github.repository }}/actions/workflows/job-discovery-worker.yml)
+            - [CV Matcher](${{ github.server_url }}/${{ github.repository }}/actions/workflows/cv_job_matcher.yml)
+            - [Email Sender](${{ github.server_url }}/${{ github.repository }}/actions/workflows/send-cv-match-emails.yml)
             
-            ## Quick Links
+            ## Configuration Note
             
-            - [Scored Jobs](${{ github.server_url }}/${{ github.repository }}/blob/main/${{ env.DATA_DIR }}/scored_jobs.json)
-            - [Application Packages](${{ github.server_url }}/${{ github.repository }}/tree/main/${{ env.DATA_DIR }}/application_packages)
-            - [Follow-up Report](${{ github.server_url }}/${{ github.repository }}/blob/main/${{ env.DATA_DIR }}/reports/followup_report.md)
+            All workflows were triggered with their default configurations.  
+            To customize behavior, configure each workflow directly.
             
             ---
-            
             [View This Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
             `;
             
@@ -1587,3 +948,593 @@ jobs:
               body: body,
               labels: ['job-search', 'pipeline-summary', 'automated']
             });
+      
+      - name: Send Slack Notification
+        if: vars.SLACK_WEBHOOK_URL != ''
+        run: |
+          python3 << 'EOF'
+          import requests
+          import json
+          
+          webhook_url = "${{ vars.SLACK_WEBHOOK_URL }}"
+          
+          discovery = "${{ needs.trigger-discovery.result || 'skipped' }}"
+          matching = "${{ needs.trigger-matching.result || 'skipped' }}"
+          emails = "${{ needs.trigger-emails.result || 'skipped' }}"
+          
+          status_emoji = {
+              'success': '✅',
+              'failure': '❌',
+              'skipped': '⏭️'
+          }
+          
+          message = {
+              "text": "🤖 Job Search Pipeline Complete",
+              "blocks": [
+                  {
+                      "type": "header",
+                      "text": {
+                          "type": "plain_text",
+                          "text": "🤖 Job Search Pipeline Summary"
+                      }
+                  },
+                  {
+                      "type": "section",
+                      "fields": [
+                          {
+                              "type": "mrkdwn",
+                              "text": f"*Pipeline ID:*\n${{ needs.coordinator.outputs.pipeline_id }}"
+                          },
+                          {
+                              "type": "mrkdwn",
+                              "text": f"*Mode:*\n${{ github.event.inputs.pipeline_mode || 'full_pipeline' }}"
+                          }
+                      ]
+                  },
+                  {
+                      "type": "section",
+                      "text": {
+                          "type": "mrkdwn",
+                          "text": f"*Results:*\n{status_emoji[discovery]} Discovery\n{status_emoji[matching]} Matching\n{status_emoji[emails]} Emails"
+                      }
+                  }
+              ]
+          }
+          
+          if webhook_url:
+              response = requests.post(webhook_url, json=message)
+              print(f"Notification sent: {response.status_code}")
+          EOF      
+
+  # ========================================
+  # STAGE 6: FOLLOW-UP MANAGEMENT
+  # ========================================
+  manage-followups:
+    name: Manage Follow-ups
+    runs-on: ubuntu-latest
+    needs: [coordinator, generate-packages]
+    if: always()
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Check and create follow-up reminders
+        id: followups
+        run: |
+          python3 << 'EOF'
+          import sys
+          sys.path.insert(0, '.github/scripts')
+          
+          from application_tracker_plus import ApplicationTracker
+          import json
+          
+          print("="*70)
+          print("📬 CHECKING FOLLOW-UPS")
+          print("="*70)
+          
+          tracker = ApplicationTracker()
+          
+          # Get follow-ups needed
+          follow_ups = tracker.get_follow_up_needed()
+          
+          print(f"\n📊 Found {len(follow_ups)} applications needing follow-up")
+          
+          if follow_ups:
+              print("\n📋 Follow-up List:")
+              for fu in follow_ups:
+                  print(f"  • {fu['company']} - {fu['position']}")
+                  print(f"    Days since submission: {fu['days_since_submission']}")
+                  print(f"    Priority: {fu['priority']}")
+                  print()
+          
+          # Get due reminders
+          reminders = tracker.get_due_reminders()
+          
+          print(f"\n⏰ Found {len(reminders)} due reminders")
+          
+          if reminders:
+              print("\n📋 Due Reminders:")
+              for r in reminders:
+                  print(f"  • {r['company']} - {r['position']}")
+                  print(f"    {r['reminder']['message']}")
+                  print()
+          
+          # Save to file for email
+          followup_data = {
+              'follow_ups': follow_ups,
+              'reminders': reminders
+          }
+          
+          with open('followup_data.json', 'w') as f:
+              json.dump(followup_data, f, indent=2)
+          
+          # Set outputs
+          import os
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"followups_count={len(follow_ups)}\n")
+              f.write(f"reminders_count={len(reminders)}\n")
+          
+          print("="*70)
+          EOF
+      
+      - name: Create follow-up issue
+        if: steps.followups.outputs.followups_count > 0
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync('followup_data.json', 'utf8'));
+            
+            let body = `# Follow-up Required\n\n`;
+            body += `**Date:** ${new Date().toISOString().split('T')[0]}\n\n`;
+            body += `## Applications Needing Follow-up (${data.follow_ups.length})\n\n`;
+            
+            for (const fu of data.follow_ups) {
+              body += `### ${fu.company} - ${fu.position}\n`;
+              body += `- **Days Since Submission:** ${fu.days_since_submission}\n`;
+              body += `- **Action:** ${fu.action}\n`;
+              body += `- **Priority:** ${fu.priority}\n\n`;
+            }
+            
+            if (data.reminders.length > 0) {
+              body += `## Due Reminders (${data.reminders.length})\n\n`;
+              for (const r of data.reminders) {
+                body += `### ${r.company} - ${r.position}\n`;
+                body += `- **Reminder:** ${r.reminder.message}\n`;
+                body += `- **Due:** ${r.reminder.due_date}\n\n`;
+              }
+            }
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `📬 Follow-up Needed (${data.follow_ups.length} applications)`,
+              body: body,
+              labels: ['follow-up', 'applications', 'automation']
+            });
+            
+            console.log('✅ Follow-up issue created successfully');
+
+      - name: Upload follow-up summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: follow-up-summary-${{ github.run_number }}
+          path: followup_data.json
+          retention-days: 14
+
+# ========================================
+  # STAGE 7: STATUS MANAGEMENT & TRACKING
+  # ========================================
+  manage-application-status:
+    name: Update Application Statuses
+    runs-on: ubuntu-latest
+    needs: [coordinator, create-packages]
+    if: |
+      always() &&
+      needs.create-packages.result == 'success'
+    
+    outputs:
+      status_updates: ${{ steps.status_update.outputs.updates_count }}
+      reminders_created: ${{ steps.status_update.outputs.reminders_count }}
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Auto-update application statuses
+        id: status_update
+        run: |
+          python3 << 'EOF'
+          import sys
+          sys.path.insert(0, '.github/scripts')
+          
+          from update_application_status import ApplicationStatusUpdater
+          from application_tracker_plus import ApplicationTracker
+          
+          print("="*70)
+          print("ðŸ"„ AUTO-UPDATING APPLICATION STATUSES")
+          print("="*70)
+          
+          updater = ApplicationStatusUpdater('${{ env.DATA_DIR }}')
+          tracker = ApplicationTracker('${{ env.DATA_DIR }}')
+          
+          updates_count = 0
+          reminders_count = 0
+          
+          # Auto-transition: package_created -> in_progress
+          package_created_apps = tracker.get_applications_by_status('package_created')
+          print(f"\nðŸ"¦ Found {len(package_created_apps)} applications with packages")
+          
+          for app in package_created_apps:
+              # Check if package was created recently (within last hour)
+              from datetime import datetime, timedelta
+              last_updated = datetime.fromisoformat(app['last_updated'])
+              if datetime.now() - last_updated < timedelta(hours=1):
+                  success = tracker.update_status(
+                      app['id'],
+                      'in_progress',
+                      'Package ready - ready for application submission',
+                      auto_reminders=True
+                  )
+                  if success:
+                      updates_count += 1
+                      print(f"   âœ… {app['company']} -> in_progress")
+          
+          # Auto-create reminders for submitted applications without reminders
+          submitted_apps = tracker.get_applications_by_status('submitted')
+          print(f"\nðŸ"¤ Checking {len(submitted_apps)} submitted applications for reminders")
+          
+          for app in submitted_apps:
+              if not app.get('reminders'):
+                  # Create default follow-up reminders
+                  from datetime import datetime, timedelta
+                  
+                  # Day 3: Check status
+                  tracker.add_reminder(
+                      app['id'],
+                      'Check application status',
+                      (datetime.now() + timedelta(days=3)).isoformat(),
+                      priority='medium'
+                  )
+                  
+                  # Day 7: Follow-up email
+                  tracker.add_reminder(
+                      app['id'],
+                      'Send follow-up email',
+                      (datetime.now() + timedelta(days=7)).isoformat(),
+                      priority='high'
+                  )
+                  
+                  reminders_count += 2
+                  print(f"   âœ… {app['company']} - reminders created")
+          
+          print(f"\nðŸ"Š Status Update Summary:")
+          print(f"   Status updates: {updates_count}")
+          print(f"   Reminders created: {reminders_count}")
+          
+          # Set outputs
+          import os
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"updates_count={updates_count}\n")
+              f.write(f"reminders_count={reminders_count}\n")
+          
+          print("="*70)
+          EOF
+      
+      - name: Commit status updates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add ${{ env.DATA_DIR }}/applications.json
+          git add ${{ env.DATA_DIR }}/analytics.json
+          
+          git diff --quiet && git diff --staged --quiet || \
+            git commit -m "ðŸ"„ Auto-updated ${{ steps.status_update.outputs.updates_count }} application statuses"
+          
+          git push
+
+  # ========================================
+  # STAGE 8: FOLLOW-UP REMINDER MANAGEMENT
+  # ========================================
+  process-followup-reminders:
+    name: Process Follow-up Reminders
+    runs-on: ubuntu-latest
+    needs: [coordinator, manage-application-status]
+    if: always()
+    
+    outputs:
+      due_reminders: ${{ steps.reminders.outputs.due_count }}
+      followups_needed: ${{ steps.reminders.outputs.followup_count }}
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Check due reminders and follow-ups
+        id: reminders
+        run: |
+          python3 .github/scripts/github_actions_followup_manager.py \
+            --mode report \
+            --data-dir ${{ env.DATA_DIR }} \
+            --days-ahead 7 \
+            --output followup_report.json
+          
+          DUE=$(jq '.summary.due_reminders' followup_report.json)
+          FOLLOWUPS=$(jq '.summary.follow_ups_needed' followup_report.json)
+          
+          echo "due_count=$DUE" >> $GITHUB_OUTPUT
+          echo "followup_count=$FOLLOWUPS" >> $GITHUB_OUTPUT
+          
+          # Also export for email
+          python3 .github/scripts/github_actions_followup_manager.py \
+            --mode export \
+            --data-dir ${{ env.DATA_DIR }} \
+            --days-ahead 7 \
+            --output followup_summary.json
+          
+      - name: Commit follow-up data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add ${{ env.DATA_DIR }}/reports/followup_report.txt
+          git add ${{ env.DATA_DIR }}/reminders_calendar.ics
+          
+          git diff --quiet && git diff --staged --quiet || \
+            git commit -m "â° Follow-up report: ${{ steps.reminders.outputs.due_count }} reminders due"
+          
+          git push
+      
+      - name: Upload follow-up summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: followup-summary-${{ github.run_number }}
+          path: |
+            followup_summary.json
+            ${{ env.DATA_DIR }}/reports/followup_report.txt
+            ${{ env.DATA_DIR }}/reminders_calendar.ics
+          retention-days: 30
+
+  validate-integration:
+    name: Validate Script Integration
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Test script imports
+        run: |
+          python3 << 'EOF'
+          import sys
+          sys.path.insert(0, '.github/scripts')
+          
+          try:
+              from update_application_status import ApplicationStatusUpdater, GitHubActionsUpdater
+              print("update_application_status.py imported successfully")
+          except Exception as e:
+              print(f"Failed to import update_application_status.py: {e}")
+              sys.exit(1)
+          
+          try:
+              from follow_up_remainders import FollowUpManager, GitHubActionsFollowUpManager
+              print("follow_up_remainders.py imported successfully")
+          except Exception as e:
+              print(f"Failed to import follow_up_remainders.py: {e}")
+              sys.exit(1)
+          
+          try:
+              from github_actions_status_updater import main as status_main
+              print("github_actions_status_updater.py imported successfully")
+          except Exception as e:
+              print(f"Failed to import github_actions_status_updater.py: {e}")
+              sys.exit(1)
+          
+          try:
+              from github_actions_followup_manager import main as followup_main
+              print("github_actions_followup_manager.py imported successfully")
+          except Exception as e:
+              print(f"Failed to import github_actions_followup_manager.py: {e}")
+              sys.exit(1)
+          
+          print("\nâœ… All integrations validated successfully!")
+          EOF
+
+  
+  # ========================================
+  # STAGE 9: ENHANCED EMAIL NOTIFICATIONS
+  # ========================================
+  send-enhanced-notifications:
+    name: Send Enhanced Email Notifications
+    runs-on: ubuntu-latest
+    needs: [coordinator, process-followup-reminders, score-jobs]
+    if: |
+      always() &&
+      needs.coordinator.outputs.run_emails == 'true' &&
+      github.event.inputs.send_emails != 'false'
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: followup-summary-${{ github.run_number }}
+      
+      - name: Send comprehensive email notification
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.SMTP_USER }}
+          password: ${{ secrets.SMTP_PASS }}
+          subject: "ðŸš€ Job Search Pipeline Complete | â° ${{ needs.process-followup-reminders.outputs.due_reminders }} Reminders | ðŸŽ¯ ${{ needs.score-jobs.outputs.total_scored }} Matches"
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: Job Search Automation <${{ secrets.SMTP_USER }}>
+          html_body: |
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 700px; margin: 0 auto; padding: 20px; }
+                .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px; }
+                .section { background: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #667eea; }
+                .alert { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                .critical { background: #f8d7da; border-left: 4px solid #dc3545; }
+                .success { background: #d4edda; border-left: 4px solid #28a745; }
+                .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin: 20px 0; }
+                .stat-card { background: white; padding: 15px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+                .stat-number { font-size: 32px; font-weight: bold; color: #667eea; }
+                .stat-label { color: #666; font-size: 14px; }
+                .reminder-item { background: white; padding: 12px; margin: 8px 0; border-radius: 5px; border-left: 3px solid #ffc107; }
+                .followup-item { background: white; padding: 12px; margin: 8px 0; border-radius: 5px; border-left: 3px solid #17a2b8; }
+                .priority-high { border-left-color: #dc3545; }
+                .priority-critical { border-left-color: #721c24; background: #f8d7da; }
+                table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+                th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+                th { background: #667eea; color: white; }
+                .btn { display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 10px 5px; }
+                .footer { margin-top: 30px; padding-top: 20px; border-top: 2px solid #ddd; font-size: 12px; color: #666; text-align: center; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="header">
+                  <h1>ðŸš€ Job Search Pipeline Complete</h1>
+                  <p>Execution completed on $(date +'%Y-%m-%d at %H:%M UTC')</p>
+                </div>
+
+                <div class="stats-grid">
+                  <div class="stat-card">
+                    <div class="stat-number">${{ needs.score-jobs.outputs.total_scored }}</div>
+                    <div class="stat-label">High-Quality Matches</div>
+                  </div>
+                  <div class="stat-card">
+                    <div class="stat-number">${{ needs.manage-application-status.outputs.status_updates }}</div>
+                    <div class="stat-label">Status Updates</div>
+                  </div>
+                  <div class="stat-card">
+                    <div class="stat-number">${{ needs.process-followup-reminders.outputs.due_reminders }}</div>
+                    <div class="stat-label">Due Reminders</div>
+                  </div>
+                  <div class="stat-card">
+                    <div class="stat-number">${{ needs.process-followup-reminders.outputs.followups_needed }}</div>
+                    <div class="stat-label">Follow-ups Needed</div>
+                  </div>
+                </div>
+
+                <div class="section">
+                  <h2>â° Action Required: Due Reminders</h2>
+                  <p><strong>${{ needs.process-followup-reminders.outputs.due_reminders }}</strong> reminders need your attention</p>
+                  
+                  <div class="alert critical">
+                    <strong>âš ï¸  Check Today:</strong> Review reminders marked as critical or high priority
+                  </div>
+                  
+                  <a href="${{ github.server_url }}/${{ github.repository }}/blob/main/${{ env.DATA_DIR }}/reports/followup_report.txt" class="btn">
+                    View Full Reminder Report
+                  </a>
+                </div>
+
+                <div class="section">
+                  <h2>ðŸ"ž Follow-up Actions</h2>
+                  <p><strong>${{ needs.process-followup-reminders.outputs.followups_needed }}</strong> applications need follow-up</p>
+                  
+                  <div class="alert">
+                    <strong>ðŸ'¡ Tip:</strong> Applications older than 7 days without response should be followed up
+                  </div>
+                </div>
+
+                <div class="section success">
+                  <h2>ðŸŽ¯ High-Quality Job Matches</h2>
+                  <p>Found <strong>${{ needs.score-jobs.outputs.total_scored }}</strong> jobs matching your criteria (70+ score)</p>
+                  <p>Top match score: <strong>${{ needs.score-jobs.outputs.top_score }}%</strong></p>
+                  
+                  <a href="${{ github.server_url }}/${{ github.repository }}/blob/main/${{ env.DATA_DIR }}/matched_jobs_scored.json" class="btn">
+                    View Scored Jobs
+                  </a>
+                </div>
+
+                <div class="section">
+                  <h2>ðŸ"¦ Application Packages</h2>
+                  <p>Ready-to-submit application packages have been created</p>
+                  
+                  <h3>Next Steps:</h3>
+                  <ol>
+                    <li>Review due reminders (see calendar attachment)</li>
+                    <li>Send follow-up emails for overdue applications</li>
+                    <li>Submit applications from ready packages</li>
+                    <li>Update statuses as you progress</li>
+                  </ol>
+                  
+                  <a href="${{ github.server_url }}/${{ github.repository }}/tree/main/${{ env.DATA_DIR }}/application_packages" class="btn">
+                    View All Packages
+                  </a>
+                </div>
+
+                <div class="section">
+                  <h2>ðŸ"Š Pipeline Summary</h2>
+                  <table>
+                    <tr>
+                      <th>Stage</th>
+                      <th>Status</th>
+                    </tr>
+                    <tr>
+                      <td>Job Discovery</td>
+                      <td>âœ… Complete</td>
+                    </tr>
+                    <tr>
+                      <td>Job Scoring</td>
+                      <td>âœ… ${{ needs.score-jobs.outputs.total_scored }} matches</td>
+                    </tr>
+                    <tr>
+                      <td>Package Creation</td>
+                      <td>âœ… Complete</td>
+                    </tr>
+                    <tr>
+                      <td>Status Updates</td>
+                      <td>âœ… ${{ needs.manage-application-status.outputs.status_updates }} updates</td>
+                    </tr>
+                    <tr>
+                      <td>Reminders</td>
+                      <td>â° ${{ needs.process-followup-reminders.outputs.due_reminders }} due</td>
+                    </tr>
+                  </table>
+                </div>
+
+                <div class="footer">
+                  <p><strong>ðŸ"… Calendar Attached:</strong> Import reminders_calendar.ics into your calendar app</p>
+                  <p><strong>ðŸ"„ Full Report:</strong> Check the followup_report.txt attachment</p>
+                  <p><a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Workflow Logs</a></p>
+                  <p>Automated by Job Search Orchestrator</p>
+                </div>
+              </div>
+            </body>
+            </html>
+          attachments: |
+            followup_summary.json
+            ${{ env.DATA_DIR }}/reports/followup_report.txt
+            ${{ env.DATA_DIR }}/reminders_calendar.ics
