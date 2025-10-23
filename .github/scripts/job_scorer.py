@@ -294,7 +294,7 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description='Score job postings')
-    parser.add_argument('--cv', required=True, help='Path to CV file')
+    parser.add_argument('--cv',  '--input', dest='cv', required=True, help='Path to CV file')
     parser.add_argument('--jobs', required=True, help='Path to jobs JSON file')
     parser.add_argument('--output', required=True, help='Output path for scored jobs')
     parser.add_argument('--preferences', help='Optional preferences JSON file')

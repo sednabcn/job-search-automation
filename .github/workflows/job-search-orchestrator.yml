@@ -274,10 +274,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  
 # ========================================
-# NEW: JOB SCORING STAGE
-# ========================================
+  # NEW: JOB SCORING STAGE
+  # ========================================
   job-scoring:
     name: Score Jobs by Relevance
     runs-on: ubuntu-latest
@@ -302,23 +301,95 @@ jobs:
       - name: Run job scorer
         id: score
         run: |
-          python3 .github/scripts/job_scorer.py \
-            --input job_search/applications.json \
-            --profile contacts/profile.json \
-            --min-score 70 \
-            --output job_search/scored_jobs.json
+          # Check if required files exist
+          if [ ! -f "cv/my_cv.txt" ]; then
+            echo "⚠️ CV file not found, creating placeholder"
+            mkdir -p cv
+            echo "Software Engineer with experience in Python, JavaScript, React, Node.js, AWS, Docker, Kubernetes, SQL, MongoDB, Git, CI/CD" > cv/my_cv.txt
+          fi
           
-          HIGH_SCORE=$(python3 -c "import json; jobs=json.load(open('job_search/scored_jobs.json')); print(len([j for j in jobs if j.get('score',0)>=70]))")
-          echo "high_score_count=$HIGH_SCORE" >> $GITHUB_OUTPUT
-          echo "✅ Found $HIGH_SCORE high-quality matches"
+          if [ ! -f "job_search/applications.json" ]; then
+            echo "⚠️ No applications found to score"
+            echo "high_score_count=0" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Create preferences file if it doesn't exist
+          if [ ! -f "configs/scoring_preferences.json" ]; then
+            mkdir -p configs
+            cat > configs/scoring_preferences.json << 'PREFS'
+          {
+            "salary_min": 50000,
+            "salary_max": 150000,
+            "locations": ["remote", "london", "uk"],
+            "experience_level": "mid",
+            "recency_days": 30,
+            "weights": {
+              "keywords": 40,
+              "salary": 20,
+              "location": 15,
+              "company": 10,
+              "experience": 10,
+              "recency": 5
+            }
+          }
+          PREFS
+          fi
+          
+          # Run scoring with correct arguments
+          python3 .github/scripts/job_scorer.py \
+            --cv cv/my_cv.txt \
+            --jobs job_search/applications.json \
+            --output job_search/scored_jobs.json \
+            --preferences configs/scoring_preferences.json \
+            --min-score 70
+          
+          # Extract high score count from output file
+          if [ -f "job_search/scored_jobs.json" ]; then
+            HIGH_SCORE=$(python3 -c "
+          import json
+          try:
+              with open('job_search/scored_jobs.json', 'r') as f:
+                  data = json.load(f)
+              # Handle both formats
+              if isinstance(data, dict):
+                  if 'filtered_jobs' in data:
+                      print(data['filtered_jobs'])
+                  elif 'jobs' in data:
+                      jobs = data['jobs']
+                      count = len([j for j in jobs if j.get('total_score', 0) >= 70])
+                      print(count)
+                  else:
+                      print(0)
+              elif isinstance(data, list):
+                  count = len([j for j in data if j.get('total_score', 0) >= 70])
+                  print(count)
+              else:
+                  print(0)
+          except Exception as e:
+              print(f'Error: {e}', file=__import__('sys').stderr)
+              print(0)
+          ")
+            echo "high_score_count=$HIGH_SCORE" >> $GITHUB_OUTPUT
+            echo "✅ Found $HIGH_SCORE high-quality matches (score ≥ 70)"
+          else
+            echo "⚠️ No scored jobs file created"
+            echo "high_score_count=0" >> $GITHUB_OUTPUT
+          fi
       
       - name: Commit scored results
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add job_search/scored_jobs.json
-          git commit -m "🎯 Scored jobs: ${{ steps.score.outputs.high_score_count }} high-quality" || true
-          git push || true
+          
+          if [ -f "job_search/scored_jobs.json" ]; then
+            git add job_search/scored_jobs.json
+            git add configs/scoring_preferences.json
+            git commit -m "🎯 Scored jobs: ${{ steps.score.outputs.high_score_count }} high-quality matches" || true
+            git push || true
+          else
+            echo "⚠️ No changes to commit"
+          fi
 
   # ========================================
   # NEW: AI COVER LETTER GENERATION
