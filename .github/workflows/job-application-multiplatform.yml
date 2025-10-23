@@ -1252,7 +1252,22 @@ jobs:
         continue-on-error: true
         with:
           name: campaign-reminders-calendar-${{ github.run_number }}
-  
+
+      - name: Generate email from template
+        run: |
+          python3 .github/scripts/generate_email_report.py \
+          --template .github/templates/campaign-email.html \
+          --output email-body.html \
+          --total-applications "${{ steps.execute.outputs.total_applications }}" \
+          --successful "${{ steps.execute.outputs.successful }}" \
+          --failed "${{ steps.execute.outputs.failed }}" \
+          --high-quality-matches "${{ needs.score-discovered-jobs.outputs.total_scored }}" \
+          --top-score "${{ needs.score-discovered-jobs.outputs.top_score }}" \
+          --reminders-created "${{ needs.create-followup-reminders.outputs.reminders_created }}" \
+          --github-server "${{ github.server_url }}" \
+          --repository "${{ github.repository }}" \
+          --run-id "${{ github.run_id }}"
+
       - name: Send comprehensive campaign email
         uses: dawidd6/action-send-mail@v3
         with:
@@ -1260,163 +1275,15 @@ jobs:
           server_port: 587
           username: ${{ secrets.SMTP_USER }}
           password: ${{ secrets.SMTP_PASS }}
-          subject: "ðŸš€ Campaign Complete: ${{ steps.execute.outputs.total_applications }} applications | â° ${{ needs.create-followup-reminders.outputs.reminders_created }} reminders created"
+          subject: "🚀 Campaign Complete: ${{ steps.execute.outputs.total_applications }} applications"
           to: ${{ secrets.NOTIFICATION_EMAIL }}
           from: Job Search Automation <${{ secrets.SMTP_USER }}>
-          html_body: |
-          <!DOCTYPE html>
-            <html>
-             <head>
-               <style>
-                  body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                  .container { max-width: 700px; margin: 0 auto; padding: 20px; }
-                  .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px; }
-                  .section { background: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #667eea; }
-                  .alert { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 15px 0; border-radius: 5px; }
-                  .success { background: #d4edda; border-left: 4px solid #28a745; }
-                  .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin: 20px 0; }
-                  .stat-card { background: white; padding: 15px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-                  .stat-number { font-size: 32px; font-weight: bold; color: #667eea; }
-                  .stat-label { color: #666; font-size: 14px; }
-                  .reminder-timeline { background: white; padding: 15px; margin: 15px 0; border-radius: 5px; border-left: 3px solid #17a2b8; }
-                  .timeline-item { padding: 10px 0; border-bottom: 1px solid #eee; }
-                  .timeline-item:last-child { border-bottom: none; }
-                  table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-                  th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-                  th { background: #667eea; color: white; }
-                  .btn { display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 10px 5px; }
-                  .footer { margin-top: 30px; padding-top: 20px; border-top: 2px solid #ddd; font-size: 12px; color: #666; text-align: center; }
-               </style>
-             </head>
-            <body>
-              <div class="container">
-              <div class="header">
-                <h1>ðŸš€ Multi-Platform Campaign Complete</h1>
-                <p>Execution completed on $(date +'%Y-%m-%d at %H:%M UTC')</p>
-              </div>
-
-              <div class="stats-grid">
-               <div class="stat-card">
-                <div class="stat-number">${{ steps.execute.outputs.total_applications }}</div>
-                <div class="stat-label">Applications Submitted</div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-number">${{ steps.execute.outputs.successful }}</div>
-                <div class="stat-label">Successful</div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-number">${{ needs.score-discovered-jobs.outputs.total_scored }}</div>
-                <div class="stat-label">High-Quality Matches</div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-number">${{ needs.create-followup-reminders.outputs.reminders_created }}</div>
-                <div class="stat-label">Reminders Created</div>
-              </div>
-              </div>
-
-              <div class="section success">
-                 <h2>âœ… Campaign Execution Summary</h2>
-                <table>
-                 <tr>
-                  <th>Metric</th>
-                  <th>Count</th>
-                </tr>
-                <tr>
-                  <td>Total Applications</td>
-                  <td>${{ steps.execute.outputs.total_applications }}</td>
-                </tr>
-                <tr>
-                  <td>Successful</td>
-                  <td>${{ steps.execute.outputs.successful }}</td>
-                </tr>
-                <tr>
-                  <td>Failed</td>
-                  <td>${{ steps.execute.outputs.failed }}</td>
-                </tr>
-                <tr>
-                  <td>Application Packages</td>
-                  <td>${{ steps.create_packages.outputs.packages_created }}</td>
-                </tr>
-               </table>
-             </div>
-
-             <div class="section">
-               <h2>â° Follow-up Reminder Timeline</h2>
-               <p><strong>${{ needs.create-followup-reminders.outputs.reminders_created }}</strong> reminders have been automatically scheduled</p>
-              
-               <div class="reminder-timeline">
-                <div class="timeline-item">
-                  <strong>ðŸ"… Day 3:</strong> Check application status
-                </div>
-                <div class="timeline-item">
-                  <strong>ðŸ"§ Day 7:</strong> Send first follow-up email
-                </div>
-                <div class="timeline-item">
-                  <strong>ðŸ"ž Day 14:</strong> Send second follow-up if no response
-                </div>
-               </div>
-              
-              <div class="alert">
-                <strong>ðŸ"… Import Calendar:</strong> The attached .ics file contains all reminder dates. Import it into Google Calendar, Outlook, or Apple Calendar to stay on track.
-              </div>
-             </div>
-
-             <div class="section">
-               <h2>ðŸŽ¯ Scored Job Matches</h2>
-               <p>Found <strong>${{ needs.score-discovered-jobs.outputs.total_scored }}</strong> high-quality job matches (70+ score)</p>
-               <p>Top match score: <strong>${{ needs.score-discovered-jobs.outputs.top_score }}%</strong></p>
-              
-              <a href="${{ github.server_url }}/${{ github.repository }}/blob/main/job_search/matched_jobs_scored.json" class="btn">
-                View Scored Jobs
-              </a>
-             </div>
-
-             <div class="section">
-              <h2>ðŸ"‹ Next Actions</h2>
-              <ol>
-                <li><strong>Import Calendar:</strong> Add campaign_reminders.ics to your calendar</li>
-                <li><strong>Monitor Applications:</strong> Check platform dashboards for responses</li>
-                <li><strong>Prepare Follow-ups:</strong> Draft follow-up email templates</li>
-                <li><strong>Track Progress:</strong> Update statuses as you hear back</li>
-                <li><strong>Set Alerts:</strong> Enable notifications for Day 3 reminders</li>
-              </ol>
-             </div>
-
-             <div class="section">
-              <h2>ðŸ"Š Application Status Tracking</h2>
-              <p>All applications have been tracked and assigned follow-up reminders automatically.</p>
-              
-              <h3>How to Use Follow-up System:</h3>
-              <ul>
-                <li><strong>View Reminders:</strong> Check the follow-up report attachment</li>
-                <li><strong>Update Status:</strong> Use update_application_status.py script</li>
-                <li><strong>Generate Emails:</strong> Use follow_up_remainders.py for templates</li>
-                <li><strong>Track Progress:</strong> Monitor applications.json file</li>
-              </ul>
-              
-              <a href="${{ github.server_url }}/${{ github.repository }}/blob/main/job_search/reports/initial_followup_report.txt" class="btn">
-                View Follow-up Report
-              </a>
-             </div>
-
-             <div class="footer">
-              <p><strong>ðŸ"„ Attachments:</strong></p>
-              <ul style="list-style: none; padding: 0;">
-                <li>â€¢ matched_jobs_scored.json - High-quality job matches</li>
-                <li>â€¢ campaign_reminders.ics - Calendar with all follow-up dates</li>
-                <li>â€¢ initial_followup_report.txt - Detailed reminder report</li>
-              </ul>
-              <p><a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Workflow Logs</a></p>
-              <p>Automated by Multi-Platform Job Application System</p>
-             </div>
-            </div>
-            </body>
-          </html>
+          html_body: file://email-body.html
           attachments: |
-              job_search/matched_jobs_scored.json
-              ${{ env.TRACKING_DIR }}/campaign_reminders.ics
-              ${{ env.TRACKING_DIR }}/reports/initial_followup_report.txt      
-
+            job_search/matched_jobs_scored.json
+            ${{ env.TRACKING_DIR }}/campaign_reminders.ics
+            ${{ env.TRACKING_DIR }}/reports/initial_followup_report.txt
+            
   generate-report:
     name: Generate Campaign Report
     needs: execute-campaigns

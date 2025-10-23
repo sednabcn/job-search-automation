@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: #4CAF50; color: white; padding: 20px; text-align: center; border-radius: 5px; }
+    .stats { background: #f4f4f4; padding: 15px; margin: 20px 0; border-radius: 5px; }
+    .stat-item { padding: 10px; margin: 5px 0; background: white; border-left: 4px solid #4CAF50; }
+    .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; }
+    a { color: #2196F3; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📤 Job Application Campaign Report</h1>
+      <p>Execution completed on $execution_date</p>
+    </div>
+    
+    <div class="stats">
+      <h2>Summary</h2>
+      <div class="stat-item">
+        <strong>Application Packages:</strong> $packages_created
+      </div>
+      <div class="stat-item">
+        <strong>Total Applications:</strong> $total_applications
+      </div>
+      <div class="stat-item">
+        <strong>Successful:</strong> $successful
+      </div>
+      <div class="stat-item">
+        <strong>Failed:</strong> $failed
+      </div>
+      <div class="stat-item">
+        <strong>🎯 High-Quality Matches (70+ score):</strong> $high_quality_matches
+      </div>
+      <div class="stat-item">
+        <strong>🏆 Top Match Score:</strong> $top_score%
+      </div>
+      <div class="stat-item">
+        <strong>⏰ Reminders Created:</strong> $reminders_created
+      </div>
+    </div>
+
+    <h2>📊 Scored Jobs Available</h2>
+    <p>We've analyzed all discovered jobs and scored them based on your CV and preferences.</p>
+    <p><strong>$high_quality_matches jobs</strong> meet your quality threshold.</p>
+    
+    <p>
+      <a href="$github_server/$repository/blob/main/job_search/matched_jobs_scored.json">
+        View All Scored Jobs →
+      </a>
+    </p>
+
+    <h2>Next Steps</h2>
+    <ul>
+      <li>Review application packages in job_search/application_packages/</li>
+      <li>Check APPLICATION_CHECKLIST.md in each package</li>
+      <li>Use QUICK_COPY.txt to fill application forms</li>
+      <li>Monitor application tracker for follow-ups</li>
+      <li>📋 Review high-scoring jobs (70+) first</li>
+      <li>🔍 Check detailed scores in matched_jobs_scored.json</li>
+      <li>📧 Apply to top 10-20 matches this week</li>
+    </ul>
+
+    <div class="footer">
+      <p><strong>Scoring Criteria:</strong> Keywords (40%), Salary (20%), Location (15%), Company (10%), Experience (10%), Recency (5%)</p>
+      <p>
+        <a href="$github_server/$repository/actions/runs/$run_id">
+          View Full Workflow Logs
+        </a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>
