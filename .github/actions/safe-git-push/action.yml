@@ -1,6 +1,5 @@
 name: 'Safe Git Push'
 description: 'Commit and push changes with automatic conflict resolution'
-
 inputs:
   commit-message:
     description: 'Commit message'
@@ -14,35 +13,29 @@ inputs:
   allow-empty:
     description: 'Allow empty commits'
     default: 'false'
-
 runs:
   using: 'composite'
   steps:
     - name: Commit and push with retry
       shell: bash
       run: |
-        set +e  # Don't exit on error
+        set +e
         
-        # Set up git config
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
         
         echo "📦 Adding files..."
         FILES_ADDED=0
         
-        # Process each file pattern
         for pattern in ${{ inputs.files }}; do
           echo "  Checking: $pattern"
           
-          # Check if pattern matches any files
           if compgen -G "$pattern" > /dev/null 2>&1; then
-            # Pattern matches - add files
             git add "$pattern" 2>/dev/null && {
               FILES_ADDED=1
               echo "    ✅ Added: $pattern"
             } || echo "    ⚠️  Failed to add: $pattern"
           else
-            # No match - check if it's a single file
             if [ -e "$pattern" ]; then
               git add "$pattern" 2>/dev/null && {
                 FILES_ADDED=1
@@ -54,7 +47,6 @@ runs:
           fi
         done
         
-        # Check if there are any staged changes
         if git diff --staged --quiet; then
           if [ "${{ inputs.allow-empty }}" = "true" ]; then
             echo "⚠️  No changes to commit (allow-empty is true)"
@@ -71,7 +63,6 @@ runs:
           }
         fi
         
-        # Push with retry and automatic conflict resolution
         echo "🚀 Pushing changes..."
         MAX_RETRIES=${{ inputs.max-retries }}
         RETRY_COUNT=0
@@ -85,16 +76,32 @@ runs:
             if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
               echo "⚠️  Push failed, retrying ($RETRY_COUNT/$MAX_RETRIES)..."
               
-              # Exponential backoff
               SLEEP_TIME=$((RETRY_COUNT * 2))
               echo "   Waiting ${SLEEP_TIME}s before retry..."
               sleep $SLEEP_TIME
               
-              # Get current branch name
               BRANCH_NAME="${GITHUB_REF##*/}"
               echo "   Pulling latest changes from $BRANCH_NAME..."
               
-              # Try rebase first (cleaner history)
+              git fetch origin "$BRANCH_NAME"
+              
+              echo "   🧹 Handling untracked files..."
+              UNTRACKED_FILES=$(git ls-files --others --exclude-standard)
+              
+              if [ -n "$UNTRACKED_FILES" ]; then
+                echo "   📦 Stashing untracked files..."
+                TEMP_DIR=".git/untracked-backup-$(date +%s)"
+                mkdir -p "$TEMP_DIR"
+                
+                while IFS= read -r file; do
+                  if [ -f "$file" ]; then
+                    mkdir -p "$TEMP_DIR/$(dirname "$file")"
+                    mv "$file" "$TEMP_DIR/$file"
+                    echo "     Moved: $file"
+                  fi
+                done <<< "$UNTRACKED_FILES"
+              fi
+              
               if git pull --rebase origin "$BRANCH_NAME" 2>&1; then
                 echo "   ✅ Rebased successfully"
               else
@@ -105,11 +112,33 @@ runs:
                   echo "   ✅ Merged successfully"
                 else
                   echo "   ❌ Both rebase and merge failed"
-                  # Show what went wrong
+                  
+                  if [ -d "$TEMP_DIR" ]; then
+                    echo "   🔄 Restoring untracked files..."
+                    cp -r "$TEMP_DIR"/* ./ 2>/dev/null || true
+                    rm -rf "$TEMP_DIR"
+                  fi
+                  
                   git status
                   exit 1
                 fi
               fi
+              
+              if [ -d "$TEMP_DIR" ]; then
+                echo "   🔄 Restoring untracked files..."
+                find "$TEMP_DIR" -type f | while read -r backup_file; do
+                  original_file="${backup_file#$TEMP_DIR/}"
+                  if [ ! -e "$original_file" ]; then
+                    mkdir -p "$(dirname "$original_file")"
+                    mv "$backup_file" "$original_file"
+                    echo "     Restored: $original_file"
+                  else
+                    echo "     Skipped (exists): $original_file"
+                  fi
+                done
+                rm -rf "$TEMP_DIR"
+              fi
+              
             else
               echo "❌ Failed to push after $MAX_RETRIES attempts"
               git status
