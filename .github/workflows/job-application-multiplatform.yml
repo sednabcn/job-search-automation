@@ -1022,7 +1022,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: execute-campaigns
     if: success()
-    
+    outputs:
+      packages_created: ${{ steps.create_packages.outputs.packages_created }}
+      
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -1222,17 +1224,17 @@ jobs:
           python3 .github/scripts/generate_email_report.py \
           --template .github/templates/email-campaign-report.html \
           --output email-body.html \
-          --total-applications ${{ steps.execute.outputs.total_applications }} \
-          --successful ${{ steps.execute.outputs.successful }} \
-          --failed ${{ steps.execute.outputs.failed }} \
-          --high-quality-matches ${{ needs.score-discovered-jobs.outputs.total_scored }} \
-          --top-score ${{ needs.score-discovered-jobs.outputs.top_score }} \
-          --packages-created ${{ steps.create_packages.outputs.packages_created }} \
-          --reminders-created ${{ needs.create-followup-reminders.outputs.reminders_created }} \
+          --total-applications ${{ steps.execute.outputs.total_applications || '0' }} \
+          --successful ${{ steps.execute.outputs.successful || '0' }} \
+          --failed ${{ steps.execute.outputs.failed || '0' }} \
+          --high-quality-matches ${{ needs.score-discovered-jobs.outputs.total_scored || '0' }} \
+          --top-score ${{ needs.score-discovered-jobs.outputs.top_score || '0' }} \
+          --packages-created ${{ steps.create_packages.outputs.packages_created || '0' }} \
+          --reminders-created ${{ needs.create-followup-reminders.outputs.reminders_created || '0' }} \
           --github-server ${{ github.server_url }} \
           --repository ${{ github.repository }} \
           --run-id ${{ github.run_id }}
-
+          
       - name: Send email with generated report
         uses: dawidd6/action-send-mail@v3
         with:
@@ -1264,20 +1266,22 @@ jobs:
         with:
           name: campaign-reminders-calendar-${{ github.run_number }}
 
+          
       - name: Generate email from template
         run: |
           python3 .github/scripts/generate_email_report.py \
           --template .github/templates/campaign-email.html \
           --output email-body.html \
-          --total-applications "${{ steps.execute.outputs.total_applications }}" \
-          --successful "${{ steps.execute.outputs.successful }}" \
-          --failed "${{ steps.execute.outputs.failed }}" \
-          --high-quality-matches "${{ needs.score-discovered-jobs.outputs.total_scored }}" \
-          --top-score "${{ needs.score-discovered-jobs.outputs.top_score }}" \
-          --reminders-created "${{ needs.create-followup-reminders.outputs.reminders_created }}" \
-          --github-server "${{ github.server_url }}" \
-          --repository "${{ github.repository }}" \
-          --run-id "${{ github.run_id }}"
+          --total-applications ${{ needs.execute-campaigns.outputs.total_applications || '0' }} \
+          --successful ${{ needs.execute-campaigns.outputs.successful || '0' }} \
+          --failed ${{ needs.execute-campaigns.outputs.failed || '0' }} \
+          --high-quality-matches ${{ needs.score-discovered-jobs.outputs.total_scored || '0' }} \
+          --top-score ${{ needs.score-discovered-jobs.outputs.top_score || '0' }} \
+          --packages-created ${{ needs.track-application-status.outputs.packages_created || '0' }} \
+          --reminders-created ${{ needs.create-followup-reminders.outputs.reminders_created || '0' }} \
+          --github-server ${{ github.server_url }} \
+          --repository ${{ github.repository }} \
+          --run-id ${{ github.run_id }}
 
       - name: Send comprehensive campaign email
         uses: dawidd6/action-send-mail@v3
@@ -1301,7 +1305,11 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    
+    outputs:
+      total_applications: ${{ steps.execute.outputs.total_applications }}
+      successful: ${{ steps.execute.outputs.successful }}
+      failed: ${{ steps.execute.outputs.failed }}
+      
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
