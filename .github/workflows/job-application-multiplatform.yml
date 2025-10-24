@@ -683,7 +683,7 @@ jobs:
           
           print(f"\n✅ Execution complete!")
           PYTHON_SCRIPT
-      
+
       - name: Upload execution results
         uses: actions/upload-artifact@v4
         with:
@@ -691,20 +691,13 @@ jobs:
           path: |
             campaign_execution_results.json
             job_search/campaign_execution_*.json
-          retention-days: 90
+          retention-days: 90   
       
       - name: Commit tracking data
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          git add job_search/*.json
-          git add sent-log/ || true
-          
-          git diff --quiet && git diff --staged --quiet || \
-            git commit -m "📤 Campaign execution: ${{ steps.execute.outputs.total_applications }} applications - $(date +'%Y-%m-%d %H:%M')"
-          
-          git push
+        uses: ./.github/actions/safe-git-push
+        with:
+          commit-message: "📤 Campaign execution: ${{ steps.execute.outputs.total_applications }} applications - $(date +'%Y-%m-%d %H:%M')"
+          files: "job_search/*.json sent-log/"
       
       - name: Create execution summary issue
         if: steps.execute.outputs.total_applications > 0
@@ -930,19 +923,13 @@ jobs:
             job_search/*_scored.json
             job_search/matched_jobs_scored.json
           retention-days: 90
-      
+
       - name: Commit scored jobs
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          git add job_search/*_scored.json
-          
-          git diff --quiet && git diff --staged --quiet || \
-            git commit -m "🎯 Scored jobs: ${{ steps.scoring.outputs.total_scored }} matches - $(date +'%Y-%m-%d %H:%M')"
-          
-          git push
-  
+        uses: ./.github/actions/safe-git-push
+        with:
+          commit-message: "🎯 Scored jobs: ${{ steps.scoring.outputs.total_scored }} matches - $(date +'%Y-%m-%d %H:%M')"
+          files: "job_search/*_scored.json"
+      
       - name: Create application packages
         id: create_packages
         run: |
@@ -1029,9 +1016,7 @@ jobs:
               import traceback
               traceback.print_exc()
           PYTHON_SCRIPT
-# ========================================
-  # NEW: APPLICATION STATUS TRACKING
-  # ========================================
+            
   track-application-status:
     name: Track Application Status
     runs-on: ubuntu-latest
@@ -1046,27 +1031,47 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      
+
+    
+      - name: Download campaign execution results
+        uses: actions/download-artifact@v4
+        with:
+          name: campaign-execution-results-${{ github.run_number }}
+    
+          
+      - name: Verify campaign results
+        run: |
+          if [ ! -f "campaign_execution_results.json" ]; then
+             echo "⚠️  Campaign results not found, creating empty results"
+             cat > campaign_execution_results.json << 'EOF'
+          {
+          "campaigns": [],
+          "total_applications": 0,
+          "successful": 0,
+          "failed": 0,
+          "start_time": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "end_time": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+          fi
+
+          
+          echo "📄 Campaign results:"
+          cat campaign_execution_results.json | python3 -m json.tool
+    
       - name: Update application statuses
         run: |
            python3 .github/scripts/github_actions_status_updater.py \
             --campaign-results campaign_execution_results.json \
             --data-dir ${{ env.TRACKING_DIR }} \
             --output status_update_results.json
-          
-      - name: Commit status updates
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          git add ${{ env.TRACKING_DIR }}/applications.json
-          git add ${{ env.TRACKING_DIR }}/analytics.json
-          
-          git diff --quiet && git diff --staged --quiet || \
-            git commit -m "ðŸ"Š Updated application statuses from campaign"
-          
-          git push
 
+      - name: Commit status updates
+        uses: ./.github/actions/safe-git-push
+        with:
+          commit-message: "📊 Updated application statuses from campaign"
+          files: "${{ env.TRACKING_DIR }}/applications.json ${{ env.TRACKING_DIR }}/analytics.json"
+      
   # ========================================
   # NEW: FOLLOW-UP REMINDER CREATION
   # ========================================
@@ -1087,7 +1092,21 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      
+
+       
+      - name: Download campaign execution results
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: campaign-execution-results-${{ github.run_number }}
+    
+      - name: Verify campaign results exist
+        run: |
+          if [ ! -f "campaign_execution_results.json" ]; then
+            echo "⚠️  Creating placeholder campaign results"
+            echo '{"campaigns":[],"total_applications":0}' > campaign_execution_results.json
+          fi
+          
       - name: Create follow-up reminders
         id: reminders
         run: |
@@ -1099,21 +1118,13 @@ jobs:
           
           COUNT=$(jq '.reminders_created' reminder_creation_results.json)
           echo "count=$COUNT" >> $GITHUB_OUTPUT
-          
+
       - name: Commit reminders
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          git add ${{ env.TRACKING_DIR }}/applications.json
-          git add ${{ env.TRACKING_DIR }}/reports/
-          git add ${{ env.TRACKING_DIR }}/campaign_reminders.ics
-          
-          git diff --quiet && git diff --staged --quiet || \
-          git commit -m "â° Created ${{ steps.reminders.outputs.count }} follow-up
-          git push
-
-
+        uses: ./.github/actions/safe-git-push
+        with:
+          commit-message: "⏰ Created ${{ steps.reminders.outputs.count }} follow-up reminders"
+          files: "${{ env.TRACKING_DIR }}/applications.json ${{ env.TRACKING_DIR }}/reports/ ${{ env.TRACKING_DIR }}/campaign_reminders.ics"
+      
       - name: Upload reminder calendar
         uses: actions/upload-artifact@v4
         with:
@@ -1306,48 +1317,9 @@ jobs:
         with:
           name: campaign-execution-results-${{ github.run_number }}
 
-      
       - name: Generate Pipeline Report
-        run: |
-          python3 << 'EOF'
-          import json
-          from pathlib import Path
-          
-          print("\n" + "="*80)
-          print("🎯 PHASE 2-ENABLED PIPELINE SUMMARY")
-          print("="*80)
-          
-          # Load scored jobs if available
-          scored_file = Path('job_search/scored_jobs.json')
-          if scored_file.exists():
-              with open(scored_file) as f:
-                  scored_jobs = json.load(f)
-              
-              high_quality = len([j for j in scored_jobs if j.get('score', 0) >= 70])
-              avg_score = sum(j.get('score', 0) for j in scored_jobs) / len(scored_jobs)
-              
-              print(f"\n🎯 JOB SCORING:")
-              print(f"   Total scored: {len(scored_jobs)}")
-              print(f"   High quality (≥70): {high_quality}")
-              print(f"   Average score: {avg_score:.1f}")
-          
-          # Load cover letters if available
-          cover_letters_dir = Path('job_search/cover_letters')
-          if cover_letters_dir.exists():
-              letter_count = len(list(cover_letters_dir.glob('*.txt')))
-              print(f"\n📝 AI COVER LETTERS:")
-              print(f"   Generated: {letter_count}")
-          
-          # Load packages if available
-          packages_dir = Path('job_search/application_packages')
-          if packages_dir.exists():
-              package_count = len(list(packages_dir.glob('app_*')))
-              print(f"\n📦 APPLICATION PACKAGES:")
-              print(f"   Created: {package_count}")
-          
-          print("="*80)
-          EOF
-
+        run: python3 .github/scripts/generate_pipeline_report.py
+      
       - name: Generate comprehensive report
         run: |
           python3 << 'PYTHON_SCRIPT'
@@ -1514,23 +1486,12 @@ jobs:
           print("📊 REPORT GENERATION COMPLETE")
           print("=" * 70)
           PYTHON_SCRIPT
-      
-      - name: Commit reports
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          git add job_search/application_packages/
-          git add job_search/applications.json
-          git add job_search/analytics.json
-          git add job_search/reports/
-         
-          
-          git diff --quiet && git diff --staged --quiet || \
-          git commit -m "📊 Campaign report generated - $(date +'%Y-%m-%d %H:%M')"
-          
-          git push || echo "Nothing to push"
 
+      - name: Commit reports
+        uses: ./.github/actions/safe-git-push
+        with:
+          commit-message: "📊 Campaign report generated - $(date +'%Y-%m-%d %H:%M')"
+          files: "job_search/application_packages/ job_search/applications.json job_search/analytics.json job_search/reports/"
   cleanup-old-campaigns:
     name: Archive Completed Campaigns
     needs: execute-campaigns
@@ -1601,15 +1562,10 @@ jobs:
           
           print(f"\n📦 Archived {archived_count} campaign(s)")
           PYTHON_SCRIPT
-      
+
       - name: Commit archive changes
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          git add scheduled-campaigns/
-          
-          git diff --quiet && git diff --staged --quiet || \
-            git commit -m "📦 Archived completed campaigns - $(date +'%Y-%m-%d')"
-          
-          git push || echo "Nothing to push"
+        uses: ./.github/actions/safe-git-push
+        with:
+          commit-message: "📦 Archived completed campaigns - $(date +'%Y-%m-%d')"
+          files: "scheduled-campaigns/"
+      
