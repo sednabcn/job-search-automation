@@ -325,7 +325,7 @@ class AdvancedLinkedInNetworking:
             results["by_industry"][industry] = results["by_industry"].get(industry, 0) + 1
             self.activity["daily_connections"] += 1
             self.activity["weekly_connections"] += 1
-            self.activity["industry_breakdown"][industry] += 1
+            self.activity["industry_breakdown"][industry] = self.activity["industry_breakdown"].get(industry, 0) + 1
             results["connections_processed"] += 1
         
         results["remaining_daily"] = self.DAILY_CONNECTION_LIMIT - self.activity["daily_connections"]
