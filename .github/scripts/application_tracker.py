@@ -1,585 +1,712 @@
+# scripts/application_tracker.py
 """
 Enhanced Application Tracking System
-Tracks entire application lifecycle with status updates, reminders, and analytics
+Full lifecycle tracking with analytics, reminders, and multi-platform support
 """
 
 import json
 from pathlib import Path
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Any
+from typing import Dict, List, Optional, Tuple
+from collections import defaultdict
+import statistics
 
 
 class ApplicationTracker:
-    """
-    Comprehensive application tracking system with status management,
-    reminders, and analytics.
-    """
+    """Enhanced application tracking with lifecycle management"""
+    
+    # Application lifecycle statuses
+    STATUSES = [
+        'discovered',           # Job found
+        'scored',              # CV scored against job
+        'matched',             # Passed matching threshold
+        'package_created',     # Application package prepared
+        'in_progress',         # Started filling application
+        'submitted',           # Application submitted
+        'viewed',              # Application viewed by employer
+        'screening',           # In screening process
+        'interview_requested', # Interview invitation received
+        'interview_scheduled', # Interview date set
+        'interview_completed', # Interview done
+        'offer_received',      # Job offer received
+        'offer_accepted',      # Offer accepted
+        'offer_declined',      # Offer declined
+        'rejected',            # Application rejected
+        'withdrawn',           # Application withdrawn
+        'expired'              # Job posting expired
+    ]
+    
+    # Status categories
+    STATUS_CATEGORIES = {
+        'active': ['in_progress', 'submitted', 'viewed', 'screening', 
+                   'interview_requested', 'interview_scheduled', 'interview_completed'],
+        'pending': ['discovered', 'scored', 'matched', 'package_created'],
+        'success': ['offer_received', 'offer_accepted'],
+        'closed': ['rejected', 'withdrawn', 'expired', 'offer_declined']
+    }
     
     def __init__(self, data_dir: str = 'job_search'):
-        """
-        Initialize the application tracker.
-        
-        Args:
-            data_dir: Directory to store tracking data
-        """
         self.data_dir = Path(data_dir)
-        self.applications_file = self.data_dir / 'applications.json'
-        self.analytics_file = self.data_dir / 'analytics.json'
-        
-        # Application lifecycle statuses
-        self.statuses = [
-            'discovered',              # Job found but not evaluated
-            'scored',                  # Job scored by matcher
-            'matched',                 # High-quality match identified
-            'cover_letter_generated',  # AI cover letter created
-            'package_created',         # Full application package ready
-            'ready_to_apply',          # Ready for submission
-            'submitted',               # Application submitted
-            'viewed',                  # Application viewed by recruiter
-            'interview_requested',     # Interview request received
-            'interview_scheduled',     # Interview scheduled
-            'interviewed',             # Interview completed
-            'offer',                   # Job offer received
-            'rejected',                # Application rejected
-            'withdrawn'                # Application withdrawn
-        ]
-        
-        # Ensure directory exists
         self.data_dir.mkdir(parents=True, exist_ok=True)
         
-        # Load existing applications
+        self.applications_file = self.data_dir / 'applications.json'
+        self.analytics_file = self.data_dir / 'analytics.json'
+        self.reminders_file = self.data_dir / 'reminders.json'
+        
         self.applications = self.load_applications()
-        self.analytics = self.load_analytics()
+
+    def repair_applications_data(self) -> int:
+        """Repair/migrate applications data to ensure all required fields exist"""
+        repaired_count = 0
     
-    def load_applications(self) -> List[Dict[str, Any]]:
-        """Load applications from JSON file."""
-        if self.applications_file.exists():
-            try:
-                with open(self.applications_file) as f:
-                    apps = json.load(f)
-                
-                # Validate and fix data structure
-                return self._validate_applications(apps)
-            except json.JSONDecodeError:
-                print(f"Warning: Could not parse {self.applications_file}")
-                return []
-        return []
-    
-    def _validate_applications(self, apps: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """
-        Validate and fix application data structure.
-        Ensures all required fields exist with sensible defaults.
-        """
-        validated = []
+        for app in self.applications:
+            modified = False
         
-        for app in apps:
             # Ensure required fields exist
-            if 'id' not in app:
-                print(f"Warning: Application missing 'id', skipping")
-                continue
-            
-            # Set defaults for missing fields
-            validated_app = {
-                'id': app.get('id'),
-                'company': app.get('company', 'Unknown Company'),
-                'position': app.get('position', 'Unknown Position'),
-                'location': app.get('location', 'Unknown'),
-                'salary': app.get('salary', 'Not specified'),
-                'url': app.get('url', ''),
-                'platform': app.get('platform', 'generic'),
-                'score': app.get('score', 0),
-                'status': app.get('status', 'discovered'),  # Default status
-                'package_path': app.get('package_path'),
-                'created_at': app.get('created_at', datetime.now().isoformat()),
-                'last_updated': app.get('last_updated', datetime.now().isoformat()),
-                'submitted_at': app.get('submitted_at'),
-                'followed_up': app.get('followed_up', False),
-                'status_history': app.get('status_history', []),
-                'reminders': app.get('reminders', []),
-                'notes': app.get('notes', [])
-            }
-            
-            # Ensure status is valid
-            if validated_app['status'] not in self.statuses:
-                print(f"Warning: Invalid status '{validated_app['status']}' for {validated_app['id']}, defaulting to 'discovered'")
-                validated_app['status'] = 'discovered'
-            
-            # Ensure status_history exists
-            if not validated_app['status_history']:
-                validated_app['status_history'] = [{
-                    'status': validated_app['status'],
-                    'timestamp': validated_app['created_at'],
-                    'notes': 'Initial status'
-                }]
-            
-            validated.append(validated_app)
-        
-        # Auto-save fixed data if changes were made
-        if len(validated) != len(apps) or any(
-            orig.get('status') != val['status'] 
-            for orig, val in zip(apps, validated)
-        ):
-            print(f"Data validation fixed {len(apps) - len(validated)} issues")
-            self.applications = validated
-            self.save_applications()
-        
-        return validated
-    
-    def save_applications(self, applications: Optional[List[Dict]] = None) -> None:
-        """Save applications to JSON file."""
-        if applications is None:
-            applications = self.applications
-        
-        with open(self.applications_file, 'w') as f:
-            json.dump(applications, f, indent=2)
-    
-    def load_analytics(self) -> Dict[str, Any]:
-        """Load analytics data."""
-        if self.analytics_file.exists():
-            try:
-                with open(self.analytics_file) as f:
-                    return json.load(f)
-            except json.JSONDecodeError:
-                return self._init_analytics()
-        return self._init_analytics()
-    
-    def _init_analytics(self) -> Dict[str, Any]:
-        """Initialize analytics structure."""
-        return {
-            'total_applications': 0,
-            'status_counts': {status: 0 for status in self.statuses},
-            'response_rate': 0.0,
-            'interview_rate': 0.0,
-            'offer_rate': 0.0,
-            'avg_response_time_days': 0.0,
-            'daily_stats': {},
-            'platform_stats': {},
-            'last_updated': datetime.now().isoformat()
-        }
-    
-    def save_analytics(self) -> None:
-        """Save analytics data."""
-        self.analytics['last_updated'] = datetime.now().isoformat()
-        with open(self.analytics_file, 'w') as f:
-            json.dump(self.analytics, f, indent=2)
-    
-    def add_application(self, job_id: str, job_data: Dict[str, Any],
-                       platform: str = 'generic',
-                       package_path: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Add a new application to tracking.
-        
-        Args:
-            job_id: Unique job identifier
-            job_data: Job posting data
-            platform: Application platform (linkedin, indeed, etc.)
-            package_path: Path to application package
-            
-        Returns:
-            Created application record
-        """
-        # Check if already exists
-        existing = next((app for app in self.applications if app['id'] == job_id), None)
-        if existing:
-            print(f"Application {job_id} already exists, updating...")
-            return self.update_application(job_id, job_data, package_path)
-        
-        timestamp = datetime.now().isoformat()
-        
-        application = {
-            'id': job_id,
-            'company': job_data.get('company', 'Unknown'),
-            'position': job_data.get('title', 'Unknown Position'),
-            'location': job_data.get('location', 'Unknown'),
-            'salary': job_data.get('salary', 'Not specified'),
-            'url': job_data.get('url', ''),
-            'platform': platform,
-            'score': job_data.get('total_score', 0),
-            'status': 'package_created' if package_path else 'discovered',
-            'package_path': package_path,
-            'created_at': timestamp,
-            'last_updated': timestamp,
-            'submitted_at': None,
-            'followed_up': False,
-            'status_history': [{
-                'status': 'package_created' if package_path else 'discovered',
-                'timestamp': timestamp,
-                'notes': 'Application tracked'
-            }],
-            'reminders': [],
-            'notes': []
-        }
-        
-        self.applications.append(application)
-        self.save_applications()
-        self.update_analytics()
-        
-        return application
-    
-    def update_application(self, job_id: str, job_data: Dict[str, Any],
-                          package_path: Optional[str] = None) -> Optional[Dict[str, Any]]:
-        """Update existing application with new data."""
-        for app in self.applications:
-            if app['id'] == job_id:
-                # Update fields
-                app['company'] = job_data.get('company', app['company'])
-                app['position'] = job_data.get('title', app['position'])
-                app['score'] = job_data.get('total_score', app['score'])
-                
-                if package_path:
-                    app['package_path'] = package_path
-                    if app['status'] == 'discovered':
-                        app['status'] = 'package_created'
-                
-                app['last_updated'] = datetime.now().isoformat()
-                
-                self.save_applications()
-                return app
-        
-        return None
-    
-    def update_status(self, job_id: str, new_status: str,
-                     notes: str = '', auto_reminders: bool = False) -> bool:
-        """
-        Update application status with timestamp and optional reminders.
-        
-        Args:
-            job_id: Application ID
-            new_status: New status from self.statuses
-            notes: Optional notes about status change
-            auto_reminders: Automatically set reminders for certain statuses
-            
-        Returns:
-            True if update successful
-        """
-        if new_status not in self.statuses:
-            print(f"Invalid status: {new_status}")
-            return False
-        
-        for app in self.applications:
-            if app['id'] == job_id:
-                timestamp = datetime.now().isoformat()
-                
-                # Update status
-                app['status'] = new_status
-                app['last_updated'] = timestamp
-                
-                # Add to history
-                app['status_history'].append({
-                    'status': new_status,
-                    'timestamp': timestamp,
-                    'notes': notes
-                })
-                
-                # Special handling for certain statuses
-                if new_status == 'submitted':
-                    app['submitted_at'] = timestamp
-                    if auto_reminders:
-                        self.add_reminder(job_id, 
-                                        'Follow up on application',
-                                        days_from_now=7)
-                
-                elif new_status == 'interview_scheduled' and auto_reminders:
-                    self.add_reminder(job_id,
-                                    'Prepare for interview',
-                                    days_from_now=1)
-                
-                elif new_status == 'interviewed' and auto_reminders:
-                    self.add_reminder(job_id,
-                                    'Send thank you email',
-                                    days_from_now=1)
-                
-                self.save_applications()
-                self.update_analytics()
-                
-                return True
-        
-        print(f"Application {job_id} not found")
-        return False
-    
-    def add_reminder(self, job_id: str, message: str,
-                    due_date: Optional[str] = None,
-                    days_from_now: Optional[int] = None) -> bool:
-        """
-        Add a reminder for an application.
-        
-        Args:
-            job_id: Application ID
-            message: Reminder message
-            due_date: Due date (ISO format) or None
-            days_from_now: Days from now for due date (alternative to due_date)
-            
-        Returns:
-            True if reminder added successfully
-        """
-        for app in self.applications:
-            if app['id'] == job_id:
-                if due_date is None and days_from_now:
-                    due_date = (datetime.now() + timedelta(days=days_from_now)).isoformat()
-                elif due_date is None:
-                    due_date = datetime.now().isoformat()
-                
-                reminder = {
-                    'message': message,
-                    'due_date': due_date,
-                    'created_at': datetime.now().isoformat(),
-                    'completed': False
+            required_fields = {
+                'id': f"app_{hash(str(app))}",
+                'status': 'discovered',
+                'status_history': [],
+                'created_at': datetime.now().isoformat(),
+                'last_updated': datetime.now().isoformat(),
+                'submitted_at': None,
+                'platform': 'generic',
+                'company': 'Unknown',
+                'position': 'Unknown',
+                'location': 'Unknown',
+                'url': '',
+                'salary': 'Not specified',
+                'package_path': None,
+                'cv_score': None,
+                'match_reasons': [],
+                'follow_ups': [],
+                'interviews': [],
+                'communications': [],
+                'reminders': [],
+                'metadata': {
+                    'source': 'manual',
+                    'tags': [],
+                    'priority': 'medium'
                 }
-                
-                if 'reminders' not in app:
-                    app['reminders'] = []
-                
-                app['reminders'].append(reminder)
-                self.save_applications()
-                
-                return True
-        
-        return False
-    
-    def get_applications_by_status(self, status: str) -> List[Dict[str, Any]]:
-        """Get all applications with a specific status."""
-        return [app for app in self.applications if app.get('status') == status]
-    
-    def get_follow_up_needed(self, days_threshold: int = 7) -> List[Dict[str, Any]]:
-        """
-        Find applications needing follow-up.
-        
-        Args:
-            days_threshold: Days since submission to trigger follow-up
-            
-        Returns:
-            List of applications needing follow-up
-        """
-        needs_follow_up = []
-        
-        for app in self.applications:
-            # Use .get() to safely access keys
-            if app.get('status') == 'submitted' and app.get('submitted_at'):
-                try:
-                    submitted_date = datetime.fromisoformat(app['submitted_at'])
-                    days_since = (datetime.now() - submitted_date).days
-                    
-                    if days_since >= days_threshold and not app.get('followed_up'):
-                        needs_follow_up.append({
-                            'id': app.get('id', 'unknown'),
-                            'company': app.get('company', 'Unknown'),
-                            'position': app.get('position', 'Unknown'),
-                            'days_since_submission': days_since,
-                            'action': 'Send follow-up email',
-                            'priority': 'high' if days_since >= 14 else 'medium'
-                        })
-                except (ValueError, TypeError):
-                    continue
-        
-        return needs_follow_up
-    
-    def get_due_reminders(self) -> List[Dict[str, Any]]:
-        """Get all due reminders."""
-        due_reminders = []
-        now = datetime.now()
-        
-        for app in self.applications:
-            if app.get('reminders'):
-                for reminder in app['reminders']:
-                    if not reminder.get('completed'):
-                        try:
-                            due_date = datetime.fromisoformat(reminder['due_date'])
-                            if due_date <= now:
-                                due_reminders.append({
-                                    'job_id': app['id'],
-                                    'company': app['company'],
-                                    'position': app['position'],
-                                    'reminder': reminder
-                                })
-                        except (ValueError, TypeError):
-                            continue
-        
-        return due_reminders
-    
-    def update_analytics(self) -> None:
-        """Update analytics based on current applications."""
-        self.analytics['total_applications'] = len(self.applications)
-        
-        # Count by status
-        for status in self.statuses:
-            count = len([app for app in self.applications if app.get('status') == status])
-            self.analytics['status_counts'][status] = count
-        
-        # Calculate rates
-        submitted_count = self.analytics['status_counts'].get('submitted', 0)
-        interviewed_count = sum([
-            self.analytics['status_counts'].get('interview_requested', 0),
-            self.analytics['status_counts'].get('interview_scheduled', 0),
-            self.analytics['status_counts'].get('interviewed', 0)
-        ])
-        offer_count = self.analytics['status_counts'].get('offer', 0)
-        
-        if submitted_count > 0:
-            self.analytics['response_rate'] = round(
-                (interviewed_count / submitted_count) * 100, 2
-            )
-            self.analytics['interview_rate'] = round(
-                (interviewed_count / submitted_count) * 100, 2
-            )
-            self.analytics['offer_rate'] = round(
-                (offer_count / submitted_count) * 100, 2
-            )
-        
-        # Platform stats
-        platform_counts = {}
-        for app in self.applications:
-            platform = app.get('platform', 'unknown')
-            platform_counts[platform] = platform_counts.get(platform, 0) + 1
-        self.analytics['platform_stats'] = platform_counts
-        
-        # Daily stats
-        today = datetime.now().date().isoformat()
-        if today not in self.analytics['daily_stats']:
-            self.analytics['daily_stats'][today] = {
-                'new_applications': 0,
-                'packages_created': 0,
-                'submitted': 0
             }
         
-        self.save_analytics()
-    
-    def generate_report(self) -> str:
-        """Generate a comprehensive tracking report."""
-        lines = []
-        lines.append("# Application Tracking Report\n")
-        lines.append(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            # Add missing fields
+            for field, default_value in required_fields.items():
+                if field not in app:
+                    app[field] = default_value
+                    modified = True
         
-        # Summary stats
-        lines.append("## Summary Statistics\n")
-        lines.append(f"- **Total Applications:** {self.analytics['total_applications']}")
-        lines.append(f"- **Response Rate:** {self.analytics['response_rate']}%")
-        lines.append(f"- **Interview Rate:** {self.analytics['interview_rate']}%")
-        lines.append(f"- **Offer Rate:** {self.analytics['offer_rate']}%\n")
-        
-        # Status breakdown
-        lines.append("## Applications by Status\n")
-        for status in self.statuses:
-            count = self.analytics['status_counts'].get(status, 0)
-            if count > 0:
-                lines.append(f"- **{status.replace('_', ' ').title()}:** {count}")
-        lines.append("")
-        
-        # Platform breakdown
-        if self.analytics.get('platform_stats'):
-            lines.append("## Applications by Platform\n")
-            for platform, count in self.analytics['platform_stats'].items():
-                lines.append(f"- **{platform.title()}:** {count}")
-            lines.append("")
-        
-        # Recent activity
-        recent = sorted(self.applications, 
-                       key=lambda x: x.get('last_updated', ''), 
-                       reverse=True)[:5]
-        
-        if recent:
-            lines.append("## Recent Activity (Last 5)\n")
-            for app in recent:
-                lines.append(f"### {app.get('company', 'Unknown')} - {app.get('position', 'Unknown')}")
-                lines.append(f"- **Status:** {app.get('status', 'unknown')}")
-                lines.append(f"- **Last Updated:** {app.get('last_updated', 'N/A')}")
-                lines.append(f"- **Score:** {app.get('score', 'N/A')}\n")
-        
-        # Follow-ups needed
-        followups = self.get_follow_up_needed()
-        if followups:
-            lines.append(f"## Follow-ups Needed ({len(followups)})\n")
-            for fu in followups:
-                lines.append(f"- **{fu['company']}** - {fu['position']}")
-                lines.append(f"  - Days since submission: {fu['days_since_submission']}")
-                lines.append(f"  - Priority: {fu['priority']}\n")
-        
-        # Due reminders
-        reminders = self.get_due_reminders()
-        if reminders:
-            lines.append(f"## Due Reminders ({len(reminders)})\n")
-            for r in reminders:
-                lines.append(f"- **{r['company']}** - {r['position']}")
-                lines.append(f"  - {r['reminder']['message']}\n")
-        
-        return '\n'.join(lines)
-    
-    def repair_data(self) -> Dict[str, int]:
-        """
-        Manually repair and clean application data.
-        Returns statistics about repairs made.
-        """
-        stats = {
-            'total_apps': len(self.applications),
-            'fixed_status': 0,
-            'fixed_history': 0,
-            'removed_duplicates': 0
-        }
-        
-        seen_ids = set()
-        cleaned_apps = []
-        
-        for app in self.applications:
-            # Remove duplicates
-            app_id = app.get('id')
-            if app_id in seen_ids:
-                stats['removed_duplicates'] += 1
-                continue
-            seen_ids.add(app_id)
-            
-            # Fix missing status
-            if 'status' not in app or app['status'] not in self.statuses:
-                app['status'] = 'discovered'
-                stats['fixed_status'] += 1
-            
-            # Fix missing status_history
+            # Ensure status_history exists and has at least one entry
             if not app.get('status_history'):
                 app['status_history'] = [{
                     'status': app['status'],
                     'timestamp': app.get('created_at', datetime.now().isoformat()),
-                    'notes': 'Status repaired'
+                    'notes': 'Migrated/repaired entry'
                 }]
-                stats['fixed_history'] += 1
-            
-            cleaned_apps.append(app)
+                modified = True
         
-        self.applications = cleaned_apps
+            if modified:
+                repaired_count += 1
+    
+            if repaired_count > 0:
+                print(f"✅ Repaired {repaired_count} applications")
+                self.save_applications()
+    
+            return repaired_count
+
+    def load_applications(self) -> List[Dict]:
+        """Load applications with error handling and auto-repair"""
+        if self.applications_file.exists():
+            try:
+                with open(self.applications_file, 'r') as f:
+                    data = json.load(f)
+            
+                # Handle different data structures
+                if isinstance(data, dict):
+                    if 'applications' in data:
+                        apps = data['applications']
+                    else:
+                        # Assume it's a single application wrapped in dict
+                        apps = [data]
+                elif isinstance(data, list):
+                        apps = data
+                else:
+                    print(f"⚠️  Unknown data format, starting fresh")
+                    apps = []
+            
+                # Store temporarily and repair
+                self.applications = apps
+                self.repair_applications_data()
+            
+                return self.applications
+            
+            except json.JSONDecodeError as e:
+                print(f"⚠️  Error loading applications: {e}")
+                print(f"   Creating backup and starting fresh")
+                backup = self.applications_file.with_suffix('.json.bak')
+                if self.applications_file.exists():
+                    self.applications_file.rename(backup)
+                return []
+        return []
+    
+    def save_applications(self):
+        """Save applications with backup"""
+        # Create backup
+        if self.applications_file.exists():
+            backup = self.applications_file.with_suffix('.json.bak')
+            self.applications_file.rename(backup)
+        
+        # Save current data
+        with open(self.applications_file, 'w') as f:
+            json.dump(self.applications, f, indent=2, ensure_ascii=False)
+    
+    def add_application(
+        self, 
+        job_id: str,
+        job_data: Dict,
+        platform: str = 'generic',
+        package_path: Optional[str] = None
+    ) -> Dict:
+        """Add new application to tracker"""
+        
+        # Check if already exists
+        existing = self.get_application(job_id)
+        if existing:
+            print(f"⚠️ Application {job_id} already exists")
+            return existing
+        
+        application = {
+            'id': job_id,
+            'platform': platform,
+            'company': job_data.get('company', 'Unknown'),
+            'position': job_data.get('title', 'Unknown'),
+            'location': job_data.get('location', 'Unknown'),
+            'url': job_data.get('url', ''),
+            'salary': job_data.get('salary', 'Not specified'),
+            
+            'status': 'discovered',
+            'status_history': [{
+                'status': 'discovered',
+                'timestamp': datetime.now().isoformat(),
+                'notes': 'Job discovered and added to tracker'
+            }],
+            
+            'created_at': datetime.now().isoformat(),
+            'last_updated': datetime.now().isoformat(),
+            'submitted_at': None,
+            
+            'package_path': package_path,
+            'cv_score': job_data.get('cv_score'),
+            'match_reasons': job_data.get('match_reasons', []),
+            
+            'follow_ups': [],
+            'interviews': [],
+            'communications': [],
+            'reminders': [],
+            
+            'metadata': {
+                'source': job_data.get('source', 'manual'),
+                'tags': job_data.get('tags', []),
+                'priority': job_data.get('priority', 'medium')
+            }
+        }
+        
+        self.applications.append(application)
         self.save_applications()
         
-        print(f"Data repair complete:")
-        print(f"  - Total apps: {stats['total_apps']}")
-        print(f"  - Fixed status: {stats['fixed_status']}")
-        print(f"  - Fixed history: {stats['fixed_history']}")
-        print(f"  - Removed duplicates: {stats['removed_duplicates']}")
+        print(f"✅ Application added: {application['company']} - {application['position']}")
+        return application
+    
+    def update_status(
+        self, 
+        job_id: str, 
+        new_status: str, 
+        notes: str = '',
+        auto_reminders: bool = True
+    ) -> bool:
+        """Update application status with automatic reminder creation"""
         
-        return stats
+        if new_status not in self.STATUSES:
+            print(f"❌ Invalid status: {new_status}")
+            return False
+        
+        application = self.get_application(job_id)
+        if not application:
+            print(f"❌ Application not found: {job_id}")
+            return False
+        
+        # Update status
+        old_status = application['status']
+        application['status'] = new_status
+        application['last_updated'] = datetime.now().isoformat()
+        
+        # Add to history
+        history_entry = {
+            'status': new_status,
+            'timestamp': datetime.now().isoformat(),
+            'notes': notes,
+            'previous_status': old_status
+        }
+        application['status_history'].append(history_entry)
+        
+        # Special handling for submitted status
+        if new_status == 'submitted' and not application['submitted_at']:
+            application['submitted_at'] = datetime.now().isoformat()
+        
+        # Create automatic reminders
+        if auto_reminders:
+            self._create_auto_reminders(application, new_status)
+        
+        self.save_applications()
+        
+        print(f"✅ Status updated: {old_status} → {new_status}")
+        return True
+    
+    def _create_auto_reminders(self, application: Dict, status: str):
+        """Create automatic reminders based on status"""
+        reminders_to_create = {
+            'submitted': [
+                (3, 'Check application status'),
+                (7, 'Send follow-up email if no response'),
+                (14, 'Final follow-up or consider moving on')
+            ],
+            'interview_scheduled': [
+                (1, 'Prepare for interview - research company'),
+                (0, 'Interview day - review notes and arrive early')
+            ],
+            'offer_received': [
+                (2, 'Review offer details'),
+                (5, 'Respond to offer')
+            ]
+        }
+        
+        if status in reminders_to_create:
+            for days, message in reminders_to_create[status]:
+                reminder_date = datetime.now() + timedelta(days=days)
+                self.add_reminder(
+                    job_id=application['id'],
+                    message=message,
+                    due_date=reminder_date.isoformat(),
+                    auto_created=True
+                )
+    
+    def add_reminder(
+        self,
+        job_id: str,
+        message: str,
+        due_date: str,
+        priority: str = 'medium',
+        auto_created: bool = False
+    ) -> bool:
+        """Add reminder for application"""
+        application = self.get_application(job_id)
+        if not application:
+            return False
+        
+        reminder = {
+            'id': f"reminder_{len(application['reminders'])}",
+            'message': message,
+            'due_date': due_date,
+            'priority': priority,
+            'created_at': datetime.now().isoformat(),
+            'completed': False,
+            'auto_created': auto_created
+        }
+        
+        application['reminders'].append(reminder)
+        self.save_applications()
+        return True
+    
+    def get_application(self, job_id: str) -> Optional[Dict]:
+        """Get application by job ID"""
+        for app in self.applications:
+            if app['id'] == job_id:
+                return app
+        return None
+    
+    def get_applications_by_status(self, status: str) -> List[Dict]:
+        """Get all applications with specific status"""
+        return [app for app in self.applications if app['status'] == status]
+    
+    def get_applications_by_platform(self, platform: str) -> List[Dict]:
+        """Get all applications for specific platform"""
+        return [app for app in self.applications if app['platform'] == platform]
+    
+    def get_active_applications(self) -> List[Dict]:
+        """Get all active applications"""
+        active_statuses = self.STATUS_CATEGORIES['active']
+        return [app for app in self.applications if app['status'] in active_statuses]
+    
+    def get_follow_up_needed(self) -> List[Dict]:
+        """Find applications needing follow-up"""
+        needs_follow_up = []
+        now = datetime.now()
+        
+        for app in self.applications:
+            if app['status'] == 'submitted' and app['submitted_at']:
+                submitted = datetime.fromisoformat(app['submitted_at'])
+                days_since = (now - submitted).days
+                
+                # Check if follow-up already done
+                follow_ups = app.get('follow_ups', [])
+                last_followup = follow_ups[-1] if follow_ups else None
+                
+                if days_since >= 7 and not last_followup:
+                    needs_follow_up.append({
+                        'id': app['id'],
+                        'company': app['company'],
+                        'position': app['position'],
+                        'days_since_submission': days_since,
+                        'action': 'Send follow-up email',
+                        'priority': 'high' if days_since >= 14 else 'medium'
+                    })
+                elif last_followup and days_since >= 14:
+                    last_followup_date = datetime.fromisoformat(last_followup['timestamp'])
+                    if (now - last_followup_date).days >= 7:
+                        needs_follow_up.append({
+                            'id': app['id'],
+                            'company': app['company'],
+                            'position': app['position'],
+                            'days_since_submission': days_since,
+                            'action': 'Send final follow-up',
+                            'priority': 'low'
+                        })
+        
+        return needs_follow_up
+    
+    def get_due_reminders(self) -> List[Dict]:
+        """Get all due reminders"""
+        due_reminders = []
+        now = datetime.now()
+        
+        for app in self.applications:
+            for reminder in app.get('reminders', []):
+                if not reminder['completed']:
+                    due_date = datetime.fromisoformat(reminder['due_date'])
+                    if due_date <= now:
+                        due_reminders.append({
+                            'job_id': app['id'],
+                            'company': app['company'],
+                            'position': app['position'],
+                            'reminder': reminder
+                        })
+        
+        return sorted(due_reminders, key=lambda x: x['reminder']['due_date'])
+    
+    def mark_reminder_complete(self, job_id: str, reminder_id: str) -> bool:
+        """Mark reminder as completed"""
+        application = self.get_application(job_id)
+        if not application:
+            return False
+        
+        for reminder in application['reminders']:
+            if reminder['id'] == reminder_id:
+                reminder['completed'] = True
+                reminder['completed_at'] = datetime.now().isoformat()
+                self.save_applications()
+                return True
+        return False
+    
+    def add_follow_up(self, job_id: str, method: str, notes: str = '') -> bool:
+        """Record follow-up action"""
+        application = self.get_application(job_id)
+        if not application:
+            return False
+        
+        follow_up = {
+            'timestamp': datetime.now().isoformat(),
+            'method': method,  # email, phone, linkedin, etc.
+            'notes': notes
+        }
+        
+        application['follow_ups'].append(follow_up)
+        self.save_applications()
+        return True
+    
+    def add_interview(
+        self,
+        job_id: str,
+        interview_date: str,
+        interview_type: str,
+        location: str = '',
+        notes: str = ''
+    ) -> bool:
+        """Add interview details"""
+        application = self.get_application(job_id)
+        if not application:
+            return False
+        
+        interview = {
+            'date': interview_date,
+            'type': interview_type,  # phone, video, onsite, technical, etc.
+            'location': location,
+            'notes': notes,
+            'status': 'scheduled',
+            'added_at': datetime.now().isoformat()
+        }
+        
+        application['interviews'].append(interview)
+        
+        # Auto-update status if needed
+        if application['status'] not in ['interview_scheduled', 'interview_completed']:
+            self.update_status(job_id, 'interview_scheduled', 
+                             f"{interview_type} interview scheduled for {interview_date}")
+        
+        self.save_applications()
+        return True
+    
+    def add_communication(
+        self,
+        job_id: str,
+        comm_type: str,
+        direction: str,
+        content: str,
+        contact_person: str = ''
+    ) -> bool:
+        """Log communication"""
+        application = self.get_application(job_id)
+        if not application:
+            return False
+        
+        communication = {
+            'timestamp': datetime.now().isoformat(),
+            'type': comm_type,  # email, phone, linkedin, etc.
+            'direction': direction,  # inbound, outbound
+            'contact_person': contact_person,
+            'content': content
+        }
+        
+        application['communications'].append(communication)
+        self.save_applications()
+        return True
+    
+    def generate_analytics(self) -> Dict:
+        """Generate comprehensive analytics"""
+        analytics = {
+            'generated_at': datetime.now().isoformat(),
+            'total_applications': len(self.applications),
+            'by_status': defaultdict(int),
+            'by_platform': defaultdict(int),
+            'by_company': defaultdict(int),
+            'response_rates': {},
+            'time_metrics': {},
+            'conversion_funnel': {}
+        }
+        
+        # Status distribution
+        for app in self.applications:
+            analytics['by_status'][app['status']] += 1
+            analytics['by_platform'][app['platform']] += 1
+            analytics['by_company'][app['company']] += 1
+        
+        # Calculate response rate
+        submitted = len([a for a in self.applications if a['status'] in 
+                        ['submitted', 'viewed', 'screening', 'interview_requested',
+                         'interview_scheduled', 'interview_completed', 'offer_received']])
+        responses = len([a for a in self.applications if a['status'] in
+                        ['viewed', 'screening', 'interview_requested', 
+                         'interview_scheduled', 'interview_completed', 'offer_received']])
+        
+        analytics['response_rates']['submitted'] = submitted
+        analytics['response_rates']['responded'] = responses
+        analytics['response_rates']['rate'] = (responses / submitted * 100) if submitted > 0 else 0
+        
+        # Time to response metrics
+        response_times = []
+        for app in self.applications:
+            if app['submitted_at'] and app['status'] in ['viewed', 'interview_requested']:
+                submitted = datetime.fromisoformat(app['submitted_at'])
+                for entry in app['status_history']:
+                    if entry['status'] in ['viewed', 'interview_requested']:
+                        responded = datetime.fromisoformat(entry['timestamp'])
+                        days = (responded - submitted).days
+                        response_times.append(days)
+                        break
+        
+        if response_times:
+            analytics['time_metrics']['avg_response_days'] = statistics.mean(response_times)
+            analytics['time_metrics']['median_response_days'] = statistics.median(response_times)
+            analytics['time_metrics']['min_response_days'] = min(response_times)
+            analytics['time_metrics']['max_response_days'] = max(response_times)
+        
+        # Conversion funnel
+        funnel_stages = [
+            'discovered', 'matched', 'submitted', 'viewed', 
+            'interview_requested', 'offer_received'
+        ]
+        for stage in funnel_stages:
+            count = len([a for a in self.applications if a['status'] == stage or
+                        any(h['status'] == stage for h in a['status_history'])])
+            analytics['conversion_funnel'][stage] = count
+        
+        # Save analytics
+        with open(self.analytics_file, 'w') as f:
+            json.dump(analytics, f, indent=2)
+        
+        return analytics
+    
+    def generate_report(self, output_format: str = 'markdown') -> str:
+        """Generate comprehensive report"""
+        analytics = self.generate_analytics()
+        
+        if output_format == 'markdown':
+            return self._generate_markdown_report(analytics)
+        elif output_format == 'html':
+            return self._generate_html_report(analytics)
+        else:
+            return json.dumps(analytics, indent=2)
+    
+    def _generate_markdown_report(self, analytics: Dict) -> str:
+        """Generate markdown report"""
+        report = f"""# Job Application Tracker Report
+Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+
+## Overview
+- **Total Applications:** {analytics['total_applications']}
+- **Active Applications:** {sum(analytics['by_status'].get(s, 0) for s in self.STATUS_CATEGORIES['active'])}
+- **Pending Applications:** {sum(analytics['by_status'].get(s, 0) for s in self.STATUS_CATEGORIES['pending'])}
+- **Response Rate:** {analytics['response_rates']['rate']:.1f}%
+
+## Status Distribution
+
+| Status | Count |
+|--------|-------|
+"""
+        for status, count in sorted(analytics['by_status'].items(), key=lambda x: x[1], reverse=True):
+            report += f"| {status} | {count} |\n"
+        
+        report += f"""
+## Platform Distribution
+
+| Platform | Count |
+|----------|-------|
+"""
+        for platform, count in sorted(analytics['by_platform'].items(), key=lambda x: x[1], reverse=True):
+            report += f"| {platform} | {count} |\n"
+        
+        if analytics['time_metrics']:
+            report += f"""
+## Response Time Metrics
+- **Average:** {analytics['time_metrics'].get('avg_response_days', 0):.1f} days
+- **Median:** {analytics['time_metrics'].get('median_response_days', 0):.1f} days
+- **Range:** {analytics['time_metrics'].get('min_response_days', 0)} - {analytics['time_metrics'].get('max_response_days', 0)} days
+"""
+        
+        report += f"""
+## Conversion Funnel
+
+| Stage | Count |
+|-------|-------|
+"""
+        for stage, count in analytics['conversion_funnel'].items():
+            report += f"| {stage} | {count} |\n"
+        
+        # Add follow-ups needed
+        follow_ups = self.get_follow_up_needed()
+        if follow_ups:
+            report += f"""
+## Follow-ups Needed ({len(follow_ups)})
+
+| Company | Position | Days Since | Action |
+|---------|----------|------------|--------|
+"""
+            for fu in follow_ups:
+                report += f"| {fu['company']} | {fu['position']} | {fu['days_since_submission']} | {fu['action']} |\n"
+        
+        # Add due reminders
+        reminders = self.get_due_reminders()
+        if reminders:
+            report += f"""
+## Due Reminders ({len(reminders)})
+
+| Company | Position | Reminder |
+|---------|----------|----------|
+"""
+            for r in reminders:
+                report += f"| {r['company']} | {r['position']} | {r['reminder']['message']} |\n"
+        
+        return report
+    
+    def _generate_html_report(self, analytics: Dict) -> str:
+        """Generate HTML report"""
+        # Simplified HTML report
+        html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <title>Job Application Report</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 20px; }}
+        h1 {{ color: #333; }}
+        table {{ border-collapse: collapse; width: 100%; margin: 20px 0; }}
+        th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+        th {{ background-color: #4CAF50; color: white; }}
+        .metric {{ background: #f4f4f4; padding: 10px; margin: 10px 0; border-radius: 5px; }}
+    </style>
+</head>
+<body>
+    <h1>Job Application Tracker Report</h1>
+    <p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
+    
+    <div class="metric">
+        <h2>Overview</h2>
+        <p><strong>Total Applications:</strong> {analytics['total_applications']}</p>
+        <p><strong>Response Rate:</strong> {analytics['response_rates']['rate']:.1f}%</p>
+    </div>
+</body>
+</html>"""
+        return html
+    
+    def export_to_csv(self, output_file: str = 'applications_export.csv'):
+        """Export applications to CSV"""
+        import csv
+        
+        output_path = self.data_dir / output_file
+        
+        with open(output_path, 'w', newline='', encoding='utf-8') as f:
+            if not self.applications:
+                return
+            
+            # Get all possible keys
+            fieldnames = ['id', 'company', 'position', 'platform', 'status', 
+                         'created_at', 'submitted_at', 'cv_score', 'location', 
+                         'salary', 'url']
+            
+            writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction='ignore')
+            writer.writeheader()
+            writer.writerows(self.applications)
+        
+        print(f"✅ Exported to {output_path}")
 
 
-# Example usage
-if __name__ == '__main__':
-    # Initialize tracker
-    tracker = ApplicationTracker('job_search')
+def main():
+    """Example usage"""
+    tracker = ApplicationTracker()
     
     # Example: Add application
-    job_data = {
-        'company': 'Tech Corp',
+    job = {
+        'id': 'job_12345',
         'title': 'Senior Software Engineer',
+        'company': 'Tech Corp',
         'location': 'London, UK',
-        'salary': '£80,000 - £100,000',
-        'url': 'https://example.com/job/123',
-        'total_score': 85
+        'salary': '£60,000 - £80,000',
+        'url': 'https://example.com/jobs/12345',
+        'cv_score': 85,
+        'match_reasons': ['Python', 'AWS', 'Leadership']
     }
     
-    app = tracker.add_application(
-        job_id='job_123',
-        job_data=job_data,
-        platform='linkedin',
-        package_path='job_search/application_packages/job_123'
-    )
+    tracker.add_application('job_12345', job, platform='linkedin')
     
     # Update status
-    tracker.update_status('job_123', 'ready_to_apply', 
-                         'Package reviewed and ready', 
-                         auto_reminders=True)
+    tracker.update_status('job_12345', 'submitted', 'Applied via Easy Apply')
     
     # Generate report
-    print(tracker.generate_report())
+    report = tracker.generate_report()
+    print(report)
+    
+    # Check follow-ups
+    follow_ups = tracker.get_follow_up_needed()
+    print(f"\nFollow-ups needed: {len(follow_ups)}")
+
+
+if __name__ == '__main__':
+    main()
