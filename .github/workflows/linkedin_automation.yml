@@ -721,15 +721,15 @@ jobs:
           
           print("\n📊 Generating Weekly LinkedIn Summary")
           print("=" * 60)
-          
+
           week_ago = (datetime.now() - timedelta(days=7)).isoformat()
           
           # Calculate weekly stats
           if has_advanced:
-              recent_targets = [t for t in linkedin.targets if t.get('added_date', '') >= week_ago]
-              accepted_this_week = [t for t in linkedin.targets if t.get('connection_accepted_date', '') >= week_ago]
-              messages_this_week = [t for t in linkedin.targets if t.get('last_message_date', '') >= week_ago]
-              meetings_this_week = [t for t in linkedin.targets if t.get('meeting_date', '') >= week_ago]
+              recent_targets = [t for t in linkedin.targets if t.get('added_date') and t.get('added_date', '') >= week_ago]
+              accepted_this_week = [t for t in linkedin.targets if t.get('connection_accepted_date') and t.get('connection_accepted_date', '') >= week_ago]
+              messages_this_week = [t for t in linkedin.targets if t.get('last_message_date') and t.get('last_message_date', '') >= week_ago]
+              meetings_this_week = [t for t in linkedin.targets if t.get('meeting_date') and t.get('meeting_date', '') >= week_ago]
               
               # Industry breakdown
               industry_stats = {}
