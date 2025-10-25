@@ -1,20 +1,31 @@
-# Application Tracking Report
+# Job Application Tracker Report
+Generated: 2025-10-25 06:23
 
-Generated: 2025-10-24 06:26:00
-
-## Summary Statistics
-
-- **Total Applications:** 0
+## Overview
+- **Total Applications:** 1
+- **Active Applications:** 0
+- **Pending Applications:** 1
 - **Response Rate:** 0.0%
-- **Interview Rate:** 0.0%
-- **Offer Rate:** 0.0%
 
-## Applications by Status
+## Status Distribution
 
+| Status | Count |
+|--------|-------|
+| discovered | 1 |
 
-## Recent Activity (Last 5)
+## Platform Distribution
 
-### Tech Corp - Software Engineer
-- **Status:** discovered
-- **Last Updated:** 2025-10-23T21:03:25.860350
-- **Score:** 0
+| Platform | Count |
+|----------|-------|
+| generic | 1 |
+
+## Conversion Funnel
+
+| Stage | Count |
+|-------|-------|
+| discovered | 1 |
+| matched | 0 |
+| submitted | 0 |
+| viewed | 0 |
+| interview_requested | 0 |
+| offer_received | 0 |
