@@ -1,0 +1,27 @@
+{
+  "generated_at": "2025-10-25T06:23:30.089018",
+  "total_applications": 1,
+  "by_status": {
+    "discovered": 1
+  },
+  "by_platform": {
+    "generic": 1
+  },
+  "by_company": {
+    "Tech Corp": 1
+  },
+  "response_rates": {
+    "submitted": 0,
+    "responded": 0,
+    "rate": 0
+  },
+  "time_metrics": {},
+  "conversion_funnel": {
+    "discovered": 1,
+    "matched": 0,
+    "submitted": 0,
+    "viewed": 0,
+    "interview_requested": 0,
+    "offer_received": 0
+  }
+}
