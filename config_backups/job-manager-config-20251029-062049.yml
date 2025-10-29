@@ -1,0 +1,60 @@
+output:
+  report_format: json
+  update_frequency: weekly
+search:
+  glassdoor:
+    enabled: true
+    filters:
+    - title
+    - location
+    url: https://glassdoor.com/jobs
+  indeed:
+    enabled: true
+    filters:
+    - title
+    - company
+    url: https://indeed.com/jobs
+  linkedin:
+    enabled: true
+    filters:
+    - title
+    - location
+    - experience
+    url: https://linkedin.com/jobs/search
+  locations:
+  - London
+  - EC4M5SB
+  - EC2A2AP
+  - EC2M7PY
+  - NW32SE
+  - EC1Y8AF
+  - EC2M3AF
+  - Epsom
+  - EC1M6PB
+  - EC4N8AF
+  preferred_keywords:
+  - typescript
+  - aws
+  - java
+  - scala
+  - rust
+  - ruby
+  required_keywords: []
+  target_roles:
+  - Senior Software Engineer
+  - Staff Engineer
+  - Tech Lead
+  - Engineering Manager
+platforms:
+  linkedin:
+    enabled: true
+    max_results_per_search: 50
+  glassdoor:
+    enabled: true
+    max_results_per_search: 50
+  reed:
+    enabled: true
+    max_results_per_search: 50
+  indeed:
+    enabled: true
+    max_results_per_search: 50
