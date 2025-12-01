@@ -1,5 +1,5 @@
 # Daily Job Search Summary
-## 2025-11-30 Sunday
+## 2025-12-01 Monday
 
 ### 📊 Today's Overview
 
