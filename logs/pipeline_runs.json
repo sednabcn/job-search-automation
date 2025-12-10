@@ -1,17 +1,5 @@
 [
   {
-    "run_id": "job-search-20251021-081706",
-    "timestamp": "2025-10-21T08:17:06Z",
-    "mode": "full",
-    "platforms": "linkedin,glassdoor,indeed,reed",
-    "status": {
-      "initialize": "success",
-      "discovery": "success",
-      "keyword_extraction": "skipped",
-      "matching": "failure"
-    }
-  },
-  {
     "run_id": "job-search-20251021-201337",
     "timestamp": "2025-10-21T20:13:37Z",
     "mode": "full",
@@ -1190,6 +1178,18 @@
   {
     "run_id": "job-search-20251209-201259",
     "timestamp": "2025-12-09T20:12:59Z",
+    "mode": "full",
+    "platforms": "linkedin,glassdoor,indeed,reed",
+    "status": {
+      "initialize": "success",
+      "discovery": "success",
+      "keyword_extraction": "skipped",
+      "matching": "success"
+    }
+  },
+  {
+    "run_id": "job-search-20251210-081820",
+    "timestamp": "2025-12-10T08:18:20Z",
     "mode": "full",
     "platforms": "linkedin,glassdoor,indeed,reed",
     "status": {
