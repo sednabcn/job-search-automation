@@ -427,16 +427,28 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const glob = require('glob');
+            const glob = require('path');
             
             // Find latest weekly report
-            const reports = glob.sync('job_search/reports/weekly_summary_*.md');
-            if (reports.length === 0) {
+
+            const reportsDir = 'job_search/reports/';
+
+            if (!fs.existsSync(reportsDir) {
+              console.log('No weekly report found');
+              return;
+            }
+
+            const files = fs.readdirSync(reportsDir)
+              .filter(f => f.startsWith('weekly_summary_') && f.endsWith('.md'))
+              .sort()
+              .reverse();
+            
+            if (files.length === 0) {
               console.log('No weekly report found');
               return;
             }
             
-            const latestReport = reports.sort().reverse()[0];
+            const latestReport = path.join(reportsDir, files[0]);
             const summary = fs.readFileSync(latestReport, 'utf8');
             
             const issue = await github.rest.issues.create({
