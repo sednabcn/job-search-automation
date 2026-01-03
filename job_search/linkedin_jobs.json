@@ -6,11 +6,11 @@
     "location": "N/A",
     "description": "\nLinkedIn Job Discovery Instructions:\n1. Go to https://www.linkedin.com/jobs/\n2. Search for your desired roles\n3. Use LinkedIn's 'Save' feature for interesting jobs\n4. Export saved jobs using browser extension or manual collection\n5. Place the JSON in this file\n        ",
     "url": "https://www.linkedin.com/jobs/",
-    "posted_date": "2026-01-02T20:14:01.780537",
+    "posted_date": "2026-01-03T08:16:45.213523",
     "source": "linkedin",
-    "scraped_at": "2026-01-02T20:14:01.780543",
-    "discovery_date": "2026-01-02T20:14:01.825916",
-    "discovery_run_id": "job-search-20260102-201336",
+    "scraped_at": "2026-01-03T08:16:45.213528",
+    "discovery_date": "2026-01-03T08:16:45.257062",
+    "discovery_run_id": "job-search-20260103-081622",
     "platform": "linkedin"
   }
 ]
