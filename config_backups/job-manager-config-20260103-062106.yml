@@ -1,0 +1,72 @@
+output:
+  report_format: json
+  update_frequency: weekly
+search:
+  glassdoor:
+    enabled: true
+    filters:
+    - title
+    - location
+    url: https://glassdoor.com/jobs
+  indeed:
+    enabled: true
+    filters:
+    - title
+    - company
+    url: https://indeed.com/jobs
+  linkedin:
+    enabled: true
+    filters:
+    - title
+    - location
+    - experience
+    url: https://linkedin.com/jobs/search
+  locations:
+  - London
+  - EC1A1AA
+  - EN37XQ
+  - SW74SF
+  - WC2B5LX
+  - New Malden
+  - E145RE
+  - SE10UH
+  - W1B5FE
+  - E149NN
+  preferred_keywords:
+  - java
+  - azure
+  - microservices
+  - go
+  - gcp
+  - kubernetes
+  - scala
+  - angular
+  - spring
+  required_keywords:
+  - microservices
+  - java
+  - go
+  - azure
+  - python
+  - javascript
+  - php
+  - react
+  - django
+  target_roles:
+  - Senior Software Engineer
+  - Staff Engineer
+  - Tech Lead
+  - Engineering Manager
+platforms:
+  linkedin:
+    enabled: true
+    max_results_per_search: 50
+  glassdoor:
+    enabled: true
+    max_results_per_search: 50
+  reed:
+    enabled: true
+    max_results_per_search: 50
+  indeed:
+    enabled: true
+    max_results_per_search: 50
