@@ -427,7 +427,7 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const glob = require('path');
+            const path = require('path');
             
             // Find latest weekly report
 
