@@ -1,6 +1,6 @@
 # 📊 LinkedIn Weekly Networking Summary
 
-**Period:** 2026-01-11 to 2026-01-18
+**Period:** 2026-01-18 to 2026-01-25
 
 ## 📈 Weekly Activity
 
@@ -15,6 +15,6 @@
 
 ## 💡 Recommendations for Next Week
 
-- Continue processing 2175 queued connection requests
+- Continue processing 2343 queued connection requests
 - Consider refining connection messages for better engagement
 - Increase daily connection targets to maximize weekly limit
