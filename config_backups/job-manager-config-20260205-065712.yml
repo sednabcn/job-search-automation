@@ -1,0 +1,70 @@
+output:
+  report_format: json
+  update_frequency: weekly
+search:
+  glassdoor:
+    enabled: true
+    filters:
+    - title
+    - location
+    url: https://glassdoor.com/jobs
+  indeed:
+    enabled: true
+    filters:
+    - title
+    - company
+    url: https://indeed.com/jobs
+  linkedin:
+    enabled: true
+    filters:
+    - title
+    - location
+    - experience
+    url: https://linkedin.com/jobs/search
+  locations:
+  - London
+  - WC2B5LX
+  - EC2M2QS
+  - Enfield
+  - EC1A1AA
+  - EC4M7RF
+  - E145RE
+  - WC1A2SL
+  - EC1A1BB
+  - SE14GT
+  preferred_keywords:
+  - java
+  - azure
+  - microservices
+  - go
+  - rust
+  - python
+  required_keywords:
+  - azure
+  - scala
+  - microservices
+  - python
+  - javascript
+  - java
+  - go
+  - php
+  - react
+  - django
+  target_roles:
+  - Senior Software Engineer
+  - Staff Engineer
+  - Tech Lead
+  - Engineering Manager
+platforms:
+  linkedin:
+    enabled: true
+    max_results_per_search: 50
+  glassdoor:
+    enabled: true
+    max_results_per_search: 50
+  reed:
+    enabled: true
+    max_results_per_search: 50
+  indeed:
+    enabled: true
+    max_results_per_search: 50
