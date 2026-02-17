@@ -78,38 +78,40 @@ jobs:
               echo "[]" > "$TRACKING_DIR/${file}.json"
             fi
           done
-      
+
       - name: Download artifacts from Job Discovery Worker
         if: github.event_name == 'workflow_run'
         uses: actions/github-script@v6
         continue-on-error: true
+        env:
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
         with:
           script: |
             const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              run_id: ${{ github.event.workflow_run.id }},
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            run_id: parseInt(process.env.WORKFLOW_RUN_ID),
             });
-            
+      
             console.log(`Found ${artifacts.data.artifacts.length} artifacts`);
-            
+      
             for (const artifact of artifacts.data.artifacts) {
-              if (artifact.name === 'matched-jobs' || 
-                  artifact.name.startsWith('discovered-jobs-')) {
-                
-                console.log(`Downloading: ${artifact.name}`);
-                
-                const download = await github.rest.actions.downloadArtifact({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  artifact_id: artifact.id,
-                  archive_format: 'zip',
-                });
-                
-                const fs = require('fs');
-                fs.writeFileSync(`${artifact.name}.zip`, Buffer.from(download.data));
-              }
-            }
+                if (artifact.name === 'matched-jobs' || 
+                   artifact.name.startsWith('discovered-jobs-')) {
+          
+                   console.log(`Downloading: ${artifact.name}`);
+          
+                   const download = await github.rest.actions.downloadArtifact({
+                   owner: context.repo.owner,
+                   repo: context.repo.repo,
+                   artifact_id: artifact.id,
+                   archive_format: 'zip',
+                   });
+          
+                   const fs = require('fs');
+                   fs.writeFileSync(`${artifact.name}.zip`, Buffer.from(download.data));
+                   }
+                   }
       
       - name: Extract downloaded artifacts
         if: github.event_name == 'workflow_run'
@@ -433,7 +435,7 @@ jobs:
 
             const reportsDir = 'job_search/reports/';
 
-            if (!fs.existsSync(reportsDir) {
+            if (!fs.existsSync(reportsDir)) {
               console.log('No weekly report found');
               return;
             }
