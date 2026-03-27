@@ -1,13 +1,13 @@
 {
-  "date": "2026-03-26T18:51:48.309020",
+  "date": "2026-03-27T18:42:30.201897",
   "overall": {
-    "total_targets": 3771,
+    "total_targets": 3795,
     "total_campaigns": 0,
     "active_conversations": 0,
     "response_rate": 0.0
   },
   "by_status": {
-    "queued": 3771,
+    "queued": 3795,
     "pending": 0,
     "connected": 0,
     "rejected": 0
