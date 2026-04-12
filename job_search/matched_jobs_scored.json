@@ -1,7 +1,9 @@
 {
-  "scored_at": "2026-04-12T03:33:58.004140",
-  "total_jobs": 0,
-  "min_score_threshold": 70,
+  "scored_at": "2026-04-12T07:11:07.998305",
+  "total_jobs": 101,
+  "scored_jobs": 101,
+  "filtered_jobs": 0,
+  "min_score": 70.0,
   "top_matches": [],
-  "all_jobs": []
+  "jobs": []
 }
