@@ -1,0 +1,67 @@
+output:
+  report_format: json
+  update_frequency: weekly
+search:
+  glassdoor:
+    enabled: true
+    filters:
+    - title
+    - location
+    url: https://glassdoor.com/jobs
+  indeed:
+    enabled: true
+    filters:
+    - title
+    - company
+    url: https://indeed.com/jobs
+  linkedin:
+    enabled: true
+    filters:
+    - title
+    - location
+    - experience
+    url: https://linkedin.com/jobs/search
+  locations:
+  - London
+  - EC1A1BB
+  - WC2N5HS
+  - Central London
+  - Watford
+  - EC2M7PY
+  - United Kingdom
+  - South East London
+  - W105BN
+  - WD31RT
+  preferred_keywords:
+  - azure
+  - go
+  - kubernetes
+  - rust
+  - scala
+  - aws
+  - terraform
+  required_keywords:
+  - java
+  - go
+  - scala
+  - kotlin
+  - spring
+  - aws
+  target_roles:
+  - Senior Software Engineer
+  - Staff Engineer
+  - Tech Lead
+  - Engineering Manager
+platforms:
+  linkedin:
+    enabled: true
+    max_results_per_search: 50
+  glassdoor:
+    enabled: true
+    max_results_per_search: 50
+  reed:
+    enabled: true
+    max_results_per_search: 50
+  indeed:
+    enabled: true
+    max_results_per_search: 50
