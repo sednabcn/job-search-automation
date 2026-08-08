@@ -1,13 +1,13 @@
 {
-  "date": "2026-08-07T18:38:29.639745",
+  "date": "2026-08-08T18:21:35.254140",
   "overall": {
-    "total_targets": 6969,
+    "total_targets": 6993,
     "total_campaigns": 0,
     "active_conversations": 0,
     "response_rate": 0.0
   },
   "by_status": {
-    "queued": 6969,
+    "queued": 6993,
     "pending": 0,
     "connected": 0,
     "rejected": 0
