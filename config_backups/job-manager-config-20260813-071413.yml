@@ -1,0 +1,70 @@
+output:
+  report_format: json
+  update_frequency: weekly
+search:
+  glassdoor:
+    enabled: true
+    filters:
+    - title
+    - location
+    url: https://glassdoor.com/jobs
+  indeed:
+    enabled: true
+    filters:
+    - title
+    - company
+    url: https://indeed.com/jobs
+  linkedin:
+    enabled: true
+    filters:
+    - title
+    - location
+    - experience
+    url: https://linkedin.com/jobs/search
+  locations:
+  - London
+  - Central London
+  - New Malden
+  - Watford
+  - Hounslow
+  - EC3A7BX
+  - South West London
+  - SW1E5LB
+  - EC2N3AQ
+  - E144PU
+  preferred_keywords:
+  - azure
+  - python
+  - java
+  - distributed systems
+  - scala
+  - go
+  required_keywords:
+  - go
+  - java
+  - aws
+  - scala
+  - typescript
+  - react
+  - python
+  - azure
+  - gcp
+  - spring
+  target_roles:
+  - Senior Software Engineer
+  - Staff Engineer
+  - Tech Lead
+  - Engineering Manager
+platforms:
+  linkedin:
+    enabled: true
+    max_results_per_search: 50
+  glassdoor:
+    enabled: true
+    max_results_per_search: 50
+  reed:
+    enabled: true
+    max_results_per_search: 50
+  indeed:
+    enabled: true
+    max_results_per_search: 50
