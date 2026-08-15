@@ -14,9 +14,9 @@
     "contract_type": "",
     "expiration_date": "23/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831319",
-    "discovery_date": "2026-08-15T08:16:00.389263",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067667",
+    "discovery_date": "2026-08-15T20:11:36.630002",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -34,9 +34,9 @@
     "contract_type": "",
     "expiration_date": "22/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831330",
-    "discovery_date": "2026-08-15T08:16:00.389273",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067677",
+    "discovery_date": "2026-08-15T20:11:36.630007",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -54,9 +54,9 @@
     "contract_type": "",
     "expiration_date": "21/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831333",
-    "discovery_date": "2026-08-15T08:16:00.389274",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067680",
+    "discovery_date": "2026-08-15T20:11:36.630009",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -74,29 +74,9 @@
     "contract_type": "",
     "expiration_date": "27/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831351",
-    "discovery_date": "2026-08-15T08:16:00.389275",
-    "discovery_run_id": "job-search-20260815-081512",
-    "platform": "reed"
-  },
-  {
-    "id": "57236245",
-    "title": "Senior Software Engineer",
-    "company": "Harvey Nash",
-    "location": "London",
-    "salary": "\u00a375,000.0 - \u00a3105,000.0",
-    "salary_min": 75000.0,
-    "salary_max": 105000.0,
-    "description_snippet": "Senior Software Engineer - Node.js, Typescript &amp; AWS | Financial Services Location: London | Hybrid - 1 day onsite ; Salary: 75,000 - 105,000 About the role: We're looking for a Senior Software Engineer to join our engineering team and build reliable, scalable technology supporting regulated investment and custody services. You'll work in a highly autonomous, cross-functional squad with genuine ownership across the full software lifecycle - ... ",
-    "full_description": "Senior Software Engineer - Node.js, Typescript &amp; AWS | Financial Services Location: London | Hybrid - 1 day onsite ; Salary: 75,000 - 105,000 About the role: We're looking for a Senior Software Engineer to join our engineering team and build reliable, scalable technology supporting regulated investment and custody services. You'll work in a highly autonomous, cross-functional squad with genuine ownership across the full software lifecycle - ... ",
-    "url": "https://www.reed.co.uk/jobs/senior-software-engineer/57236245",
-    "posted_date": "13/08/2026",
-    "contract_type": "",
-    "expiration_date": "24/09/2026",
-    "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831357",
-    "discovery_date": "2026-08-15T08:16:00.389276",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067699",
+    "discovery_date": "2026-08-15T20:11:36.630010",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -114,9 +94,29 @@
     "contract_type": "",
     "expiration_date": "15/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831358",
-    "discovery_date": "2026-08-15T08:16:00.389277",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067702",
+    "discovery_date": "2026-08-15T20:11:36.630011",
+    "discovery_run_id": "job-search-20260815-201111",
+    "platform": "reed"
+  },
+  {
+    "id": "57236245",
+    "title": "Senior Software Engineer",
+    "company": "Harvey Nash",
+    "location": "London",
+    "salary": "\u00a375,000.0 - \u00a3105,000.0",
+    "salary_min": 75000.0,
+    "salary_max": 105000.0,
+    "description_snippet": "Senior Software Engineer - Node.js, Typescript &amp; AWS | Financial Services Location: London | Hybrid - 1 day onsite ; Salary: 75,000 - 105,000 About the role: We're looking for a Senior Software Engineer to join our engineering team and build reliable, scalable technology supporting regulated investment and custody services. You'll work in a highly autonomous, cross-functional squad with genuine ownership across the full software lifecycle - ... ",
+    "full_description": "Senior Software Engineer - Node.js, Typescript &amp; AWS | Financial Services Location: London | Hybrid - 1 day onsite ; Salary: 75,000 - 105,000 About the role: We're looking for a Senior Software Engineer to join our engineering team and build reliable, scalable technology supporting regulated investment and custody services. You'll work in a highly autonomous, cross-functional squad with genuine ownership across the full software lifecycle - ... ",
+    "url": "https://www.reed.co.uk/jobs/senior-software-engineer/57236245",
+    "posted_date": "13/08/2026",
+    "contract_type": "",
+    "expiration_date": "24/09/2026",
+    "source": "reed_api",
+    "scraped_at": "2026-08-15T20:11:36.067705",
+    "discovery_date": "2026-08-15T20:11:36.630012",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -134,9 +134,9 @@
     "contract_type": "",
     "expiration_date": "07/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831361",
-    "discovery_date": "2026-08-15T08:16:00.389277",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067708",
+    "discovery_date": "2026-08-15T20:11:36.630013",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -154,9 +154,9 @@
     "contract_type": "",
     "expiration_date": "10/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831363",
-    "discovery_date": "2026-08-15T08:16:00.389278",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067711",
+    "discovery_date": "2026-08-15T20:11:36.630014",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -174,9 +174,9 @@
     "contract_type": "",
     "expiration_date": "18/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831366",
-    "discovery_date": "2026-08-15T08:16:00.389279",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067714",
+    "discovery_date": "2026-08-15T20:11:36.630015",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -194,9 +194,9 @@
     "contract_type": "",
     "expiration_date": "27/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831368",
-    "discovery_date": "2026-08-15T08:16:00.389280",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067718",
+    "discovery_date": "2026-08-15T20:11:36.630016",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -214,9 +214,9 @@
     "contract_type": "",
     "expiration_date": "24/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831370",
-    "discovery_date": "2026-08-15T08:16:00.389280",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067720",
+    "discovery_date": "2026-08-15T20:11:36.630017",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -234,9 +234,9 @@
     "contract_type": "",
     "expiration_date": "17/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831372",
-    "discovery_date": "2026-08-15T08:16:00.389281",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067723",
+    "discovery_date": "2026-08-15T20:11:36.630018",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -254,9 +254,9 @@
     "contract_type": "",
     "expiration_date": "17/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831375",
-    "discovery_date": "2026-08-15T08:16:00.389282",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067726",
+    "discovery_date": "2026-08-15T20:11:36.630019",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -274,9 +274,9 @@
     "contract_type": "",
     "expiration_date": "26/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831377",
-    "discovery_date": "2026-08-15T08:16:00.389283",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067747",
+    "discovery_date": "2026-08-15T20:11:36.630019",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -294,9 +294,9 @@
     "contract_type": "",
     "expiration_date": "22/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831381",
-    "discovery_date": "2026-08-15T08:16:00.389283",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067750",
+    "discovery_date": "2026-08-15T20:11:36.630020",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -314,9 +314,9 @@
     "contract_type": "",
     "expiration_date": "23/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831384",
-    "discovery_date": "2026-08-15T08:16:00.389284",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067756",
+    "discovery_date": "2026-08-15T20:11:36.630021",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -334,9 +334,9 @@
     "contract_type": "",
     "expiration_date": "26/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831386",
-    "discovery_date": "2026-08-15T08:16:00.389285",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067759",
+    "discovery_date": "2026-08-15T20:11:36.630022",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -354,9 +354,9 @@
     "contract_type": "",
     "expiration_date": "18/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831388",
-    "discovery_date": "2026-08-15T08:16:00.389285",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067762",
+    "discovery_date": "2026-08-15T20:11:36.630023",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -374,9 +374,9 @@
     "contract_type": "",
     "expiration_date": "31/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831391",
-    "discovery_date": "2026-08-15T08:16:00.389286",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067765",
+    "discovery_date": "2026-08-15T20:11:36.630024",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -394,9 +394,9 @@
     "contract_type": "",
     "expiration_date": "19/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831393",
-    "discovery_date": "2026-08-15T08:16:00.389287",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067768",
+    "discovery_date": "2026-08-15T20:11:36.630025",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -414,9 +414,9 @@
     "contract_type": "",
     "expiration_date": "18/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831395",
-    "discovery_date": "2026-08-15T08:16:00.389288",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067771",
+    "discovery_date": "2026-08-15T20:11:36.630026",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -434,9 +434,9 @@
     "contract_type": "",
     "expiration_date": "25/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831397",
-    "discovery_date": "2026-08-15T08:16:00.389288",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067773",
+    "discovery_date": "2026-08-15T20:11:36.630027",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -454,9 +454,9 @@
     "contract_type": "",
     "expiration_date": "28/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831399",
-    "discovery_date": "2026-08-15T08:16:00.389289",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067776",
+    "discovery_date": "2026-08-15T20:11:36.630028",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -474,9 +474,9 @@
     "contract_type": "",
     "expiration_date": "17/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831401",
-    "discovery_date": "2026-08-15T08:16:00.389290",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067779",
+    "discovery_date": "2026-08-15T20:11:36.630029",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -494,9 +494,9 @@
     "contract_type": "",
     "expiration_date": "15/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831404",
-    "discovery_date": "2026-08-15T08:16:00.389291",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067782",
+    "discovery_date": "2026-08-15T20:11:36.630030",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -514,9 +514,9 @@
     "contract_type": "",
     "expiration_date": "09/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831406",
-    "discovery_date": "2026-08-15T08:16:00.389291",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067785",
+    "discovery_date": "2026-08-15T20:11:36.630031",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -534,9 +534,9 @@
     "contract_type": "",
     "expiration_date": "13/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831408",
-    "discovery_date": "2026-08-15T08:16:00.389292",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067788",
+    "discovery_date": "2026-08-15T20:11:36.630032",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -554,9 +554,9 @@
     "contract_type": "",
     "expiration_date": "21/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831410",
-    "discovery_date": "2026-08-15T08:16:00.389293",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067791",
+    "discovery_date": "2026-08-15T20:11:36.630033",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -574,9 +574,9 @@
     "contract_type": "",
     "expiration_date": "15/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831412",
-    "discovery_date": "2026-08-15T08:16:00.389293",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067793",
+    "discovery_date": "2026-08-15T20:11:36.630034",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -594,9 +594,9 @@
     "contract_type": "",
     "expiration_date": "22/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831414",
-    "discovery_date": "2026-08-15T08:16:00.389294",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067796",
+    "discovery_date": "2026-08-15T20:11:36.630035",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -614,9 +614,9 @@
     "contract_type": "",
     "expiration_date": "02/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831417",
-    "discovery_date": "2026-08-15T08:16:00.389295",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067799",
+    "discovery_date": "2026-08-15T20:11:36.630035",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -634,9 +634,9 @@
     "contract_type": "",
     "expiration_date": "24/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831419",
-    "discovery_date": "2026-08-15T08:16:00.389296",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067802",
+    "discovery_date": "2026-08-15T20:11:36.630036",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -654,9 +654,9 @@
     "contract_type": "",
     "expiration_date": "25/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831421",
-    "discovery_date": "2026-08-15T08:16:00.389296",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067805",
+    "discovery_date": "2026-08-15T20:11:36.630037",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -674,9 +674,9 @@
     "contract_type": "",
     "expiration_date": "09/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831425",
-    "discovery_date": "2026-08-15T08:16:00.389300",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067809",
+    "discovery_date": "2026-08-15T20:11:36.630041",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -694,9 +694,9 @@
     "contract_type": "",
     "expiration_date": "15/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831427",
-    "discovery_date": "2026-08-15T08:16:00.389301",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067814",
+    "discovery_date": "2026-08-15T20:11:36.630042",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -714,9 +714,9 @@
     "contract_type": "",
     "expiration_date": "11/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831429",
-    "discovery_date": "2026-08-15T08:16:00.389301",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067817",
+    "discovery_date": "2026-08-15T20:11:36.630043",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -734,9 +734,9 @@
     "contract_type": "",
     "expiration_date": "22/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831431",
-    "discovery_date": "2026-08-15T08:16:00.389302",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067820",
+    "discovery_date": "2026-08-15T20:11:36.630044",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -754,9 +754,9 @@
     "contract_type": "",
     "expiration_date": "21/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831433",
-    "discovery_date": "2026-08-15T08:16:00.389303",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067822",
+    "discovery_date": "2026-08-15T20:11:36.630045",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -774,9 +774,9 @@
     "contract_type": "",
     "expiration_date": "08/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831435",
-    "discovery_date": "2026-08-15T08:16:00.389304",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067825",
+    "discovery_date": "2026-08-15T20:11:36.630046",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -794,9 +794,9 @@
     "contract_type": "",
     "expiration_date": "02/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831437",
-    "discovery_date": "2026-08-15T08:16:00.389304",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067828",
+    "discovery_date": "2026-08-15T20:11:36.630047",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -814,9 +814,9 @@
     "contract_type": "",
     "expiration_date": "01/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831440",
-    "discovery_date": "2026-08-15T08:16:00.389305",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067831",
+    "discovery_date": "2026-08-15T20:11:36.630048",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -834,9 +834,9 @@
     "contract_type": "",
     "expiration_date": "22/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831442",
-    "discovery_date": "2026-08-15T08:16:00.389306",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067834",
+    "discovery_date": "2026-08-15T20:11:36.630049",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -854,9 +854,9 @@
     "contract_type": "",
     "expiration_date": "01/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831444",
-    "discovery_date": "2026-08-15T08:16:00.389307",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067837",
+    "discovery_date": "2026-08-15T20:11:36.630050",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -874,9 +874,9 @@
     "contract_type": "",
     "expiration_date": "01/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831447",
-    "discovery_date": "2026-08-15T08:16:00.389307",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067840",
+    "discovery_date": "2026-08-15T20:11:36.630051",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -894,9 +894,9 @@
     "contract_type": "",
     "expiration_date": "15/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831449",
-    "discovery_date": "2026-08-15T08:16:00.389308",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067843",
+    "discovery_date": "2026-08-15T20:11:36.630051",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -914,9 +914,9 @@
     "contract_type": "",
     "expiration_date": "04/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831451",
-    "discovery_date": "2026-08-15T08:16:00.389309",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067846",
+    "discovery_date": "2026-08-15T20:11:36.630052",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -934,9 +934,9 @@
     "contract_type": "",
     "expiration_date": "07/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831458",
-    "discovery_date": "2026-08-15T08:16:00.389309",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067849",
+    "discovery_date": "2026-08-15T20:11:36.630053",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -954,9 +954,9 @@
     "contract_type": "",
     "expiration_date": "24/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831461",
-    "discovery_date": "2026-08-15T08:16:00.389310",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067852",
+    "discovery_date": "2026-08-15T20:11:36.630054",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -974,9 +974,9 @@
     "contract_type": "",
     "expiration_date": "24/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831463",
-    "discovery_date": "2026-08-15T08:16:00.389311",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067854",
+    "discovery_date": "2026-08-15T20:11:36.630055",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -994,9 +994,9 @@
     "contract_type": "",
     "expiration_date": "17/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831465",
-    "discovery_date": "2026-08-15T08:16:00.389312",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067857",
+    "discovery_date": "2026-08-15T20:11:36.630056",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1014,9 +1014,9 @@
     "contract_type": "",
     "expiration_date": "21/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831468",
-    "discovery_date": "2026-08-15T08:16:00.389312",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067860",
+    "discovery_date": "2026-08-15T20:11:36.630057",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1034,9 +1034,9 @@
     "contract_type": "",
     "expiration_date": "21/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831470",
-    "discovery_date": "2026-08-15T08:16:00.389313",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067863",
+    "discovery_date": "2026-08-15T20:11:36.630058",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1054,9 +1054,9 @@
     "contract_type": "",
     "expiration_date": "10/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831472",
-    "discovery_date": "2026-08-15T08:16:00.389314",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067866",
+    "discovery_date": "2026-08-15T20:11:36.630059",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1074,9 +1074,9 @@
     "contract_type": "",
     "expiration_date": "25/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831475",
-    "discovery_date": "2026-08-15T08:16:00.389314",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067869",
+    "discovery_date": "2026-08-15T20:11:36.630060",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1094,9 +1094,9 @@
     "contract_type": "",
     "expiration_date": "18/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831477",
-    "discovery_date": "2026-08-15T08:16:00.389315",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067873",
+    "discovery_date": "2026-08-15T20:11:36.630061",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1114,9 +1114,9 @@
     "contract_type": "",
     "expiration_date": "02/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831481",
-    "discovery_date": "2026-08-15T08:16:00.389316",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067876",
+    "discovery_date": "2026-08-15T20:11:36.630062",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1134,9 +1134,9 @@
     "contract_type": "",
     "expiration_date": "31/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831483",
-    "discovery_date": "2026-08-15T08:16:00.389317",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067878",
+    "discovery_date": "2026-08-15T20:11:36.630063",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1154,9 +1154,9 @@
     "contract_type": "",
     "expiration_date": "20/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831485",
-    "discovery_date": "2026-08-15T08:16:00.389317",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067881",
+    "discovery_date": "2026-08-15T20:11:36.630064",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1174,9 +1174,9 @@
     "contract_type": "",
     "expiration_date": "17/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831487",
-    "discovery_date": "2026-08-15T08:16:00.389318",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067884",
+    "discovery_date": "2026-08-15T20:11:36.630065",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1194,9 +1194,9 @@
     "contract_type": "",
     "expiration_date": "24/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831489",
-    "discovery_date": "2026-08-15T08:16:00.389319",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067887",
+    "discovery_date": "2026-08-15T20:11:36.630066",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1214,9 +1214,9 @@
     "contract_type": "",
     "expiration_date": "15/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831492",
-    "discovery_date": "2026-08-15T08:16:00.389320",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067890",
+    "discovery_date": "2026-08-15T20:11:36.630067",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1234,9 +1234,9 @@
     "contract_type": "",
     "expiration_date": "21/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831494",
-    "discovery_date": "2026-08-15T08:16:00.389320",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067893",
+    "discovery_date": "2026-08-15T20:11:36.630067",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1254,9 +1254,9 @@
     "contract_type": "",
     "expiration_date": "10/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831497",
-    "discovery_date": "2026-08-15T08:16:00.389321",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067896",
+    "discovery_date": "2026-08-15T20:11:36.630068",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1274,9 +1274,9 @@
     "contract_type": "",
     "expiration_date": "18/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831499",
-    "discovery_date": "2026-08-15T08:16:00.389322",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067899",
+    "discovery_date": "2026-08-15T20:11:36.630069",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1294,9 +1294,9 @@
     "contract_type": "",
     "expiration_date": "09/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831501",
-    "discovery_date": "2026-08-15T08:16:00.389322",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067902",
+    "discovery_date": "2026-08-15T20:11:36.630070",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1314,9 +1314,9 @@
     "contract_type": "",
     "expiration_date": "29/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831503",
-    "discovery_date": "2026-08-15T08:16:00.389323",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067905",
+    "discovery_date": "2026-08-15T20:11:36.630071",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1334,29 +1334,9 @@
     "contract_type": "",
     "expiration_date": "09/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831506",
-    "discovery_date": "2026-08-15T08:16:00.389324",
-    "discovery_run_id": "job-search-20260815-081512",
-    "platform": "reed"
-  },
-  {
-    "id": "57133206",
-    "title": "Principal Recruitment Consultant - Software Engineering",
-    "company": "Talent Chief Ltd",
-    "location": "London",
-    "salary": "\u00a340,000.0 - \u00a360,000.0",
-    "salary_min": 40000.0,
-    "salary_max": 60000.0,
-    "description_snippet": "Principal Recruitment Consultant \u2013 Software Development / IT Central London / Hybrid Up to 60,000 Basic Salary OTE potential of over 100k in year one We are working exclusively with a high-growth specialist recruitment consultancy operating across the European MedTech and medical devices market. Due to increased demand, they are now seeking to hire a Senior Recruitment Consultant with expertise in IT, specifically within the software engineering... ",
-    "full_description": "Principal Recruitment Consultant \u2013 Software Development / IT Central London / Hybrid Up to 60,000 Basic Salary OTE potential of over 100k in year one We are working exclusively with a high-growth specialist recruitment consultancy operating across the European MedTech and medical devices market. Due to increased demand, they are now seeking to hire a Senior Recruitment Consultant with expertise in IT, specifically within the software engineering... ",
-    "url": "https://www.reed.co.uk/jobs/principal-recruitment-consultant-software-engineering/57133206",
-    "posted_date": "17/07/2026",
-    "contract_type": "",
-    "expiration_date": "28/08/2026",
-    "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831508",
-    "discovery_date": "2026-08-15T08:16:00.389325",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067911",
+    "discovery_date": "2026-08-15T20:11:36.630072",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1374,9 +1354,29 @@
     "contract_type": "",
     "expiration_date": "01/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831510",
-    "discovery_date": "2026-08-15T08:16:00.389325",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067914",
+    "discovery_date": "2026-08-15T20:11:36.630073",
+    "discovery_run_id": "job-search-20260815-201111",
+    "platform": "reed"
+  },
+  {
+    "id": "57133206",
+    "title": "Principal Recruitment Consultant - Software Engineering",
+    "company": "Talent Chief Ltd",
+    "location": "London",
+    "salary": "\u00a340,000.0 - \u00a360,000.0",
+    "salary_min": 40000.0,
+    "salary_max": 60000.0,
+    "description_snippet": "Principal Recruitment Consultant \u2013 Software Development / IT Central London / Hybrid Up to 60,000 Basic Salary OTE potential of over 100k in year one We are working exclusively with a high-growth specialist recruitment consultancy operating across the European MedTech and medical devices market. Due to increased demand, they are now seeking to hire a Senior Recruitment Consultant with expertise in IT, specifically within the software engineering... ",
+    "full_description": "Principal Recruitment Consultant \u2013 Software Development / IT Central London / Hybrid Up to 60,000 Basic Salary OTE potential of over 100k in year one We are working exclusively with a high-growth specialist recruitment consultancy operating across the European MedTech and medical devices market. Due to increased demand, they are now seeking to hire a Senior Recruitment Consultant with expertise in IT, specifically within the software engineering... ",
+    "url": "https://www.reed.co.uk/jobs/principal-recruitment-consultant-software-engineering/57133206",
+    "posted_date": "17/07/2026",
+    "contract_type": "",
+    "expiration_date": "28/08/2026",
+    "source": "reed_api",
+    "scraped_at": "2026-08-15T20:11:36.067917",
+    "discovery_date": "2026-08-15T20:11:36.630074",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1394,29 +1394,9 @@
     "contract_type": "",
     "expiration_date": "23/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831513",
-    "discovery_date": "2026-08-15T08:16:00.389326",
-    "discovery_run_id": "job-search-20260815-081512",
-    "platform": "reed"
-  },
-  {
-    "id": "57191492",
-    "title": "Senior Machine Learning Engineer",
-    "company": "Lorien",
-    "location": "London",
-    "salary": "",
-    "salary_min": null,
-    "salary_max": null,
-    "description_snippet": "Senior Machine Learning Engineer Applying rigorous machine learning to real-world problems that matter We're looking for a Senior Machine Learning Engineer to join a multidisciplinary data and AI team delivering high-impact, real-world solutions in a secure and highly regulated environment . This is a senior, hands-on practitioner role , not a people-management position. You'll operate with a high degree of autonomy, leading complex machine lear... ",
-    "full_description": "Senior Machine Learning Engineer Applying rigorous machine learning to real-world problems that matter We're looking for a Senior Machine Learning Engineer to join a multidisciplinary data and AI team delivering high-impact, real-world solutions in a secure and highly regulated environment . This is a senior, hands-on practitioner role , not a people-management position. You'll operate with a high degree of autonomy, leading complex machine lear... ",
-    "url": "https://www.reed.co.uk/jobs/senior-machine-learning-engineer/57191492",
-    "posted_date": "03/08/2026",
-    "contract_type": "",
-    "expiration_date": "14/09/2026",
-    "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831514",
-    "discovery_date": "2026-08-15T08:16:00.389327",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067920",
+    "discovery_date": "2026-08-15T20:11:36.630075",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1434,29 +1414,29 @@
     "contract_type": "",
     "expiration_date": "16/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831517",
-    "discovery_date": "2026-08-15T08:16:00.389327",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067923",
+    "discovery_date": "2026-08-15T20:11:36.630076",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
-    "id": "57122135",
-    "title": "Senior Data Engineer",
-    "company": "Tenth Revolution Group",
+    "id": "57191492",
+    "title": "Senior Machine Learning Engineer",
+    "company": "Lorien",
     "location": "London",
-    "salary": "\u00a355,000.0 - \u00a375,000.0",
-    "salary_min": 55000.0,
-    "salary_max": 75000.0,
-    "description_snippet": "Senior Data Engineer - Microsoft Fabric - London (Hybrid) - Up to 75,000 This is an exciting opportunity to join a well-established international organisation currently undergoing a major transformation of its data and reporting landscape. With significant investment being made into Microsoft Fabric, data modernisation and automation, the business is looking for a Senior Data Engineer who can play a key role in shaping and delivering its next-ge... ",
-    "full_description": "Senior Data Engineer - Microsoft Fabric - London (Hybrid) - Up to 75,000 This is an exciting opportunity to join a well-established international organisation currently undergoing a major transformation of its data and reporting landscape. With significant investment being made into Microsoft Fabric, data modernisation and automation, the business is looking for a Senior Data Engineer who can play a key role in shaping and delivering its next-ge... ",
-    "url": "https://www.reed.co.uk/jobs/senior-data-engineer/57122135",
-    "posted_date": "14/07/2026",
+    "salary": "",
+    "salary_min": null,
+    "salary_max": null,
+    "description_snippet": "Senior Machine Learning Engineer Applying rigorous machine learning to real-world problems that matter We're looking for a Senior Machine Learning Engineer to join a multidisciplinary data and AI team delivering high-impact, real-world solutions in a secure and highly regulated environment . This is a senior, hands-on practitioner role , not a people-management position. You'll operate with a high degree of autonomy, leading complex machine lear... ",
+    "full_description": "Senior Machine Learning Engineer Applying rigorous machine learning to real-world problems that matter We're looking for a Senior Machine Learning Engineer to join a multidisciplinary data and AI team delivering high-impact, real-world solutions in a secure and highly regulated environment . This is a senior, hands-on practitioner role , not a people-management position. You'll operate with a high degree of autonomy, leading complex machine lear... ",
+    "url": "https://www.reed.co.uk/jobs/senior-machine-learning-engineer/57191492",
+    "posted_date": "03/08/2026",
     "contract_type": "",
-    "expiration_date": "25/08/2026",
+    "expiration_date": "14/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831519",
-    "discovery_date": "2026-08-15T08:16:00.389328",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067925",
+    "discovery_date": "2026-08-15T20:11:36.630077",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1474,9 +1454,29 @@
     "contract_type": "",
     "expiration_date": "14/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831521",
-    "discovery_date": "2026-08-15T08:16:00.389329",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067927",
+    "discovery_date": "2026-08-15T20:11:36.630078",
+    "discovery_run_id": "job-search-20260815-201111",
+    "platform": "reed"
+  },
+  {
+    "id": "57122135",
+    "title": "Senior Data Engineer",
+    "company": "Tenth Revolution Group",
+    "location": "London",
+    "salary": "\u00a355,000.0 - \u00a375,000.0",
+    "salary_min": 55000.0,
+    "salary_max": 75000.0,
+    "description_snippet": "Senior Data Engineer - Microsoft Fabric - London (Hybrid) - Up to 75,000 This is an exciting opportunity to join a well-established international organisation currently undergoing a major transformation of its data and reporting landscape. With significant investment being made into Microsoft Fabric, data modernisation and automation, the business is looking for a Senior Data Engineer who can play a key role in shaping and delivering its next-ge... ",
+    "full_description": "Senior Data Engineer - Microsoft Fabric - London (Hybrid) - Up to 75,000 This is an exciting opportunity to join a well-established international organisation currently undergoing a major transformation of its data and reporting landscape. With significant investment being made into Microsoft Fabric, data modernisation and automation, the business is looking for a Senior Data Engineer who can play a key role in shaping and delivering its next-ge... ",
+    "url": "https://www.reed.co.uk/jobs/senior-data-engineer/57122135",
+    "posted_date": "14/07/2026",
+    "contract_type": "",
+    "expiration_date": "25/08/2026",
+    "source": "reed_api",
+    "scraped_at": "2026-08-15T20:11:36.067930",
+    "discovery_date": "2026-08-15T20:11:36.630079",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1494,9 +1494,9 @@
     "contract_type": "",
     "expiration_date": "18/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831523",
-    "discovery_date": "2026-08-15T08:16:00.389330",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067933",
+    "discovery_date": "2026-08-15T20:11:36.630080",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1514,9 +1514,9 @@
     "contract_type": "",
     "expiration_date": "17/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831525",
-    "discovery_date": "2026-08-15T08:16:00.389330",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067936",
+    "discovery_date": "2026-08-15T20:11:36.630081",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1534,9 +1534,9 @@
     "contract_type": "",
     "expiration_date": "25/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831528",
-    "discovery_date": "2026-08-15T08:16:00.389331",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067939",
+    "discovery_date": "2026-08-15T20:11:36.630082",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1554,9 +1554,9 @@
     "contract_type": "",
     "expiration_date": "20/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831530",
-    "discovery_date": "2026-08-15T08:16:00.389332",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067942",
+    "discovery_date": "2026-08-15T20:11:36.630083",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1574,9 +1574,9 @@
     "contract_type": "",
     "expiration_date": "15/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831532",
-    "discovery_date": "2026-08-15T08:16:00.389333",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067944",
+    "discovery_date": "2026-08-15T20:11:36.630084",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1594,9 +1594,9 @@
     "contract_type": "",
     "expiration_date": "28/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831536",
-    "discovery_date": "2026-08-15T08:16:00.389333",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067947",
+    "discovery_date": "2026-08-15T20:11:36.630084",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1614,29 +1614,9 @@
     "contract_type": "",
     "expiration_date": "24/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831538",
-    "discovery_date": "2026-08-15T08:16:00.389334",
-    "discovery_run_id": "job-search-20260815-081512",
-    "platform": "reed"
-  },
-  {
-    "id": "56756262",
-    "title": "Senior Connectivity Researcher",
-    "company": "Centre People Appointments",
-    "location": "West London",
-    "salary": "\u00a350,000.0 - \u00a350,000.0",
-    "salary_min": 50000.0,
-    "salary_max": 50000.0,
-    "description_snippet": "- Hybrid / Global R&amp;D Environment / Digital Innovation - A Japanese manufacturer is currently recruiting a Next-Generation Connectivity R&amp;D Engineer to join its Digital Innovation Research team in West London. The role will focus on applied research and technology development in software-defined connectivity, AI, and digital services, helping transform emerging technologies into globally deployable solutions for future mobility and Softw... ",
-    "full_description": "- Hybrid / Global R&amp;D Environment / Digital Innovation - A Japanese manufacturer is currently recruiting a Next-Generation Connectivity R&amp;D Engineer to join its Digital Innovation Research team in West London. The role will focus on applied research and technology development in software-defined connectivity, AI, and digital services, helping transform emerging technologies into globally deployable solutions for future mobility and Softw... ",
-    "url": "https://www.reed.co.uk/jobs/senior-connectivity-researcher/56756262",
-    "posted_date": "08/04/2026",
-    "contract_type": "",
-    "expiration_date": "05/11/2026",
-    "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831542",
-    "discovery_date": "2026-08-15T08:16:00.389335",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067950",
+    "discovery_date": "2026-08-15T20:11:36.630085",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1654,9 +1634,29 @@
     "contract_type": "",
     "expiration_date": "18/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831545",
-    "discovery_date": "2026-08-15T08:16:00.389336",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067955",
+    "discovery_date": "2026-08-15T20:11:36.630086",
+    "discovery_run_id": "job-search-20260815-201111",
+    "platform": "reed"
+  },
+  {
+    "id": "56756262",
+    "title": "Senior Connectivity Researcher",
+    "company": "Centre People Appointments",
+    "location": "West London",
+    "salary": "\u00a350,000.0 - \u00a350,000.0",
+    "salary_min": 50000.0,
+    "salary_max": 50000.0,
+    "description_snippet": "- Hybrid / Global R&amp;D Environment / Digital Innovation - A Japanese manufacturer is currently recruiting a Next-Generation Connectivity R&amp;D Engineer to join its Digital Innovation Research team in West London. The role will focus on applied research and technology development in software-defined connectivity, AI, and digital services, helping transform emerging technologies into globally deployable solutions for future mobility and Softw... ",
+    "full_description": "- Hybrid / Global R&amp;D Environment / Digital Innovation - A Japanese manufacturer is currently recruiting a Next-Generation Connectivity R&amp;D Engineer to join its Digital Innovation Research team in West London. The role will focus on applied research and technology development in software-defined connectivity, AI, and digital services, helping transform emerging technologies into globally deployable solutions for future mobility and Softw... ",
+    "url": "https://www.reed.co.uk/jobs/senior-connectivity-researcher/56756262",
+    "posted_date": "08/04/2026",
+    "contract_type": "",
+    "expiration_date": "05/11/2026",
+    "source": "reed_api",
+    "scraped_at": "2026-08-15T20:11:36.067958",
+    "discovery_date": "2026-08-15T20:11:36.630087",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1674,9 +1674,9 @@
     "contract_type": "",
     "expiration_date": "22/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831547",
-    "discovery_date": "2026-08-15T08:16:00.389338",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067961",
+    "discovery_date": "2026-08-15T20:11:36.630090",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1694,49 +1694,9 @@
     "contract_type": "",
     "expiration_date": "09/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831549",
-    "discovery_date": "2026-08-15T08:16:00.389339",
-    "discovery_run_id": "job-search-20260815-081512",
-    "platform": "reed"
-  },
-  {
-    "id": "57144484",
-    "title": "Senior Product Manager",
-    "company": "hireful.",
-    "location": "Central London",
-    "salary": "\u00a3120,000.0 - \u00a3140,000.0",
-    "salary_min": 120000.0,
-    "salary_max": 140000.0,
-    "description_snippet": "Rarely available opportunity to join a market-leading software product company, trusted by the vast majority of Tier 1 capital markets firms to keep low-latency trading, core banking, payments and market data infrastructure across the world running smoothly. They're looking for a Senior Product Manager&nbsp; to own two of their most strategically important workstreams: financial services trading resilience and market data observability. An excep... ",
-    "full_description": "Rarely available opportunity to join a market-leading software product company, trusted by the vast majority of Tier 1 capital markets firms to keep low-latency trading, core banking, payments and market data infrastructure across the world running smoothly. They're looking for a Senior Product Manager&nbsp; to own two of their most strategically important workstreams: financial services trading resilience and market data observability. An excep... ",
-    "url": "https://www.reed.co.uk/jobs/senior-product-manager/57144484",
-    "posted_date": "21/07/2026",
-    "contract_type": "",
-    "expiration_date": "01/09/2026",
-    "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831551",
-    "discovery_date": "2026-08-15T08:16:00.389340",
-    "discovery_run_id": "job-search-20260815-081512",
-    "platform": "reed"
-  },
-  {
-    "id": "57148303",
-    "title": "Fully Remote Senior AV Field Engineer",
-    "company": "Clarify Consultancy Ltd",
-    "location": "London",
-    "salary": "\u00a335,000.0 - \u00a345,000.0",
-    "salary_min": 35000.0,
-    "salary_max": 45000.0,
-    "description_snippet": "Our client a leading provider of Audio Visual, Unified Communications, and collaboration technology solutions, supporting clients across corporate, education, public sector, and commercial environments. Due to continued growth, are seeking a skilled and customer-focused AV Field Engineer to join their technical delivery team. This role is ideal for someone who thrives in varied environments, enjoys problem-solving on-site, and takes pride in del... ",
-    "full_description": "Our client a leading provider of Audio Visual, Unified Communications, and collaboration technology solutions, supporting clients across corporate, education, public sector, and commercial environments. Due to continued growth, are seeking a skilled and customer-focused AV Field Engineer to join their technical delivery team. This role is ideal for someone who thrives in varied environments, enjoys problem-solving on-site, and takes pride in del... ",
-    "url": "https://www.reed.co.uk/jobs/fully-remote-senior-av-field-engineer/57148303",
-    "posted_date": "22/07/2026",
-    "contract_type": "",
-    "expiration_date": "02/09/2026",
-    "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831554",
-    "discovery_date": "2026-08-15T08:16:00.389340",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067964",
+    "discovery_date": "2026-08-15T20:11:36.630091",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1754,9 +1714,49 @@
     "contract_type": "",
     "expiration_date": "24/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831556",
-    "discovery_date": "2026-08-15T08:16:00.389341",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067967",
+    "discovery_date": "2026-08-15T20:11:36.630092",
+    "discovery_run_id": "job-search-20260815-201111",
+    "platform": "reed"
+  },
+  {
+    "id": "57148303",
+    "title": "Fully Remote Senior AV Field Engineer",
+    "company": "Clarify Consultancy Ltd",
+    "location": "London",
+    "salary": "\u00a335,000.0 - \u00a345,000.0",
+    "salary_min": 35000.0,
+    "salary_max": 45000.0,
+    "description_snippet": "Our client a leading provider of Audio Visual, Unified Communications, and collaboration technology solutions, supporting clients across corporate, education, public sector, and commercial environments. Due to continued growth, are seeking a skilled and customer-focused AV Field Engineer to join their technical delivery team. This role is ideal for someone who thrives in varied environments, enjoys problem-solving on-site, and takes pride in del... ",
+    "full_description": "Our client a leading provider of Audio Visual, Unified Communications, and collaboration technology solutions, supporting clients across corporate, education, public sector, and commercial environments. Due to continued growth, are seeking a skilled and customer-focused AV Field Engineer to join their technical delivery team. This role is ideal for someone who thrives in varied environments, enjoys problem-solving on-site, and takes pride in del... ",
+    "url": "https://www.reed.co.uk/jobs/fully-remote-senior-av-field-engineer/57148303",
+    "posted_date": "22/07/2026",
+    "contract_type": "",
+    "expiration_date": "02/09/2026",
+    "source": "reed_api",
+    "scraped_at": "2026-08-15T20:11:36.067970",
+    "discovery_date": "2026-08-15T20:11:36.630093",
+    "discovery_run_id": "job-search-20260815-201111",
+    "platform": "reed"
+  },
+  {
+    "id": "57144484",
+    "title": "Senior Product Manager",
+    "company": "hireful.",
+    "location": "Central London",
+    "salary": "\u00a3120,000.0 - \u00a3140,000.0",
+    "salary_min": 120000.0,
+    "salary_max": 140000.0,
+    "description_snippet": "Rarely available opportunity to join a market-leading software product company, trusted by the vast majority of Tier 1 capital markets firms to keep low-latency trading, core banking, payments and market data infrastructure across the world running smoothly. They're looking for a Senior Product Manager&nbsp; to own two of their most strategically important workstreams: financial services trading resilience and market data observability. An excep... ",
+    "full_description": "Rarely available opportunity to join a market-leading software product company, trusted by the vast majority of Tier 1 capital markets firms to keep low-latency trading, core banking, payments and market data infrastructure across the world running smoothly. They're looking for a Senior Product Manager&nbsp; to own two of their most strategically important workstreams: financial services trading resilience and market data observability. An excep... ",
+    "url": "https://www.reed.co.uk/jobs/senior-product-manager/57144484",
+    "posted_date": "21/07/2026",
+    "contract_type": "",
+    "expiration_date": "01/09/2026",
+    "source": "reed_api",
+    "scraped_at": "2026-08-15T20:11:36.067973",
+    "discovery_date": "2026-08-15T20:11:36.630094",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1774,9 +1774,9 @@
     "contract_type": "",
     "expiration_date": "03/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831558",
-    "discovery_date": "2026-08-15T08:16:00.389342",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067976",
+    "discovery_date": "2026-08-15T20:11:36.630095",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1794,9 +1794,9 @@
     "contract_type": "",
     "expiration_date": "10/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831561",
-    "discovery_date": "2026-08-15T08:16:00.389343",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067979",
+    "discovery_date": "2026-08-15T20:11:36.630096",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1814,29 +1814,9 @@
     "contract_type": "",
     "expiration_date": "10/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831563",
-    "discovery_date": "2026-08-15T08:16:00.389343",
-    "discovery_run_id": "job-search-20260815-081512",
-    "platform": "reed"
-  },
-  {
-    "id": "57195593",
-    "title": "Senior Test Automation Engineer - CREST Settlement Systems",
-    "company": "Salt Search",
-    "location": "London",
-    "salary": "",
-    "salary_min": null,
-    "salary_max": null,
-    "description_snippet": "Senior Test Automation Engineer - CREST Settlement Systems Location: Hybrid (8 days onsite per month) Contract: 12 Months Engagement: Inside IR35 Industry: Financial Services / Capital Markets About the Role We are seeking an experienced Senior Test Automation Engineer with strong experience across CREST settlement systems, test automation, and financial markets to join a leading financial services organisation. Working within Agile delivery tea... ",
-    "full_description": "Senior Test Automation Engineer - CREST Settlement Systems Location: Hybrid (8 days onsite per month) Contract: 12 Months Engagement: Inside IR35 Industry: Financial Services / Capital Markets About the Role We are seeking an experienced Senior Test Automation Engineer with strong experience across CREST settlement systems, test automation, and financial markets to join a leading financial services organisation. Working within Agile delivery tea... ",
-    "url": "https://www.reed.co.uk/jobs/senior-test-automation-engineer-crest-settlement-systems/57195593",
-    "posted_date": "04/08/2026",
-    "contract_type": "",
-    "expiration_date": "15/09/2026",
-    "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831565",
-    "discovery_date": "2026-08-15T08:16:00.389344",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067982",
+    "discovery_date": "2026-08-15T20:11:36.630096",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1854,9 +1834,29 @@
     "contract_type": "",
     "expiration_date": "01/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831567",
-    "discovery_date": "2026-08-15T08:16:00.389345",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067985",
+    "discovery_date": "2026-08-15T20:11:36.630097",
+    "discovery_run_id": "job-search-20260815-201111",
+    "platform": "reed"
+  },
+  {
+    "id": "57195593",
+    "title": "Senior Test Automation Engineer - CREST Settlement Systems",
+    "company": "Salt Search",
+    "location": "London",
+    "salary": "",
+    "salary_min": null,
+    "salary_max": null,
+    "description_snippet": "Senior Test Automation Engineer - CREST Settlement Systems Location: Hybrid (8 days onsite per month) Contract: 12 Months Engagement: Inside IR35 Industry: Financial Services / Capital Markets About the Role We are seeking an experienced Senior Test Automation Engineer with strong experience across CREST settlement systems, test automation, and financial markets to join a leading financial services organisation. Working within Agile delivery tea... ",
+    "full_description": "Senior Test Automation Engineer - CREST Settlement Systems Location: Hybrid (8 days onsite per month) Contract: 12 Months Engagement: Inside IR35 Industry: Financial Services / Capital Markets About the Role We are seeking an experienced Senior Test Automation Engineer with strong experience across CREST settlement systems, test automation, and financial markets to join a leading financial services organisation. Working within Agile delivery tea... ",
+    "url": "https://www.reed.co.uk/jobs/senior-test-automation-engineer-crest-settlement-systems/57195593",
+    "posted_date": "04/08/2026",
+    "contract_type": "",
+    "expiration_date": "15/09/2026",
+    "source": "reed_api",
+    "scraped_at": "2026-08-15T20:11:36.067987",
+    "discovery_date": "2026-08-15T20:11:36.630098",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1874,9 +1874,9 @@
     "contract_type": "",
     "expiration_date": "22/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831569",
-    "discovery_date": "2026-08-15T08:16:00.389345",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067990",
+    "discovery_date": "2026-08-15T20:11:36.630099",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1894,9 +1894,9 @@
     "contract_type": "",
     "expiration_date": "27/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831572",
-    "discovery_date": "2026-08-15T08:16:00.389346",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067993",
+    "discovery_date": "2026-08-15T20:11:36.630100",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1914,29 +1914,9 @@
     "contract_type": "",
     "expiration_date": "20/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831574",
-    "discovery_date": "2026-08-15T08:16:00.389347",
-    "discovery_run_id": "job-search-20260815-081512",
-    "platform": "reed"
-  },
-  {
-    "id": "57193040",
-    "title": "Applied AI Engineer",
-    "company": "Tenth Revolution Group",
-    "location": "London",
-    "salary": "\u00a3150,000.0 - \u00a3190,000.0",
-    "salary_min": 150000.0,
-    "salary_max": 190000.0,
-    "description_snippet": "Applied AI Engineer - London - Up to 190,000 - Permanent A rare opportunity has risen for a Senior Applied AI Engineer to join a dedicated team at the heart of a leading global financial organisation's AI function. As a Senior Full Stack Applied AI Engineer, you will be responsible for designing, building and deploying innovative AI-powered applications across the full technology stack. You'll combine hands-on software engineering expertise with... ",
-    "full_description": "Applied AI Engineer - London - Up to 190,000 - Permanent A rare opportunity has risen for a Senior Applied AI Engineer to join a dedicated team at the heart of a leading global financial organisation's AI function. As a Senior Full Stack Applied AI Engineer, you will be responsible for designing, building and deploying innovative AI-powered applications across the full technology stack. You'll combine hands-on software engineering expertise with... ",
-    "url": "https://www.reed.co.uk/jobs/applied-ai-engineer/57193040",
-    "posted_date": "04/08/2026",
-    "contract_type": "",
-    "expiration_date": "15/09/2026",
-    "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831576",
-    "discovery_date": "2026-08-15T08:16:00.389348",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067996",
+    "discovery_date": "2026-08-15T20:11:36.630101",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1954,9 +1934,9 @@
     "contract_type": "",
     "expiration_date": "31/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831578",
-    "discovery_date": "2026-08-15T08:16:00.389348",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.067999",
+    "discovery_date": "2026-08-15T20:11:36.630102",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1974,9 +1954,29 @@
     "contract_type": "",
     "expiration_date": "24/08/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831580",
-    "discovery_date": "2026-08-15T08:16:00.389349",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.068001",
+    "discovery_date": "2026-08-15T20:11:36.630103",
+    "discovery_run_id": "job-search-20260815-201111",
+    "platform": "reed"
+  },
+  {
+    "id": "57193040",
+    "title": "Applied AI Engineer",
+    "company": "Tenth Revolution Group",
+    "location": "London",
+    "salary": "\u00a3150,000.0 - \u00a3190,000.0",
+    "salary_min": 150000.0,
+    "salary_max": 190000.0,
+    "description_snippet": "Applied AI Engineer - London - Up to 190,000 - Permanent A rare opportunity has risen for a Senior Applied AI Engineer to join a dedicated team at the heart of a leading global financial organisation's AI function. As a Senior Full Stack Applied AI Engineer, you will be responsible for designing, building and deploying innovative AI-powered applications across the full technology stack. You'll combine hands-on software engineering expertise with... ",
+    "full_description": "Applied AI Engineer - London - Up to 190,000 - Permanent A rare opportunity has risen for a Senior Applied AI Engineer to join a dedicated team at the heart of a leading global financial organisation's AI function. As a Senior Full Stack Applied AI Engineer, you will be responsible for designing, building and deploying innovative AI-powered applications across the full technology stack. You'll combine hands-on software engineering expertise with... ",
+    "url": "https://www.reed.co.uk/jobs/applied-ai-engineer/57193040",
+    "posted_date": "04/08/2026",
+    "contract_type": "",
+    "expiration_date": "15/09/2026",
+    "source": "reed_api",
+    "scraped_at": "2026-08-15T20:11:36.068005",
+    "discovery_date": "2026-08-15T20:11:36.630104",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   },
   {
@@ -1994,9 +1994,9 @@
     "contract_type": "",
     "expiration_date": "24/09/2026",
     "source": "reed_api",
-    "scraped_at": "2026-08-15T08:15:59.831582",
-    "discovery_date": "2026-08-15T08:16:00.389350",
-    "discovery_run_id": "job-search-20260815-081512",
+    "scraped_at": "2026-08-15T20:11:36.068008",
+    "discovery_date": "2026-08-15T20:11:36.630105",
+    "discovery_run_id": "job-search-20260815-201111",
     "platform": "reed"
   }
 ]
