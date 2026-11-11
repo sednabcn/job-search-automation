@@ -1,0 +1,53 @@
+{
+  "start_time": "2026-11-11T13:57:59.766749",
+  "campaigns": [
+    {
+      "name": "data_science",
+      "platforms": [
+        {
+          "platform": "linkedin",
+          "applications": 3,
+          "successful": 3,
+          "failed": 0
+        },
+        {
+          "platform": "glassdoor",
+          "applications": 0,
+          "successful": 0,
+          "failed": 0
+        }
+      ],
+      "applications": 3,
+      "successful": 3,
+      "failed": 0,
+      "errors": []
+    },
+    {
+      "name": "test-run",
+      "platforms": [
+        {
+          "platform": "linkedin",
+          "applications": 3,
+          "successful": 3,
+          "failed": 0
+        },
+        {
+          "platform": "indeed",
+          "applications": 0,
+          "successful": 0,
+          "failed": 0
+        }
+      ],
+      "applications": 3,
+      "successful": 3,
+      "failed": 0,
+      "errors": []
+    }
+  ],
+  "total_applications": 6,
+  "successful": 6,
+  "failed": 0,
+  "platforms": {},
+  "end_time": "2026-11-11T13:58:00.664355",
+  "dry_run": false
+}
