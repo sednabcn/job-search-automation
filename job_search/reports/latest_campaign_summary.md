@@ -1,7 +1,7 @@
 # Multi-Platform Job Application Report
 
 ## Execution Summary
-**Date:** 2026-11-20 00:32 UTC  
+**Date:** 2026-11-20 15:15 UTC  
 **Total Applications:** 6  
 **Successful:** 6  
 **Failed:** 0  
@@ -17,18 +17,7 @@
 
 ## Campaign Details
 
-### 1. data_science
-
-- **Applications:** 3
-- **Successful:** 3
-- **Failed:** 0
-
-**Platform Results:**
-
-- linkedin: 3/3 successful
-- glassdoor: 0/0 successful
-
-### 2. test-run
+### 1. test-run
 
 - **Applications:** 3
 - **Successful:** 3
@@ -39,12 +28,23 @@
 - linkedin: 3/3 successful
 - indeed: 0/0 successful
 
+### 2. data_science
+
+- **Applications:** 3
+- **Successful:** 3
+- **Failed:** 0
+
+**Platform Results:**
+
+- linkedin: 3/3 successful
+- glassdoor: 0/0 successful
+
 
 ## Historical Context
 
 - **Total Applications to Date:** 1
-- **LinkedIn Network Targets:** 9105
-- **Last Execution:** 2026-11-20T00:31:41.106579
+- **LinkedIn Network Targets:** 9111
+- **Last Execution:** 2026-11-20T15:15:25.521883
 
 ## Next Steps
 
